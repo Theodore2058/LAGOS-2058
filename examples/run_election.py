@@ -303,7 +303,7 @@ def main():
     for p_name, spread in results["spread_checks"].items():
         status = "PASS" if spread["meets_requirement"] else "FAIL"
         print(f"  {p_name:10s} [{status}] national={spread['national_share']:.1%}  "
-              f"states≥25%: {spread['states_meeting_25pct']}/36")
+              f"states>=25%: {spread['states_meeting_25pct']}/36")
 
     print("\nZonal Shares (base run):")
     zonal = summary["zonal_shares"]
