@@ -25,10 +25,11 @@ from .religious_affinity import ReligiousAffinityMatrix, DEFAULT_RELIGIOUS_MATRI
 from .voter_types import (
     VoterType, generate_all_voter_types, compute_type_weights,
     demographics_to_ideal_point,
-    build_voter_ideal_base, compute_lga_ideal_offset, precompute_compat_factors,
+    build_voter_ideal_base, compute_lga_ideal_offset,
+    compute_all_lga_ideal_offsets, precompute_compat_factors,
     _build_type_indices, EDUCATIONS, AGE_COHORTS, SETTINGS,
 )
-from .salience import compute_salience, SalienceRule, DEFAULT_SALIENCE_RULES
+from .salience import SalienceRule, DEFAULT_SALIENCE_RULES
 from .utility import (
     compute_utility, compute_utilities_batch,
     precompute_ethnic_utility_table, precompute_religious_utility_table,
@@ -255,6 +256,7 @@ def compute_all_lga_results(
     religious_matrix: ReligiousAffinityMatrix | None = None,
     salience_rules: list[SalienceRule] | None = None,
     ideal_point_coeff_table: list[dict] | None = None,
+    precomputed_salience: np.ndarray | None = None,
 ) -> pd.DataFrame:
     """
     Compute vote shares for all 774 LGAs (deterministic, no noise).
@@ -267,6 +269,10 @@ def compute_all_lga_results(
     ethnic_matrix, religious_matrix : optional overrides
     salience_rules : optional salience rule override
     ideal_point_coeff_table : optional coefficient table override
+    precomputed_salience : np.ndarray, optional
+        (N_lga, 28) pre-computed salience weights. If provided, skips
+        salience computation (avoids duplicate work when called from
+        election.py which already computed salience).
 
     Returns
     -------
@@ -302,22 +308,24 @@ def compute_all_lga_results(
     valences = np.array([p.valence for p in parties])  # (J,)
     has_demo_coeffs = any(p.demographic_coefficients for p in parties)
 
-    # Precompute salience for all LGAs
-    national_median_gdp = float(lga_data["GDP Per Capita Est"].median())
-    salience_matrix = np.zeros((len(lga_data), 28))
-    for idx in range(len(lga_data)):
-        row = lga_data.iloc[idx]
-        salience_matrix[idx] = compute_salience(
-            row, rules=salience_rules, national_median_gdp=national_median_gdp
+    # Use pre-computed salience if provided; otherwise compute here
+    if precomputed_salience is not None:
+        salience_matrix = precomputed_salience
+    else:
+        from .salience import compute_all_lga_salience
+        national_median_gdp = float(lga_data["GDP Per Capita Est"].median())
+        salience_matrix = compute_all_lga_salience(
+            lga_data, rules=salience_rules, national_median_gdp=national_median_gdp
         )
+
+    # Precompute all LGA ideal offsets (vectorised over LGAs)
+    all_lga_offsets = compute_all_lga_ideal_offsets(lga_data, ideal_point_coeff_table)
 
     rows = []
     for idx in range(len(lga_data)):
         lga_row = lga_data.iloc[idx]
         salience_w = salience_matrix[idx]
-
-        # Compute LGA ideal offset; active-type ideals computed lazily inside
-        lga_ideal_offset = compute_lga_ideal_offset(lga_row, ideal_point_coeff_table)
+        lga_ideal_offset = all_lga_offsets[idx]
 
         vote_shares, turnout, n_active = compute_lga_results(
             lga_row=lga_row,

@@ -863,3 +863,41 @@ def compute_lga_ideal_offset(
             if feat.startswith("lga_"):
                 offset[d] += coeff * float(lga_row.get(feat[4:], 0.0))
     return offset
+
+
+def compute_all_lga_ideal_offsets(
+    lga_data: pd.DataFrame,
+    coeff_table: list[dict] | None = None,
+) -> np.ndarray:
+    """
+    Compute LGA ideal point offsets for all LGAs at once.
+
+    Returns (N_lga, N_ISSUES) array. Each row is the lga_* feature
+    contribution to ideal points for that LGA. Vectorised over LGAs
+    by extracting columns as numpy arrays and doing matrix multiplication.
+    """
+    if coeff_table is None:
+        coeff_table = _IDEAL_POINT_COEFFICIENTS
+    D = len(coeff_table)
+    N = len(lga_data)
+
+    # Collect all unique lga_* features and their (issue_index, coefficient) pairs
+    lga_features: dict[str, list[tuple[int, float]]] = {}
+    for d, coeffs in enumerate(coeff_table):
+        for feat, coeff in coeffs.items():
+            if feat.startswith("lga_"):
+                col_name = feat[4:]
+                if col_name not in lga_features:
+                    lga_features[col_name] = []
+                lga_features[col_name].append((d, coeff))
+
+    offsets = np.zeros((N, D))
+    for col_name, pairs in lga_features.items():
+        if col_name in lga_data.columns:
+            col_vals = lga_data[col_name].fillna(0.0).values.astype(float)  # (N,)
+        else:
+            continue
+        for d, coeff in pairs:
+            offsets[:, d] += coeff * col_vals
+
+    return offsets

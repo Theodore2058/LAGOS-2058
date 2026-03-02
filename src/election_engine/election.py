@@ -113,6 +113,7 @@ def run_election(
         religious_matrix=religious_matrix,
         salience_rules=salience_rules,
         ideal_point_coeff_table=ideal_point_coeff_table,
+        precomputed_salience=salience_matrix,
     )
 
     if verbose:

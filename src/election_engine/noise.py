@@ -2,9 +2,13 @@
 Hierarchical noise model for the LAGOS-2058 election engine.
 
 Vote share noise — three-tier stochastic model:
-  1. National shock  — one draw per party from N(0, σ_nat²)
-  2. Regional shock  — one draw per party per Administrative Zone from N(0, σ_reg²)
+  1. National shock  — one draw per party from N(0, σ_nat²), centered to zero-sum
+  2. Regional shock  — one draw per party per Administrative Zone from N(0, σ_reg²), centered
   3. LGA shock       — Dirichlet noise using concentration parameter κ
+
+National and regional shocks are centered (sum to 0 across parties) so that
+one party's gain comes at others' expense on the log-simplex, preventing
+correlated mass inflation/deflation of all shares simultaneously.
 
 Shocks are applied on the log-scale (simplex proxy), then converted back via softmax:
     log_j = log(share_j)          (not true logit — omits the (1-share_j) denominator,
@@ -62,10 +66,14 @@ def draw_shocks(
             Maps zone_id → shock vector of shape (J,).
     """
     national_shocks = rng.normal(0.0, params.sigma_national, size=n_parties)
+    # Zero-sum: one party's gain is another's loss (on log scale)
+    national_shocks -= national_shocks.mean()
 
     regional_shocks: dict[int, np.ndarray] = {}
     for zone in admin_zones:
-        regional_shocks[zone] = rng.normal(0.0, params.sigma_regional, size=n_parties)
+        z = rng.normal(0.0, params.sigma_regional, size=n_parties)
+        z -= z.mean()
+        regional_shocks[zone] = z
 
     return national_shocks, regional_shocks
 
@@ -257,12 +265,15 @@ def apply_noise_arrays(
     """
     N_lga, J = base_shares.shape
 
-    # Draw shocks
+    # Draw shocks (zero-sum: one party's gain is another's loss on log scale)
     national_shocks = rng.normal(0.0, params.sigma_national, size=J)
+    national_shocks -= national_shocks.mean()
     reg_shock_array = np.zeros((N_lga, J))
     for zone in admin_zones:
+        z = rng.normal(0.0, params.sigma_regional, size=J)
+        z -= z.mean()
         mask = zone_ids == zone
-        reg_shock_array[mask] = rng.normal(0.0, params.sigma_regional, size=J)
+        reg_shock_array[mask] = z
 
     # Vectorised: log → shock → softmax → alpha
     safe_shares = np.maximum(base_shares, _LOG_EPSILON)
