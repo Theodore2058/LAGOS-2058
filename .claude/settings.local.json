@@ -6,7 +6,8 @@
       "Bash(python3 -m pip install pytest --quiet)",
       "Bash(python3 -m pytest tests/test_softmax.py -v)",
       "Bash(python3 -m pytest tests/test_spatial.py -v)",
-      "Bash(python3 -m pytest tests/test_affinity.py -v)"
+      "Bash(python3 -m pytest tests/test_affinity.py -v)",
+      "Bash(python3 -m pytest tests/test_turnout.py -v)"
     ]
   }
 }
