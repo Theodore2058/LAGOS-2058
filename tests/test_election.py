@@ -13,6 +13,9 @@ from election_engine.results import (
     aggregate_monte_carlo,
     compute_summary_stats,
     compute_vote_counts,
+    compute_state_vote_counts,
+    effective_number_of_parties,
+    compute_competitiveness,
 )
 
 
@@ -377,6 +380,192 @@ def test_mc_national_share_stats():
     assert "Mean Share" in ns.columns
     assert "P5 Share" in ns.columns
     assert "P95 Share" in ns.columns
+
+
+# ---- State Vote Count Tests ----
+
+def test_state_vote_counts_basic():
+    """State vote counts should sum correctly across LGAs."""
+    parties = ["A", "B"]
+    df = pd.DataFrame([
+        {"State": "S1", "LGA Name": "L1", "Estimated Population": 100000,
+         "Turnout": 0.70, "A_share": 0.60, "B_share": 0.40},
+        {"State": "S1", "LGA Name": "L2", "Estimated Population": 50000,
+         "Turnout": 0.80, "A_share": 0.30, "B_share": 0.70},
+        {"State": "S2", "LGA Name": "L3", "Estimated Population": 200000,
+         "Turnout": 0.50, "A_share": 0.55, "B_share": 0.45},
+    ])
+    result = compute_state_vote_counts(df, parties)
+    assert len(result) == 2  # 2 states
+
+    s1 = result[result["State"] == "S1"].iloc[0]
+    # S1: L1 has 70000 voters, L2 has 40000 → total 110000
+    assert s1["Total_Votes"] == 110000
+    # A votes: 100000*0.7*0.6 + 50000*0.8*0.3 = 42000 + 12000 = 54000
+    assert s1["A_votes"] == 54000
+    # B votes: 100000*0.7*0.4 + 50000*0.8*0.7 = 28000 + 28000 = 56000
+    assert s1["B_votes"] == 56000
+
+    s2 = result[result["State"] == "S2"].iloc[0]
+    assert s2["Total_Votes"] == 100000  # 200000 * 0.50
+
+
+def test_state_vote_counts_has_shares():
+    """State vote counts should include share columns."""
+    df, parties = _make_simple_results()
+    df["Estimated Population"] = 50000
+    result = compute_state_vote_counts(df, parties)
+    for p in parties:
+        assert f"{p}_votes" in result.columns
+        assert f"{p}_share" in result.columns
+    assert "Total_Votes" in result.columns
+
+
+# ---- ENP Tests ----
+
+def test_enp_equal_shares():
+    """ENP with N equal parties should be N."""
+    for n in [2, 3, 5, 10]:
+        shares = np.ones(n) / n
+        assert effective_number_of_parties(shares) == pytest.approx(float(n), abs=1e-10)
+
+
+def test_enp_dominant_party():
+    """ENP with one dominant party should be close to 1."""
+    shares = np.array([0.95, 0.03, 0.02])
+    enp = effective_number_of_parties(shares)
+    assert enp < 1.2
+
+
+def test_enp_two_party():
+    """ENP for a 60-40 split should be between 1 and 2."""
+    shares = np.array([0.60, 0.40])
+    enp = effective_number_of_parties(shares)
+    assert 1.5 < enp < 2.1
+
+
+def test_enp_with_zeros():
+    """ENP should handle zero-share parties gracefully."""
+    shares = np.array([0.5, 0.3, 0.2, 0.0, 0.0])
+    enp = effective_number_of_parties(shares)
+    assert enp > 0
+    # Same as without zeros
+    enp_no_zeros = effective_number_of_parties(np.array([0.5, 0.3, 0.2]))
+    assert enp == pytest.approx(enp_no_zeros, abs=1e-10)
+
+
+def test_enp_in_summary():
+    """Summary stats should include ENP."""
+    df, parties = _make_simple_results()
+    df["Estimated Population"] = 50000
+    summary = compute_summary_stats(df, parties)
+    assert "enp" in summary
+    assert summary["enp"] > 0
+
+
+# ---- Competitiveness Tests ----
+
+def test_competitiveness_columns():
+    """compute_competitiveness should add Margin, HHI, ENP columns."""
+    df, parties = _make_simple_results()
+    result = compute_competitiveness(df, parties)
+    assert "Margin" in result.columns
+    assert "HHI" in result.columns
+    assert "ENP" in result.columns
+
+
+def test_competitiveness_margin_range():
+    """Margin should be in [0, 1]."""
+    df, parties = _make_simple_results()
+    result = compute_competitiveness(df, parties)
+    assert (result["Margin"] >= 0).all()
+    assert (result["Margin"] <= 1.0).all()
+
+
+def test_competitiveness_hhi_range():
+    """HHI should be in [1/J, 1] for J parties."""
+    df, parties = _make_simple_results()
+    result = compute_competitiveness(df, parties)
+    J = len(parties)
+    assert (result["HHI"] >= 1.0 / J - 1e-6).all()
+    assert (result["HHI"] <= 1.0 + 1e-6).all()
+
+
+def test_competitiveness_dominant_party():
+    """LGA with one dominant party should have high margin and HHI."""
+    parties = ["A", "B", "C"]
+    df = pd.DataFrame([{
+        "State": "S1", "LGA Name": "L1",
+        "A_share": 0.90, "B_share": 0.05, "C_share": 0.05,
+    }])
+    result = compute_competitiveness(df, parties)
+    assert result["Margin"].iloc[0] == pytest.approx(0.85, abs=0.01)
+    assert result["HHI"].iloc[0] > 0.8
+
+
+# ---- Party Count Edge Case Tests ----
+
+def test_two_party_system():
+    """Simulation pipeline works with just 2 parties."""
+    from election_engine.config import EngineParams, ElectionConfig, Party, N_ISSUES
+    from election_engine.poststratification import compute_all_lga_results
+
+    p_a = Party(name="A", positions=np.full(N_ISSUES, -2.0), valence=0.1,
+                leader_ethnicity="Yoruba", religious_alignment="Secular")
+    p_b = Party(name="B", positions=np.full(N_ISSUES, 2.0), valence=0.0,
+                leader_ethnicity="Hausa-Fulani Undiff", religious_alignment="Mainstream Sunni")
+    params = EngineParams(tau_0=1.5, tau_1=0.3, tau_2=0.5, kappa=200.0,
+                          sigma_national=0.05, sigma_regional=0.10)
+    config = ElectionConfig(params=params, parties=[p_a, p_b])
+
+    toy_df = _make_toy_lga_df(n_lgas=10, seed=99)
+    base = compute_all_lga_results(lga_data=toy_df, election_config=config)
+
+    assert len(base) == 10
+    shares = base[["A_share", "B_share"]].values
+    np.testing.assert_allclose(shares.sum(axis=1), 1.0, atol=1e-6)
+    assert (shares >= 0).all()
+    assert base["Turnout"].between(0.0, 1.0).all()
+
+
+def test_many_party_system():
+    """Simulation pipeline works with 8 parties without crashing."""
+    from election_engine.config import EngineParams, ElectionConfig, Party, N_ISSUES
+    from election_engine.poststratification import compute_all_lga_results
+
+    rng = np.random.default_rng(123)
+    parties = []
+    ethnicities = ["Yoruba", "Igbo", "Hausa-Fulani Undiff", "Kanuri",
+                   "Ijaw", "Tiv", "Edo", "Nupe"]
+    religions = ["Secular", "Pentecostal", "Mainstream Sunni", "Al-Shahid",
+                 "Catholic", "Tijaniyya", "Mainline Protestant", "Traditionalist"]
+    for i in range(8):
+        positions = np.clip(rng.normal(0, 2, N_ISSUES), -5, 5)
+        parties.append(Party(
+            name=f"P{i}", positions=positions,
+            valence=rng.uniform(-0.1, 0.2),
+            leader_ethnicity=ethnicities[i],
+            religious_alignment=religions[i],
+        ))
+
+    params = EngineParams(tau_0=1.5, tau_1=0.3, tau_2=0.5, kappa=200.0,
+                          sigma_national=0.05, sigma_regional=0.10)
+    config = ElectionConfig(params=params, parties=parties)
+
+    toy_df = _make_toy_lga_df(n_lgas=10, seed=77)
+    base = compute_all_lga_results(lga_data=toy_df, election_config=config)
+
+    assert len(base) == 10
+    share_cols = [f"P{i}_share" for i in range(8)]
+    shares = base[share_cols].values
+    np.testing.assert_allclose(shares.sum(axis=1), 1.0, atol=1e-6)
+    assert (shares >= 0).all()
+    assert base["Turnout"].between(0.0, 1.0).all()
+
+    # ENP should reflect multi-party competition
+    for idx in range(len(base)):
+        enp = effective_number_of_parties(shares[idx])
+        assert enp >= 1.0, f"ENP must be >= 1, got {enp}"
 
 
 if __name__ == "__main__":

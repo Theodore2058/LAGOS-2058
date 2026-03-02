@@ -7,7 +7,12 @@ from .config import (
     Party,
     ElectionConfig,
 )
-from .results import compute_vote_counts
+from .results import (
+    compute_vote_counts,
+    compute_state_vote_counts,
+    effective_number_of_parties,
+    compute_competitiveness,
+)
 
 __all__ = [
     "ISSUE_NAMES",
@@ -16,4 +21,7 @@ __all__ = [
     "Party",
     "ElectionConfig",
     "compute_vote_counts",
+    "compute_state_vote_counts",
+    "effective_number_of_parties",
+    "compute_competitiveness",
 ]

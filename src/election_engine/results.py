@@ -165,6 +165,137 @@ def compute_state_shares(
     return state_shares
 
 
+def compute_state_vote_counts(
+    lga_results: pd.DataFrame,
+    party_names: list[str],
+    state_col: str = "State",
+    pop_col: str = "Estimated Population",
+    turnout_col: str = "Turnout",
+) -> pd.DataFrame:
+    """
+    Compute vote counts aggregated to state level.
+
+    Parameters
+    ----------
+    lga_results : pd.DataFrame
+        LGA-level results with {party}_share, population, and turnout columns.
+    party_names : list[str]
+        Party names in order.
+
+    Returns
+    -------
+    pd.DataFrame
+        One row per state with columns: State, Total_Votes,
+        {party}_votes, {party}_share (population-weighted).
+    """
+    df = lga_results.copy()
+    has_pop = pop_col in df.columns
+    has_turnout = turnout_col in df.columns
+
+    pop = df[pop_col].values.astype(float) if has_pop else np.ones(len(df))
+    turnout = df[turnout_col].values.astype(float) if has_turnout else np.ones(len(df))
+    total_voters = pop * turnout
+
+    # Build per-party vote arrays
+    for p in party_names:
+        df[f"_votes_{p}"] = total_voters * df[f"{p}_share"].values.astype(float)
+    df["_total_voters"] = total_voters
+
+    # Aggregate by state
+    agg_cols = {f"_votes_{p}": "sum" for p in party_names}
+    agg_cols["_total_voters"] = "sum"
+    if has_pop:
+        agg_cols[pop_col] = "sum"
+    state_agg = df.groupby(state_col).agg(agg_cols).reset_index()
+    state_agg = state_agg.rename(columns={state_col: "State"})
+
+    # Build output DataFrame
+    out = pd.DataFrame({"State": state_agg["State"]})
+    if has_pop:
+        out["Population"] = state_agg[pop_col].astype(int)
+    out["Total_Votes"] = np.round(state_agg["_total_voters"]).astype(int)
+
+    state_total = state_agg["_total_voters"].values
+    safe_total = np.where(state_total > 0, state_total, 1.0)
+
+    for p in party_names:
+        votes = state_agg[f"_votes_{p}"].values
+        out[f"{p}_votes"] = np.round(votes).astype(int)
+        out[f"{p}_share"] = votes / safe_total
+
+    return out
+
+
+def effective_number_of_parties(shares: np.ndarray) -> float:
+    """
+    Compute the Laakso-Taagepera effective number of parties (ENP).
+
+    ENP = 1 / Σ(s_j²) where s_j are vote shares summing to 1.
+    A system with 3 equal parties has ENP=3; a dominant-party system has ENP≈1.
+
+    Parameters
+    ----------
+    shares : np.ndarray, shape (J,)
+        Vote shares per party, summing to ~1.
+
+    Returns
+    -------
+    float
+        Effective number of parties.
+    """
+    shares = np.asarray(shares, dtype=float)
+    shares = shares[shares > 0]  # exclude zero-share parties
+    hhi = np.sum(shares ** 2)
+    if hhi < 1e-12:
+        return 0.0
+    return 1.0 / hhi
+
+
+def compute_competitiveness(
+    lga_results: pd.DataFrame,
+    party_names: list[str],
+) -> pd.DataFrame:
+    """
+    Add competitiveness metrics to LGA results.
+
+    Adds columns:
+        Margin        — share gap between 1st and 2nd place parties
+        HHI           — Herfindahl-Hirschman Index of vote shares (0–1)
+        ENP           — Effective Number of Parties (Laakso-Taagepera)
+
+    Parameters
+    ----------
+    lga_results : pd.DataFrame
+        LGA-level results with {party}_share columns.
+    party_names : list[str]
+
+    Returns
+    -------
+    pd.DataFrame
+        Copy with added competitiveness columns.
+    """
+    result = lga_results.copy()
+    share_cols = [f"{p}_share" for p in party_names]
+    shares = result[share_cols].values.astype(float)  # (N_lga, J)
+
+    # Margin: gap between 1st and 2nd place
+    sorted_shares = np.sort(shares, axis=1)[:, ::-1]  # descending
+    if shares.shape[1] >= 2:
+        result["Margin"] = sorted_shares[:, 0] - sorted_shares[:, 1]
+    else:
+        result["Margin"] = 1.0
+
+    # HHI: sum of squared shares
+    hhi = np.sum(shares ** 2, axis=1)
+    result["HHI"] = hhi
+
+    # ENP: 1 / HHI
+    safe_hhi = np.where(hhi > 1e-12, hhi, 1.0)
+    result["ENP"] = 1.0 / safe_hhi
+
+    return result
+
+
 def _pop_weighted_national(
     lga_results: pd.DataFrame,
     party_names: list[str],
@@ -494,6 +625,10 @@ def compute_summary_stats(
     else:
         turnout = 0.0
 
+    # Effective Number of Parties (national level)
+    national_share_arr = np.array([national[p] for p in party_names])
+    enp = effective_number_of_parties(national_share_arr)
+
     return {
         "national_shares": national,
         "national_votes": national_votes,
@@ -501,4 +636,5 @@ def compute_summary_stats(
         "zonal_shares": zonal,
         "seat_counts": seats,
         "national_turnout": turnout,
+        "enp": enp,
     }

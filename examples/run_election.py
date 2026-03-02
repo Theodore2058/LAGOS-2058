@@ -48,7 +48,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from election_engine.config import Party, EngineParams, ElectionConfig, N_ISSUES
 from election_engine.election import run_election
-from election_engine.results import compute_state_shares, compute_vote_counts
+from election_engine.results import (
+    compute_vote_counts, compute_state_vote_counts,
+    compute_competitiveness,
+)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -752,6 +755,7 @@ def main():
     # --- National vote counts and shares ---
     print(f"\nNational Turnout: {summary['national_turnout']:.1%}")
     print(f"Total Votes Cast: {summary['total_votes']:,}")
+    print(f"Effective Number of Parties (ENP): {summary['enp']:.2f}")
 
     print("\nNATIONAL RESULTS (base run):")
     print(f"  {'Party':10s}  {'Votes':>12s}  {'Share':>7s}")
@@ -802,11 +806,29 @@ def main():
     cols_to_show.extend(party_share_cols)
     print(zonal[cols_to_show].to_string(index=False))
 
-    # --- State shares ---
-    state_shares = compute_state_shares(results["lga_results_base"], party_names)
-    share_cols = [c for c in state_shares.columns if c.endswith("_share")]
-    print("\nSTATE SHARES (base run):")
-    print(state_shares[["State"] + share_cols].to_string(index=False))
+    # --- State vote counts ---
+    state_votes = compute_state_vote_counts(results["lga_results_base"], party_names)
+    print("\nSTATE VOTE COUNTS (base run):")
+    # Show top 3 parties per state by national share
+    top3 = [p for p, _ in sorted_parties[:3]]
+    top3_vote_cols = [f"{p}_votes" for p in top3]
+    top3_share_cols = [f"{p}_share" for p in top3]
+    sv_cols = ["State", "Population", "Total_Votes"] + top3_vote_cols + top3_share_cols
+    available_sv = [c for c in sv_cols if c in state_votes.columns]
+    print(state_votes[available_sv].to_string(index=False))
+
+    # --- Competitiveness ---
+    comp = compute_competitiveness(results["lga_results_base"], party_names)
+    margins = comp["Margin"].values
+    enps = comp["ENP"].values
+    print(f"\nLGA COMPETITIVENESS:")
+    print(f"  Margin:  Mean: {margins.mean():.1%}  Median: {np.median(margins):.1%}  "
+          f"Min: {margins.min():.1%}  Max: {margins.max():.1%}")
+    print(f"  ENP:     Mean: {enps.mean():.2f}  Median: {np.median(enps):.2f}  "
+          f"Min: {enps.min():.2f}  Max: {enps.max():.2f}")
+    n_tight = np.sum(margins < 0.05)
+    n_safe = np.sum(margins > 0.20)
+    print(f"  Tight (<5% margin): {n_tight}  |  Safe (>20% margin): {n_safe}")
 
     # --- Swing LGAs ---
     swing = mc["swing_lgas"]
