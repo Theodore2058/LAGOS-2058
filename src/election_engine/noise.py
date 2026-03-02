@@ -169,24 +169,27 @@ def apply_noise_to_results(
     # Extract share values and zones as numpy arrays for bulk processing
     share_values = result[share_cols].values.astype(float)  # (N_lga, J)
     zone_values = result[admin_zone_col].values
+    N_lga = len(result)
 
-    # Build regional shock array aligned with rows
-    reg_shock_array = np.zeros((len(result), J))
+    # Build regional shock array aligned with rows: (N_lga, J)
+    reg_shock_array = np.zeros((N_lga, J))
     for zone in admin_zones:
         mask = zone_values == zone
         reg_shock_array[mask] = regional_shocks.get(zone, np.zeros(J))
 
-    # Apply noise per row (Dirichlet draw is inherently sequential per-LGA,
-    # but we avoid pandas overhead by collecting results into a numpy array)
+    # ---- Vectorised: log → shock → softmax → alpha (all N_lga rows at once) ----
+    safe_shares = np.maximum(share_values, _LOG_EPSILON)           # (N_lga, J)
+    log_shares = np.log(safe_shares)
+    shocked_log = log_shares + national_shocks + reg_shock_array   # broadcasting (J,) + (N_lga, J)
+    shifted = shocked_log - shocked_log.max(axis=1, keepdims=True) # (N_lga, J)
+    exp_vals = np.exp(shifted)
+    shocked_shares = exp_vals / exp_vals.sum(axis=1, keepdims=True)
+    alphas = np.maximum(params.kappa * shocked_shares, 1e-6)       # (N_lga, J)
+
+    # ---- Dirichlet draws (per-row — each LGA has different alpha) ----
     noisy_shares = np.empty_like(share_values)
-    for idx in range(len(result)):
-        noisy_shares[idx] = apply_dirichlet_noise(
-            predicted_shares=share_values[idx],
-            kappa=params.kappa,
-            national_shocks=national_shocks,
-            regional_shocks=reg_shock_array[idx],
-            rng=rng,
-        )
+    for idx in range(N_lga):
+        noisy_shares[idx] = rng.dirichlet(alphas[idx])
 
     # Bulk assignment back to dataframe
     result[share_cols] = noisy_shares
