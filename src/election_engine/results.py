@@ -539,6 +539,143 @@ def aggregate_monte_carlo(
     }
 
 
+def aggregate_monte_carlo_from_arrays(
+    all_shares: np.ndarray,
+    all_turnout: np.ndarray,
+    party_names: list[str],
+    pop: np.ndarray,
+    base_run_df: pd.DataFrame,
+) -> dict:
+    """
+    Aggregate MC results from pre-allocated numpy arrays (fast path).
+
+    Parameters
+    ----------
+    all_shares : np.ndarray, shape (n_runs, n_lgas, J)
+        Noisy vote shares for each MC run.
+    all_turnout : np.ndarray, shape (n_runs, n_lgas)
+        Noisy turnout for each MC run.
+    party_names : list[str]
+    pop : np.ndarray, shape (n_lgas,)
+        LGA populations (for weighting).
+    base_run_df : pd.DataFrame
+        Base (deterministic) LGA results (for State/LGA Name metadata).
+
+    Returns
+    -------
+    dict — same structure as aggregate_monte_carlo.
+    """
+    n_runs, lga_count, J = all_shares.shape
+
+    # Winner per LGA per run
+    winner_indices = np.argmax(all_shares, axis=2)
+
+    # Seat counts per run
+    seat_matrix = np.zeros((n_runs, J), dtype=int)
+    for j in range(J):
+        seat_matrix[:, j] = np.sum(winner_indices == j, axis=1)
+
+    seat_stats_rows = []
+    for j, p in enumerate(party_names):
+        arr = seat_matrix[:, j]
+        seat_stats_rows.append({
+            "Party": p,
+            "Mean Seats": float(arr.mean()),
+            "Std Seats": float(arr.std()),
+            "P5 Seats": float(np.percentile(arr, 5)),
+            "P95 Seats": float(np.percentile(arr, 95)),
+            "Median Seats": float(np.median(arr)),
+        })
+    seat_stats = pd.DataFrame(seat_stats_rows)
+
+    national_winner_idx = np.argmax(seat_matrix, axis=1)
+    win_probabilities = {}
+    for j, p in enumerate(party_names):
+        win_probabilities[p] = float(np.sum(national_winner_idx == j)) / n_runs
+
+    # National share stats (population-weighted)
+    total_pop = pop.sum()
+    if total_pop > 0:
+        pop_weights = pop / total_pop
+        national_shares_per_run = np.einsum("rlj,l->rj", all_shares, pop_weights)
+    else:
+        national_shares_per_run = all_shares.mean(axis=1)
+
+    nat_share_rows = []
+    for j, p in enumerate(party_names):
+        arr = national_shares_per_run[:, j]
+        nat_share_rows.append({
+            "Party": p,
+            "Mean Share": float(arr.mean()),
+            "Std Share": float(arr.std()),
+            "P5 Share": float(np.percentile(arr, 5)),
+            "P95 Share": float(np.percentile(arr, 95)),
+            "Median Share": float(np.median(arr)),
+        })
+    national_share_stats = pd.DataFrame(nat_share_rows)
+
+    # National vote count stats
+    total_voters_per_run = pop[np.newaxis, :] * all_turnout
+    national_votes_per_run = np.einsum("rl,rlj->rj", total_voters_per_run, all_shares)
+    total_votes_per_run = total_voters_per_run.sum(axis=1)
+
+    nat_vote_rows = []
+    for j, p in enumerate(party_names):
+        arr = national_votes_per_run[:, j]
+        nat_vote_rows.append({
+            "Party": p,
+            "Mean Votes": float(arr.mean()),
+            "Std Votes": float(arr.std()),
+            "P5 Votes": float(np.percentile(arr, 5)),
+            "P95 Votes": float(np.percentile(arr, 95)),
+            "Median Votes": float(np.median(arr)),
+        })
+    national_vote_stats = pd.DataFrame(nat_vote_rows)
+    total_vote_stats = {
+        "mean": float(total_votes_per_run.mean()),
+        "std": float(total_votes_per_run.std()),
+        "p5": float(np.percentile(total_votes_per_run, 5)),
+        "p95": float(np.percentile(total_votes_per_run, 95)),
+    }
+
+    # Per-LGA share statistics
+    share_cols = [f"{p}_share" for p in party_names]
+    share_stats_df = base_run_df[["State", "LGA Name"]].copy()
+    for j, col in enumerate(share_cols):
+        col_data = all_shares[:, :, j]
+        share_stats_df[f"{col}_mean"] = col_data.mean(axis=0)
+        share_stats_df[f"{col}_std"] = col_data.std(axis=0)
+
+    # Swing LGAs
+    first_run_winners = winner_indices[0]
+    swing_mask = np.any(winner_indices != first_run_winners[np.newaxis, :], axis=0)
+    swing_lgas = base_run_df.copy()
+    swing_lgas["Is Swing"] = swing_mask
+    swing_lgas = swing_lgas[swing_lgas["Is Swing"]].drop(columns=["Is Swing"])
+
+    # MC ENP distribution
+    hhi_per_run = np.sum(national_shares_per_run ** 2, axis=1)  # (n_runs,)
+    enp_per_run = 1.0 / np.maximum(hhi_per_run, 1e-12)
+    enp_stats = {
+        "mean": float(enp_per_run.mean()),
+        "std": float(enp_per_run.std()),
+        "p5": float(np.percentile(enp_per_run, 5)),
+        "p95": float(np.percentile(enp_per_run, 95)),
+    }
+
+    return {
+        "seat_stats": seat_stats,
+        "national_share_stats": national_share_stats,
+        "national_vote_stats": national_vote_stats,
+        "total_vote_stats": total_vote_stats,
+        "share_stats": share_stats_df,
+        "win_probabilities": win_probabilities,
+        "swing_lgas": swing_lgas,
+        "enp_stats": enp_stats,
+        "n_runs": n_runs,
+    }
+
+
 def compute_summary_stats(
     lga_results: pd.DataFrame,
     party_names: list[str],

@@ -787,6 +787,13 @@ def main():
             print(f"  {'TOTAL':10s}  {tvs['mean']:12,.0f}  "
                   f"[{tvs['p5']:12,.0f} - {tvs['p95']:12,.0f}]")
 
+    # --- MC ENP distribution ---
+    enp_stats = mc.get("enp_stats")
+    if enp_stats:
+        print(f"\nMC ENP DISTRIBUTION: "
+              f"mean {enp_stats['mean']:.2f}  "
+              f"[P5 {enp_stats['p5']:.2f} - P95 {enp_stats['p95']:.2f}]")
+
     # --- Presidential spread check ---
     print("\nPRESIDENTIAL SPREAD CHECK (>=25% in >=24 states + national plurality):")
     for p in party_names:

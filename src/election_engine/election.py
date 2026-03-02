@@ -22,17 +22,17 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 
-from .config import ElectionConfig, EngineParams
-from .data_loader import load_lga_data, LGAData
-from .ethnic_affinity import EthnicAffinityMatrix, DEFAULT_ETHNIC_MATRIX
-from .religious_affinity import ReligiousAffinityMatrix, DEFAULT_RELIGIOUS_MATRIX
+from .config import ElectionConfig
+from .data_loader import load_lga_data
+from .ethnic_affinity import EthnicAffinityMatrix
+from .religious_affinity import ReligiousAffinityMatrix
 from .salience import compute_all_lga_salience, SalienceRule
-from .voter_types import generate_all_voter_types
 from .poststratification import compute_all_lga_results
-from .noise import draw_shocks, apply_noise_to_results
+from .noise import apply_noise_arrays
 from .results import (
-    add_lga_winners, count_seats, check_presidential_spread,
-    aggregate_monte_carlo, compute_summary_stats,
+    check_presidential_spread,
+    aggregate_monte_carlo_from_arrays,
+    compute_summary_stats,
 )
 
 logger = logging.getLogger(__name__)
@@ -69,8 +69,7 @@ def run_election(
     -------
     dict with keys:
         lga_results_base  : pd.DataFrame — deterministic base results (774 rows)
-        mc_runs           : list[pd.DataFrame] — all MC runs
-        mc_aggregated     : dict — seat stats, win probs, swing LGAs
+        mc_aggregated     : dict — seat stats, win probs, swing LGAs, ENP dist
         summary           : dict — national/zonal stats from base run
         spread_checks     : dict[party_name → spread_dict] — all parties
         metadata          : dict — timing, config info
@@ -122,22 +121,40 @@ def run_election(
     # ---- Step 5: Summary from base run ----
     summary = compute_summary_stats(lga_results_base, party_names)
 
-    # ---- Step 6: Monte Carlo runs ----
+    # ---- Step 6: Monte Carlo runs (pre-allocated arrays) ----
     if verbose:
         logger.info("Running %d Monte Carlo iterations...", n_mc)
     t_mc = time.time()
 
     admin_zones = sorted(df["Administrative Zone"].unique().tolist())
-    mc_runs = []
+    J = len(party_names)
+    n_lgas = len(lga_results_base)
+
+    # Extract base arrays once (avoid repeated DataFrame column lookups)
+    share_cols = [f"{p}_share" for p in party_names]
+    base_shares = lga_results_base[share_cols].values.astype(float)  # (n_lgas, J)
+    base_turnout = lga_results_base["Turnout"].values.astype(float)  # (n_lgas,)
+    zone_ids = lga_results_base["Administrative Zone"].values
+    pop_col_name = "Estimated Population"
+    pop = (lga_results_base[pop_col_name].values.astype(float)
+           if pop_col_name in lga_results_base.columns
+           else np.ones(n_lgas))
+
+    # Pre-allocate 3D share array and 2D turnout array
+    all_mc_shares = np.empty((n_mc, n_lgas, J))
+    all_mc_turnout = np.empty((n_mc, n_lgas))
 
     for run_idx in range(n_mc):
-        noisy_run = apply_noise_to_results(
-            lga_results_df=lga_results_base,
-            party_names=party_names,
+        noisy_shares, noisy_turnout = apply_noise_arrays(
+            base_shares=base_shares,
+            base_turnout=base_turnout,
+            zone_ids=zone_ids,
+            admin_zones=admin_zones,
             params=election_config.params,
             rng=rng,
         )
-        mc_runs.append(noisy_run)
+        all_mc_shares[run_idx] = noisy_shares
+        all_mc_turnout[run_idx] = noisy_turnout
 
         if verbose and (run_idx + 1) % 100 == 0:
             logger.info("  MC run %d / %d", run_idx + 1, n_mc)
@@ -145,8 +162,14 @@ def run_election(
     if verbose:
         logger.info("Monte Carlo completed in %.1fs", time.time() - t_mc)
 
-    # ---- Step 7: Aggregate MC ----
-    mc_aggregated = aggregate_monte_carlo(mc_runs, party_names)
+    # ---- Step 7: Aggregate MC (from pre-allocated arrays) ----
+    mc_aggregated = aggregate_monte_carlo_from_arrays(
+        all_shares=all_mc_shares,
+        all_turnout=all_mc_turnout,
+        party_names=party_names,
+        pop=pop,
+        base_run_df=lga_results_base,
+    )
 
     # ---- Step 8: Spread checks ----
     spread_checks = {}
@@ -161,7 +184,6 @@ def run_election(
 
     return {
         "lga_results_base": lga_results_base,
-        "mc_runs": mc_runs,
         "mc_aggregated": mc_aggregated,
         "summary": summary,
         "spread_checks": spread_checks,

@@ -211,3 +211,70 @@ def apply_noise_to_results(
         result[turnout_col] = noisy_turnout
 
     return result
+
+
+def apply_noise_arrays(
+    base_shares: np.ndarray,
+    base_turnout: np.ndarray,
+    zone_ids: np.ndarray,
+    admin_zones: list[int],
+    params: EngineParams,
+    rng: np.random.Generator,
+) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Fast numpy-only noise application (no DataFrame overhead).
+
+    Parameters
+    ----------
+    base_shares : np.ndarray, shape (N_lga, J)
+        Deterministic vote shares.
+    base_turnout : np.ndarray, shape (N_lga,)
+        Deterministic turnout rates.
+    zone_ids : np.ndarray, shape (N_lga,)
+        Administrative zone ID per LGA.
+    admin_zones : list[int]
+        Sorted unique zone IDs.
+    params : EngineParams
+    rng : np.random.Generator
+
+    Returns
+    -------
+    (noisy_shares, noisy_turnout)
+        noisy_shares : np.ndarray, shape (N_lga, J)
+        noisy_turnout : np.ndarray, shape (N_lga,)
+    """
+    N_lga, J = base_shares.shape
+
+    # Draw shocks
+    national_shocks = rng.normal(0.0, params.sigma_national, size=J)
+    reg_shock_array = np.zeros((N_lga, J))
+    for zone in admin_zones:
+        mask = zone_ids == zone
+        reg_shock_array[mask] = rng.normal(0.0, params.sigma_regional, size=J)
+
+    # Vectorised: log → shock → softmax → alpha
+    safe_shares = np.maximum(base_shares, _LOG_EPSILON)
+    log_shares = np.log(safe_shares)
+    shocked_log = log_shares + national_shocks + reg_shock_array
+    shifted = shocked_log - shocked_log.max(axis=1, keepdims=True)
+    exp_vals = np.exp(shifted)
+    shocked_shares = exp_vals / exp_vals.sum(axis=1, keepdims=True)
+    alphas = np.maximum(params.kappa * shocked_shares, 1e-6)
+
+    # Dirichlet draws (per-row)
+    noisy_shares = np.empty_like(base_shares)
+    for idx in range(N_lga):
+        noisy_shares[idx] = rng.dirichlet(alphas[idx])
+
+    # Turnout noise
+    if params.sigma_turnout > 0:
+        safe_t = np.clip(base_turnout, 0.01, 0.99)
+        logit_t = np.log(safe_t / (1.0 - safe_t))
+        national_t_shock = rng.normal(0.0, params.sigma_turnout)
+        lga_t_shocks = rng.normal(0.0, params.sigma_turnout, size=N_lga)
+        noisy_logit = logit_t + national_t_shock + lga_t_shocks
+        noisy_turnout = 1.0 / (1.0 + np.exp(-noisy_logit))
+    else:
+        noisy_turnout = base_turnout.copy()
+
+    return noisy_shares, noisy_turnout
