@@ -10,7 +10,7 @@ Where:
     τ₀  = baseline abstention utility (higher = more abstention everywhere)
     τ₁  = alienation: voter is far from all parties → abstention more attractive
     τ₂  = indifference: top two parties nearly equal → abstention more attractive
-    min_dist² = min_j ||x - z_j||²  (Euclidean squared distance, uniform salience)
+    min_dist² = min_j (1/D)||x - z_j||²  (mean per-dimension squared distance, uniform salience)
     gap = |V_1 - V_2|  (utility gap between top-1 and top-2 parties)
 
 Demographic adjustments apply before computing the abstention utility:
@@ -66,9 +66,12 @@ def compute_abstention_utility(
     float
         Utility of abstaining.
     """
-    # Alienation: minimum Euclidean distance² to any party (uniform weights)
+    # Alienation: mean per-dimension squared distance to the nearest party.
+    # Using mean (not sum) makes tau_1 scale-invariant w.r.t. the number of
+    # issue dimensions, so it stays comparable to the salience-weighted party
+    # utilities regardless of how many issues are in the model.
     diffs = party_positions - voter_ideal  # (J, D)
-    sq_dists = np.sum(diffs ** 2, axis=1)  # (J,)
+    sq_dists = np.mean(diffs ** 2, axis=1)  # (J,) — mean over D dimensions
     min_dist_sq = float(np.min(sq_dists))
 
     # Indifference: gap between top-1 and top-2 utilities
