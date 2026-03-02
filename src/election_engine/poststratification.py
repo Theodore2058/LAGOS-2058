@@ -25,6 +25,7 @@ from .religious_affinity import ReligiousAffinityMatrix, DEFAULT_RELIGIOUS_MATRI
 from .voter_types import (
     VoterType, generate_all_voter_types, compute_type_weights,
     demographics_to_ideal_point,
+    build_voter_ideal_base, compute_lga_ideal_offset, precompute_compat_factors,
 )
 from .salience import compute_salience, SalienceRule, DEFAULT_SALIENCE_RULES
 from .utility import compute_utility
@@ -89,6 +90,8 @@ def compute_lga_results(
     ethnic_matrix: EthnicAffinityMatrix,
     religious_matrix: ReligiousAffinityMatrix,
     ideal_point_coeff_table: list[dict] | None = None,
+    precomputed_ideals: np.ndarray | None = None,
+    precomputed_compat: np.ndarray | None = None,
 ) -> tuple[np.ndarray, float, int]:
     """
     Compute vote shares and turnout for one LGA.
@@ -102,6 +105,13 @@ def compute_lga_results(
     salience_weights : np.ndarray, shape (28,)
     ethnic_matrix, religious_matrix : affinity matrices
     ideal_point_coeff_table : optional coefficient override
+    precomputed_ideals : np.ndarray, optional
+        (N_types, 28) array of clipped ideal points for this LGA, produced by
+        build_voter_ideal_base + compute_lga_ideal_offset in the caller.
+        If provided, demographics_to_ideal_point is not called per type.
+    precomputed_compat : np.ndarray, optional
+        (N_types,) compat-factor array from precompute_compat_factors().
+        Passed through to compute_type_weights to skip per-type compat calls.
 
     Returns
     -------
@@ -114,7 +124,9 @@ def compute_lga_results(
     party_positions = np.array([p.positions for p in parties])  # (J, 28)
 
     # Step 1: LGA population weights for each type
-    type_weights = compute_type_weights(lga_row, voter_types, _WEIGHT_THRESHOLD)
+    type_weights = compute_type_weights(
+        lga_row, voter_types, _WEIGHT_THRESHOLD, precomputed_compat
+    )
 
     # Step 2: identify active types (skip near-zero weight to save computation)
     active_idx = np.where(type_weights > _WEIGHT_THRESHOLD)[0]
@@ -129,7 +141,10 @@ def compute_lga_results(
         vt = voter_types[i]
 
         # Ideal point in issue space
-        ideal = demographics_to_ideal_point(vt, lga_row, ideal_point_coeff_table)
+        if precomputed_ideals is not None:
+            ideal = precomputed_ideals[i]
+        else:
+            ideal = demographics_to_ideal_point(vt, lga_row, ideal_point_coeff_table)
 
         # Full utility vector (J,)
         demos = {
@@ -211,6 +226,10 @@ def compute_all_lga_results(
     params = election_config.params
     J = len(parties)
 
+    # Precompute voter-type-invariant quantities (done once, shared across all LGAs)
+    voter_ideal_base = build_voter_ideal_base(voter_types, ideal_point_coeff_table)
+    compat_factors = precompute_compat_factors(voter_types)
+
     # Precompute salience for all LGAs
     national_median_gdp = float(lga_data["GDP Per Capita Est"].median())
     salience_matrix = np.zeros((len(lga_data), 28))
@@ -225,6 +244,10 @@ def compute_all_lga_results(
         lga_row = lga_data.iloc[idx]
         salience_w = salience_matrix[idx]
 
+        # Combine precomputed voter base with this LGA's offset, clamp to [-5, 5]
+        lga_ideal_offset = compute_lga_ideal_offset(lga_row, ideal_point_coeff_table)
+        ideal_matrix = np.clip(voter_ideal_base + lga_ideal_offset, -5.0, 5.0)
+
         vote_shares, turnout, n_active = compute_lga_results(
             lga_row=lga_row,
             voter_types=voter_types,
@@ -234,6 +257,8 @@ def compute_all_lga_results(
             ethnic_matrix=ethnic_matrix,
             religious_matrix=religious_matrix,
             ideal_point_coeff_table=ideal_point_coeff_table,
+            precomputed_ideals=ideal_matrix,
+            precomputed_compat=compat_factors,
         )
 
         row_dict = {

@@ -254,5 +254,71 @@ def test_no_duplicate_keys_in_ideal_point_coefficients():
     )
 
 
+# ---------------------------------------------------------------------------
+# Test 8: Numerical equivalence — precomputed ideal path matches reference
+# ---------------------------------------------------------------------------
+
+def test_precomputed_ideal_matches_reference():
+    """
+    build_voter_ideal_base + compute_lga_ideal_offset must produce ideal points
+    numerically identical to demographics_to_ideal_point for every voter type.
+
+    Regression guard: if the decomposition math is wrong the two paths diverge.
+    """
+    import pandas as pd
+    from election_engine.voter_types import (
+        generate_all_voter_types, demographics_to_ideal_point,
+        build_voter_ideal_base, compute_lga_ideal_offset,
+    )
+
+    voter_types = generate_all_voter_types()
+
+    # Synthetic LGA row with a mix of non-zero lga_* column values
+    lga_row = pd.Series({
+        "Oil Producing": 1.0,
+        "Poverty Rate Pct": 55.0,
+        "Mandarin Presence": 3.0,
+        "Chinese Economic Presence": 7.0,
+        "GDP Per Capita Est": 120000.0,
+        "Conflict History": 2.0,
+        "Fertility Rate Est": 5.5,
+        "English Prestige": 6.0,
+        "Arabic Prestige": 4.0,
+        "Gender Parity Index": 0.7,
+        "Trad Authority Index": 3.0,
+        "Access Electricity Pct": 40.0,
+        "Access Water Pct": 50.0,
+        "Land Formalization Pct": 20.0,
+        "Gini Proxy": 0.45,
+        "Pct Livelihood Agriculture": 35.0,
+        "Pct Livelihood Manufacturing": 10.0,
+        "Biological Enhancement Pct": 5.0,
+        "Rail Corridor": 1.0,
+        "Oil Spill Index": 2.0,
+        "Digital Infrastructure Index": 4.0,
+        "Federal Presence": 3.0,
+        "Pct Christian Minority": 15.0,
+        "Sharia Court Index": 2.0,
+    })
+
+    # Precomputed path
+    voter_base = build_voter_ideal_base(voter_types)
+    lga_offset = compute_lga_ideal_offset(lga_row)
+    ideal_matrix = np.clip(voter_base + lga_offset, -5.0, 5.0)
+
+    # Check a representative sample of voter types to keep test fast
+    rng = np.random.default_rng(42)
+    sample_idx = rng.choice(len(voter_types), size=200, replace=False)
+
+    for i in sample_idx:
+        vt = voter_types[i]
+        ref = demographics_to_ideal_point(vt, lga_row)
+        fast = ideal_matrix[i]
+        assert np.allclose(ref, fast, atol=1e-12), (
+            f"Voter type {i} ({vt.ethnicity}/{vt.religion}) mismatch:\n"
+            f"  reference: {ref}\n  precomputed: {fast}"
+        )
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

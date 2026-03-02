@@ -276,6 +276,7 @@ def compute_type_weights(
     lga_row: pd.Series,
     voter_types: list[VoterType],
     weight_threshold: float = 1e-8,
+    precomputed_compat: np.ndarray | None = None,
 ) -> np.ndarray:
     """
     Compute population weight for each voter type in the given LGA.
@@ -293,6 +294,9 @@ def compute_type_weights(
         All voter types (from generate_all_voter_types()).
     weight_threshold : float
         Types below this weight are set to 0 (sparse representation).
+    precomputed_compat : np.ndarray, optional
+        (N_types,) compat-factor array from precompute_compat_factors().
+        If provided, skips calling the three compat functions per type.
 
     Returns
     -------
@@ -391,14 +395,14 @@ def compute_type_weights(
             * income_frac.get(vt.income, 1.0 / N_INCOME)
         )
 
-        # Conditional adjustments: religion × ethnicity compatibility
-        w *= _religion_ethnicity_compat(vt)
-
-        # Conditional: income × education (tertiary → higher income odds)
-        w *= _income_education_compat(vt)
-
-        # Conditional: livelihood × setting (smallholder → rural)
-        w *= _livelihood_setting_compat(vt)
+        # Conditional adjustments: religion × ethnicity, income × education,
+        # livelihood × setting compatibility
+        if precomputed_compat is not None:
+            w *= precomputed_compat[i]
+        else:
+            w *= _religion_ethnicity_compat(vt)
+            w *= _income_education_compat(vt)
+            w *= _livelihood_setting_compat(vt)
 
         weights[i] = w if w > weight_threshold else 0.0
 
@@ -470,6 +474,22 @@ def _livelihood_setting_compat(vt: VoterType) -> float:
     if vt.is_civil_servant and vt.is_rural:
         return 0.4
     return 1.0
+
+
+def precompute_compat_factors(voter_types: list[VoterType]) -> np.ndarray:
+    """
+    Precompute the combined compatibility factor for every voter type.
+
+    Returns (N_types,) float array.  The three compat functions depend only on
+    voter-type attributes, not on LGA data, so the result is the same across
+    all LGAs and only needs to be computed once per simulation run.
+    """
+    return np.array([
+        _religion_ethnicity_compat(vt)
+        * _income_education_compat(vt)
+        * _livelihood_setting_compat(vt)
+        for vt in voter_types
+    ])
 
 
 # ---------------------------------------------------------------------------
@@ -712,3 +732,56 @@ def demographics_to_ideal_point(
         ideal[d] = np.clip(x, -5.0, 5.0)
 
     return ideal
+
+
+def build_voter_ideal_base(
+    voter_types: list[VoterType],
+    coeff_table: list[dict] | None = None,
+) -> np.ndarray:
+    """
+    Precompute the voter-type-specific (non-LGA) ideal point contributions.
+
+    Returns (N_types, N_ISSUES) array where result[i, d] = intercept_d +
+    sum of all voter-level feature coefficients for type i on issue d.
+    LGA-specific (lga_*) features are excluded — add compute_lga_ideal_offset()
+    per LGA to obtain the full pre-clamp ideal point matrix.
+
+    This is computed once per simulation run; the result is the same for all LGAs.
+    """
+    if coeff_table is None:
+        coeff_table = _IDEAL_POINT_COEFFICIENTS
+    N = len(voter_types)
+    D = len(coeff_table)
+    base = np.zeros((N, D))
+    for d, coeffs in enumerate(coeff_table):
+        base[:, d] = coeffs.get("intercept", 0.0)
+        for feat, coeff in coeffs.items():
+            if feat == "intercept" or feat.startswith("lga_"):
+                continue
+            feat_vals = np.array(
+                [float(bool(getattr(vt, feat, None))) for vt in voter_types]
+            )
+            base[:, d] += coeff * feat_vals
+    return base
+
+
+def compute_lga_ideal_offset(
+    lga_row: pd.Series,
+    coeff_table: list[dict] | None = None,
+) -> np.ndarray:
+    """
+    Compute the LGA-specific ideal point offset (lga_* features only).
+
+    Returns (N_ISSUES,) array.  The full clipped ideal point matrix for a
+    given LGA is: np.clip(voter_base + compute_lga_ideal_offset(lga_row), -5, 5)
+    where voter_base is the result of build_voter_ideal_base().
+    """
+    if coeff_table is None:
+        coeff_table = _IDEAL_POINT_COEFFICIENTS
+    D = len(coeff_table)
+    offset = np.zeros(D)
+    for d, coeffs in enumerate(coeff_table):
+        for feat, coeff in coeffs.items():
+            if feat.startswith("lga_"):
+                offset[d] += coeff * float(lga_row.get(feat[4:], 0.0))
+    return offset
