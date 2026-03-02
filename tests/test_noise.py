@@ -141,5 +141,42 @@ def test_turnout_noise_positive_sigma():
     assert abs(turnouts.mean() - 0.70) < 0.10
 
 
+def test_national_shocks_zero_sum():
+    """National shocks must sum to zero (one party's gain = another's loss)."""
+    rng = np.random.default_rng(123)
+    params = _params(sigma_national=0.20, sigma_regional=0.10)
+    for _ in range(20):
+        national, regional = draw_shocks(8, [1, 2, 3], params, rng)
+        assert abs(national.sum()) < 1e-12, f"National shocks should sum to 0, got {national.sum()}"
+        for zone_id, reg in regional.items():
+            assert abs(reg.sum()) < 1e-12, f"Regional shocks for zone {zone_id} should sum to 0"
+
+
+def test_regional_turnout_noise():
+    """With sigma_turnout_regional > 0, LGAs in the same zone should have correlated turnout."""
+    params = _params(sigma_turnout=0.0, sigma_turnout_regional=0.20)
+    df = pd.DataFrame([
+        {"State": "S1", "LGA Name": "L1", "Administrative Zone": 1,
+         "A_share": 0.6, "B_share": 0.4, "Turnout": 0.70},
+        {"State": "S1", "LGA Name": "L2", "Administrative Zone": 1,
+         "A_share": 0.5, "B_share": 0.5, "Turnout": 0.70},
+        {"State": "S2", "LGA Name": "L3", "Administrative Zone": 2,
+         "A_share": 0.6, "B_share": 0.4, "Turnout": 0.70},
+    ])
+    rng = np.random.default_rng(42)
+    same_zone_diffs = []
+    diff_zone_diffs = []
+    for _ in range(100):
+        result = apply_noise_to_results(df, ["A", "B"], params, rng=rng)
+        t = result["Turnout"].values
+        same_zone_diffs.append(abs(t[0] - t[1]))  # same zone
+        diff_zone_diffs.append(abs(t[0] - t[2]))   # different zones
+    # LGAs in the same zone should have more similar turnout
+    assert np.mean(same_zone_diffs) < np.mean(diff_zone_diffs), (
+        f"Same-zone LGAs should have more similar turnout: "
+        f"same={np.mean(same_zone_diffs):.4f}, diff={np.mean(diff_zone_diffs):.4f}"
+    )
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

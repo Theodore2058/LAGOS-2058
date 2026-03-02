@@ -622,6 +622,11 @@ PARTIES = [
         valence=0.2,  # strong brand in educated urban constituencies
         leader_ethnicity="Pada",
         religious_alignment="Secular",
+        demographic_coefficients={
+            "education": {"Tertiary": 0.5},
+            "livelihood": {"Formal private": 0.4},
+            "income": {"Top 20%": 0.3},
+        },
     ),
     Party(
         name="CND",
@@ -629,6 +634,10 @@ PARTIES = [
         valence=0.1,  # established party brand
         leader_ethnicity="Yoruba",
         religious_alignment="Mainline Protestant",
+        demographic_coefficients={
+            "education": {"Tertiary": 0.3},
+            "livelihood": {"Public sector": 0.3},
+        },
     ),
     Party(
         name="ANPC",
@@ -636,6 +645,7 @@ PARTIES = [
         valence=0.0,
         leader_ethnicity="Edo",
         religious_alignment="Catholic",
+        # Catch-all party: no strong demographic tilt
     ),
     Party(
         name="IPA",
@@ -643,6 +653,10 @@ PARTIES = [
         valence=0.0,
         leader_ethnicity="Igbo",
         religious_alignment="Pentecostal",
+        demographic_coefficients={
+            "livelihood": {"Trade/informal": 0.4, "Formal private": 0.3},
+            "income": {"Top 20%": 0.3},
+        },
     ),
     Party(
         name="NDC",
@@ -650,6 +664,9 @@ PARTIES = [
         valence=0.1,  # deep organizational roots across the north
         leader_ethnicity="Hausa-Fulani Undiff",
         religious_alignment="Mainstream Sunni",
+        demographic_coefficients={
+            "livelihood": {"Smallholder": 0.3, "Public sector": 0.2},
+        },
     ),
     Party(
         name="UJP",
@@ -657,6 +674,10 @@ PARTIES = [
         valence=0.0,
         leader_ethnicity="Kanuri",
         religious_alignment="Al-Shahid",
+        demographic_coefficients={
+            "income": {"Bottom 40%": 0.3},
+            "education": {"Below secondary": 0.2},
+        },
     ),
     Party(
         name="NWF",
@@ -664,6 +685,11 @@ PARTIES = [
         valence=0.0,
         leader_ethnicity="Ibibio",
         religious_alignment="Secular",
+        demographic_coefficients={
+            "livelihood": {"Trade/informal": 0.5, "Formal private": 0.3,
+                           "Unemployed/student": 0.3},
+            "income": {"Bottom 40%": 0.3},
+        },
     ),
     Party(
         name="NHA",
@@ -671,6 +697,11 @@ PARTIES = [
         valence=0.15,  # WAFTA funding and organizational capacity
         leader_ethnicity="Naijin",
         religious_alignment="Secular",
+        demographic_coefficients={
+            "education": {"Tertiary": 0.4},
+            "livelihood": {"Formal private": 0.3},
+            "income": {"Top 20%": 0.3},
+        },
     ),
     Party(
         name="SNM",
@@ -678,6 +709,10 @@ PARTIES = [
         valence=0.0,
         leader_ethnicity="Hausa",
         religious_alignment="Tijaniyya",
+        demographic_coefficients={
+            "livelihood": {"Trade/informal": 0.3, "Smallholder": 0.2},
+            "income": {"Bottom 40%": 0.2},
+        },
     ),
     Party(
         name="NSA",
@@ -685,6 +720,9 @@ PARTIES = [
         valence=0.0,
         leader_ethnicity="Fulani",
         religious_alignment="Mainstream Sunni",
+        demographic_coefficients={
+            "livelihood": {"Public sector": 0.4},
+        },
     ),
     Party(
         name="CDA",
@@ -692,6 +730,9 @@ PARTIES = [
         valence=0.0,
         leader_ethnicity="Tiv",
         religious_alignment="Catholic",
+        demographic_coefficients={
+            "livelihood": {"Smallholder": 0.2},
+        },
     ),
     Party(
         name="MBPP",
@@ -699,6 +740,10 @@ PARTIES = [
         valence=0.0,
         leader_ethnicity="Middle Belt Minorities",
         religious_alignment="Mainline Protestant",
+        demographic_coefficients={
+            "livelihood": {"Smallholder": 0.4, "Commercial ag": 0.3},
+            "income": {"Bottom 40%": 0.2},
+        },
     ),
     Party(
         name="PLF",
@@ -706,6 +751,10 @@ PARTIES = [
         valence=-0.1,  # organizational weakness, radical stigma
         leader_ethnicity="Ijaw",
         religious_alignment="Secular",
+        demographic_coefficients={
+            "livelihood": {"Trade/informal": 0.5, "Unemployed/student": 0.5},
+            "income": {"Bottom 40%": 0.5},
+        },
     ),
     Party(
         name="NNV",
@@ -713,6 +762,9 @@ PARTIES = [
         valence=-0.1,  # extreme positions limit broad appeal
         leader_ethnicity="Nupe",
         religious_alignment="Traditionalist",
+        demographic_coefficients={
+            "livelihood": {"Public sector": 0.3},
+        },
     ),
 ]
 
