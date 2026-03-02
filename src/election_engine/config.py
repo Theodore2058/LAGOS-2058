@@ -17,6 +17,8 @@ Parameter reference table:
 │ National shock SD   │ σ_nat  │ 0.10    │ 0–0.5    │ Bigger national swings                   │
 │ Regional shock SD   │ σ_reg  │ 0.15    │ 0–0.5    │ Bigger regional swings                   │
 │ LGA shock SD        │ σ_lga  │ 0.20    │ 0–0.5    │ More local randomness                    │
+│ Turnout shock SD    │ σ_t    │ 0.00    │ 0–0.3    │ National turnout noise on logit scale     │
+│ Turnout reg. SD     │ σ_t_r  │ 0.00    │ 0–0.3    │ Regional turnout noise (per admin zone)   │
 └─────────────────────┴────────┴─────────┴──────────┴──────────────────────────────────────────┘
 """
 
@@ -85,7 +87,8 @@ class EngineParams:
     sigma_national: float = 0.10  # National shock SD (σ_nat)
     sigma_regional: float = 0.15  # Regional shock SD (σ_reg)
     sigma_lga: float = 0.20       # LGA shock SD (σ_lga)
-    sigma_turnout: float = 0.0    # Turnout noise SD on logit scale. 0 = deterministic turnout
+    sigma_turnout: float = 0.0    # National turnout noise SD on logit scale. 0 = deterministic turnout
+    sigma_turnout_regional: float = 0.0  # Regional turnout noise SD on logit scale (per admin zone)
 
     def __post_init__(self) -> None:
         if not (0.0 <= self.q <= 1.0):
@@ -114,6 +117,8 @@ class EngineParams:
             raise ValueError(f"sigma_lga must be >= 0, got {self.sigma_lga}")
         if self.sigma_turnout < 0:
             raise ValueError(f"sigma_turnout must be >= 0, got {self.sigma_turnout}")
+        if self.sigma_turnout_regional < 0:
+            raise ValueError(f"sigma_turnout_regional must be >= 0, got {self.sigma_turnout_regional}")
 
 
 @dataclass

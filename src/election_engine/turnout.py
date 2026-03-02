@@ -9,9 +9,15 @@ appended to the utility vector and assigned its own utility:
 Where:
     τ₀  = baseline abstention utility (higher = more abstention everywhere)
     τ₁  = alienation: voter is far from all parties → abstention more attractive
-    τ₂  = indifference: top two parties nearly equal → abstention more attractive
+    τ₂  = indifference: top choice doesn't stand out → abstention more attractive
     min_dist² = min_j (1/D)||x - z_j||²  (mean per-dimension squared distance, uniform salience)
-    gap = |V_1 - V_2|  (utility gap between top-1 and top-2 parties)
+    gap = V_1 - mean(V_2, ..., V_J)  (utility gap between top-1 and mean of rest)
+
+The gap formulation uses top-1 vs mean-of-rest rather than top-1 vs top-2.
+For J=2 these are identical (mean-of-rest IS the second party). For J>2 the
+"field gap" is more stable — it measures how much the voter's best choice
+stands out from the whole field, preventing artificial indifference when two
+parties happen to be close even though the voter has a clear overall preference.
 
 Demographic adjustments apply before computing the abstention utility:
     Education boost: Tertiary education reduces abstention utility
@@ -74,10 +80,13 @@ def compute_abstention_utility(
     sq_dists = np.mean(diffs ** 2, axis=1)  # (J,) — mean over D dimensions
     min_dist_sq = float(np.min(sq_dists))
 
-    # Indifference: gap between top-1 and top-2 utilities
+    # Indifference: gap between top-1 utility and mean of all others.
+    # For J=2 this equals top-2 gap; for J>2 it measures how much the
+    # voter's best choice stands out from the entire field.
     if len(utilities) >= 2:
         sorted_utils = np.sort(utilities)[::-1]
-        gap = abs(sorted_utils[0] - sorted_utils[1])
+        gap = sorted_utils[0] - np.mean(sorted_utils[1:])
+        gap = abs(gap)  # safety: should be non-negative after sort, but guard
     else:
         gap = abs(utilities[0]) + _EPSILON
 
@@ -251,11 +260,13 @@ def batch_compute_vote_probs_with_turnout(
     sq_dists = voter_sq_norms[:, np.newaxis] + party_sq_norms[np.newaxis, :] - cross_terms
     min_dist_sq = sq_dists.min(axis=1)  # (N,)
 
-    # --- Indifference: gap between top-1 and top-2 utilities ---
-    # Sort along party axis descending
+    # --- Indifference: gap between top-1 and mean-of-rest utilities ---
+    # For J=2 this equals the top-2 gap; for J>2 it measures how much the
+    # voter's best choice stands out from the entire field.
     sorted_utils = np.sort(utilities_matrix, axis=1)[:, ::-1]  # (N, J) descending
     if J >= 2:
-        gap = np.abs(sorted_utils[:, 0] - sorted_utils[:, 1])  # (N,)
+        mean_rest = sorted_utils[:, 1:].mean(axis=1)  # (N,)
+        gap = np.abs(sorted_utils[:, 0] - mean_rest)  # (N,)
     else:
         # Single party: use |utility| as proxy (matches scalar function)
         gap = np.abs(sorted_utils[:, 0]) + _EPSILON

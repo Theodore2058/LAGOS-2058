@@ -126,5 +126,73 @@ def test_near_zero_gap_no_crash():
     assert 0.0 <= p <= 1.0
 
 
+def test_many_party_indifference_not_excessive():
+    """With many parties, turnout should not collapse due to indifference.
+
+    Regression test: the old top-2 gap formula gave very low turnout with
+    many parties because two parties would naturally be close in utility,
+    making τ₂/gap blow up.  The field-gap formula (top-1 vs mean-of-rest)
+    should keep turnout reasonable when the voter has a clear overall
+    preference structure.
+    """
+    params = _make_params(tau_0=1.5, tau_2=0.5)
+    voter = np.zeros(5)
+    # 10 parties: voter clearly prefers party 0 (utility 6), parties 1-2 are
+    # close to each other (4.9, 4.8), rest trail off
+    parties_10 = np.random.default_rng(99).standard_normal((10, 5))
+    utils_10 = np.array([6.0, 4.9, 4.8, 3.0, 2.5, 2.0, 1.5, 1.0, 0.5, 0.0])
+    p_10 = compute_turnout_probability(utils_10, voter, parties_10, params)
+
+    # Same scenario with 2 parties: voter clearly prefers party 0
+    parties_2 = parties_10[:2]
+    utils_2 = np.array([6.0, 4.9])
+    p_2 = compute_turnout_probability(utils_2, voter, parties_2, params)
+
+    # 10-party turnout should be at least as high as 2-party (voter has
+    # even more reason to vote with more at stake), or at least close
+    assert p_10 > p_2 * 0.7, (
+        f"10-party turnout ({p_10:.3f}) should not be much lower than "
+        f"2-party ({p_2:.3f}); indifference term may be overcounting"
+    )
+    assert p_10 > 0.1, f"10-party turnout ({p_10:.3f}) should not collapse"
+
+
+def test_batch_turnout_matches_scalar():
+    """Vectorised batch turnout must match the scalar version."""
+    from election_engine.turnout import batch_compute_vote_probs_with_turnout
+
+    params = _make_params()
+    rng = np.random.default_rng(123)
+    N, J, D = 6, 5, 4
+    parties = rng.standard_normal((J, D))
+    voter_ideals = rng.standard_normal((N, D))
+    utilities = rng.standard_normal((N, J))
+
+    edu_codes = np.array([0, 1, 2, 0, 1, 2], dtype=np.int32)
+    age_codes = np.array([0, 1, 2, 3, 0, 1], dtype=np.int32)
+    set_codes = np.array([0, 1, 2, 0, 1, 2], dtype=np.int32)
+
+    batch_cond, batch_turnout = batch_compute_vote_probs_with_turnout(
+        utilities, voter_ideals, parties, params,
+        edu_codes, age_codes, set_codes
+    )
+
+    edu_strs = ["Below secondary", "Secondary", "Tertiary"]
+    age_strs = ["18-24", "25-34", "35-49", "50+"]
+    set_strs = ["Urban", "Peri-urban", "Rural"]
+
+    for i in range(N):
+        demos = {
+            "education": edu_strs[edu_codes[i]],
+            "age_cohort": age_strs[age_codes[i]],
+            "setting": set_strs[set_codes[i]],
+        }
+        cond_i, turn_i = compute_vote_probs_with_turnout(
+            utilities[i], voter_ideals[i], parties, params, demos
+        )
+        assert np.allclose(batch_cond[i], cond_i, atol=1e-10), f"Mismatch cond row {i}"
+        assert abs(batch_turnout[i] - turn_i) < 1e-10, f"Mismatch turnout row {i}"
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

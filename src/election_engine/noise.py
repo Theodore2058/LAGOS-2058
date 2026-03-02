@@ -1,7 +1,7 @@
 """
 Hierarchical noise model for the LAGOS-2058 election engine.
 
-Three-tier stochastic model:
+Vote share noise — three-tier stochastic model:
   1. National shock  — one draw per party from N(0, σ_nat²)
   2. Regional shock  — one draw per party per Administrative Zone from N(0, σ_reg²)
   3. LGA shock       — Dirichlet noise using concentration parameter κ
@@ -16,6 +16,13 @@ Shocks are applied on the log-scale (simplex proxy), then converted back via sof
 Then Dirichlet noise:
     alpha_j = κ · shocked_share_j
     final_share ~ Dirichlet(alpha)
+
+Turnout noise — three-tier logit-scale model:
+  1. National turnout shock   — one draw from N(0, σ_turnout²), shared by all LGAs
+  2. Regional turnout shock   — one draw per Admin Zone from N(0, σ_turnout_regional²)
+  3. LGA turnout shock        — per-LGA draw from N(0, σ_turnout²)
+
+Applied on the logit scale then back-transformed via sigmoid.
 """
 
 from __future__ import annotations
@@ -194,19 +201,24 @@ def apply_noise_to_results(
     # Bulk assignment back to dataframe
     result[share_cols] = noisy_shares
 
-    # ---- Turnout noise (logit-scale) ----
+    # ---- Turnout noise (logit-scale, 3-tier: national + regional + LGA) ----
     turnout_col = "Turnout"
-    if params.sigma_turnout > 0 and turnout_col in result.columns:
+    has_turnout_noise = (params.sigma_turnout > 0 or params.sigma_turnout_regional > 0)
+    if has_turnout_noise and turnout_col in result.columns:
         base_turnout = result[turnout_col].values.astype(float)
-        # Clip to avoid logit(0) or logit(1)
         safe_t = np.clip(base_turnout, 0.01, 0.99)
         logit_t = np.log(safe_t / (1.0 - safe_t))
-        # National turnout shock (common to all LGAs in this run)
-        national_t_shock = rng.normal(0.0, params.sigma_turnout)
+        # National turnout shock
+        national_t_shock = rng.normal(0.0, params.sigma_turnout) if params.sigma_turnout > 0 else 0.0
+        # Regional turnout shocks (one per admin zone, shared by all LGAs in zone)
+        reg_t_shocks = np.zeros(N_lga)
+        if params.sigma_turnout_regional > 0:
+            for zone in admin_zones:
+                mask = zone_values == zone
+                reg_t_shocks[mask] = rng.normal(0.0, params.sigma_turnout_regional)
         # Per-LGA turnout shock
-        lga_t_shocks = rng.normal(0.0, params.sigma_turnout, size=len(result))
-        noisy_logit = logit_t + national_t_shock + lga_t_shocks
-        # Sigmoid back to [0, 1]
+        lga_t_shocks = rng.normal(0.0, params.sigma_turnout, size=N_lga) if params.sigma_turnout > 0 else np.zeros(N_lga)
+        noisy_logit = logit_t + national_t_shock + reg_t_shocks + lga_t_shocks
         noisy_turnout = 1.0 / (1.0 + np.exp(-noisy_logit))
         result[turnout_col] = noisy_turnout
 
@@ -266,13 +278,22 @@ def apply_noise_arrays(
     for idx in range(N_lga):
         noisy_shares[idx] = rng.dirichlet(alphas[idx])
 
-    # Turnout noise
-    if params.sigma_turnout > 0:
+    # Turnout noise (3-tier: national + regional + LGA)
+    has_turnout_noise = (params.sigma_turnout > 0 or params.sigma_turnout_regional > 0)
+    if has_turnout_noise:
         safe_t = np.clip(base_turnout, 0.01, 0.99)
         logit_t = np.log(safe_t / (1.0 - safe_t))
-        national_t_shock = rng.normal(0.0, params.sigma_turnout)
-        lga_t_shocks = rng.normal(0.0, params.sigma_turnout, size=N_lga)
-        noisy_logit = logit_t + national_t_shock + lga_t_shocks
+        # National turnout shock
+        national_t_shock = rng.normal(0.0, params.sigma_turnout) if params.sigma_turnout > 0 else 0.0
+        # Regional turnout shocks (one per admin zone)
+        reg_t_shocks = np.zeros(N_lga)
+        if params.sigma_turnout_regional > 0:
+            for zone in admin_zones:
+                mask = zone_ids == zone
+                reg_t_shocks[mask] = rng.normal(0.0, params.sigma_turnout_regional)
+        # Per-LGA turnout shocks
+        lga_t_shocks = rng.normal(0.0, params.sigma_turnout, size=N_lga) if params.sigma_turnout > 0 else np.zeros(N_lga)
+        noisy_logit = logit_t + national_t_shock + reg_t_shocks + lga_t_shocks
         noisy_turnout = 1.0 / (1.0 + np.exp(-noisy_logit))
     else:
         noisy_turnout = base_turnout.copy()
