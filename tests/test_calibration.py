@@ -184,6 +184,23 @@ class TestEthnicHeartlands:
             f"UJP share in Borno is {state_share:.1%}, should be >30%"
         )
 
+    def test_plf_leads_in_bayelsa(self, full_run):
+        """PLF (Ijaw leader) should lead or be competitive in Bayelsa."""
+        results, _ = full_run
+        df = results["lga_results_base"]
+        bayelsa = df[df["State"] == "Bayelsa"]
+        if len(bayelsa) == 0:
+            pytest.skip("No Bayelsa data")
+        pop = bayelsa["Estimated Population"].values
+        plf_share = np.average(bayelsa["PLF_share"].values, weights=pop)
+        mbpp_share = np.average(bayelsa["MBPP_share"].values, weights=pop)
+        assert plf_share > 0.15, (
+            f"PLF share in Bayelsa is {plf_share:.1%}, should be >15%"
+        )
+        assert plf_share > mbpp_share * 0.8, (
+            f"PLF ({plf_share:.1%}) should be competitive with MBPP ({mbpp_share:.1%}) in Bayelsa"
+        )
+
     def test_no_party_above_45pct_national(self, full_run):
         """No party should win >45% of the national vote."""
         results, _ = full_run

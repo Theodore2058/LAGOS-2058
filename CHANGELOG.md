@@ -122,3 +122,55 @@ Max LGA turnout of 91.9% was unrealistic. Increasing τ₀ raises the baseline a
 ### Remaining Issues
 - MBPP still overperforms in Bayelsa (party design issue, not parameter issue)
 - 76 LGAs still above 85% turnout (but all below 90%)
+
+---
+
+## 2026-03-02 — Cycle 4: PLF Position Fix (Niger Delta Heartland)
+
+### Changes
+- PLF resource_revenue: -4.5 → +3.0 (strong local control, matching Niger Delta activist identity)
+- PLF fiscal_autonomy: -4.5 → -3.0 (less extreme centralism)
+- Updated PLF party description to reflect resource control position
+
+### Results
+| Metric | Cycle 3 | Cycle 4 | Target |
+|--------|---------|---------|--------|
+| National Turnout | 71.0% | 71.0% | 70–90% ✓ |
+| Swing LGAs | 124 (16%) | 119 (15%) | 10–30% ✓ |
+| PLF in Rivers | 4.0% | 26.7% | Should be strong ✓ |
+| PLF in Bayelsa | 3.6% | 25.2% | Should lead ✓ |
+| MBPP in Bayelsa | 34.1% | 23.5% | Should not dominate ✓ |
+| NDC in Hausa | 58–63% | 53–63% | Dominant ✓ |
+| CND in Yoruba | 51–58% | 51–58% | Dominant ✓ |
+| IPA in Igbo | 35–39% | 35–39% | Strong ✓ |
+| National PLF | 3.2% | 4.3% | Viable ✓ |
+
+### National Vote Shares (Cycle 4 base run)
+```
+NDC   18.6%    SNM  7.0%    CDA  5.9%    UJP  4.5%    NRP  2.3%
+CND   17.0%    NWF  6.0%    NHA  4.9%    PLF  4.3%    NNV  0.5%
+MBPP  10.5%    IPA  8.0%    ANPC 7.3%    NSA  3.2%
+```
+
+### Rationale
+PLF (People's Liberation Front) is described as "rooted in Niger Delta resource activism" — historically, these movements fought for local control of resource revenue. Having resource_revenue=-4.5 (extreme federal monopoly) was a worldbuilding contradiction that caused PLF to lose its ethnic heartland to MBPP (which has no ethnic connection to Bayelsa/Ijaw territory). Changing to +3.0 (strong local control) aligns the party's position with its narrative identity. PLF remains centralist on general fiscal policy (-3.0) but wants oil revenue to benefit producing communities.
+
+### Tests Added
+- Added `test_plf_leads_in_bayelsa`: PLF should be >15% and competitive with MBPP in Bayelsa.
+- Total: 31 calibration tests across 7 classes.
+
+### Calibration Summary — All Targets Met
+| Target | Status |
+|--------|--------|
+| National turnout 70–90% | 71.0% ✓ |
+| No LGA >95% turnout | Max 89.7% ✓ |
+| Top party <45% national | NDC 18.6% ✓ |
+| Swing LGAs 10–30% | 119 (15.4%) ✓ |
+| NDC dominates Hausa states | 53–63% ✓ |
+| CND dominates Yoruba states | 51–58% ✓ |
+| IPA strong in Igbo states | 35–39% ✓ |
+| UJP strong in Borno | ~45% ✓ |
+| ANPC leads Edo | 48.2% ✓ |
+| PLF viable in Niger Delta | 25–27% ✓ |
+| MBPP does not dominate Bayelsa | 23.5% ✓ |
+| All parties >0% | Min NNV 0.5% ✓ |

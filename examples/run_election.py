@@ -520,23 +520,24 @@ MBPP_POSITIONS = np.array([
 # PLF — People's Liberation Front
 # Radical left party rooted in Niger Delta resource activism and Lagos slum
 # organizing. Highest scores on labor, housing, taxation, healthcare, and
-# infrastructure in the entire system. Strongly centralist — believes only
-# an empowered federal state can redistribute wealth from extractive elites
-# to the masses. Moderately pro-WAFTA, seeing Chinese capital as a useful
-# counterweight to Western multinationals. Favors state media discipline
-# over press freedom, viewing private media as captured by oligarchs.
-# Anti-traditional authority and supportive of keeping the AZ system that
-# weakens old regional power structures. The party of people who have been
-# promised development for sixty years and received pipeline explosions.
+# infrastructure in the entire system. Centralist on general fiscal policy
+# but fiercely pro-local-resource-control — the oil belongs to the people
+# who live above it. Moderately pro-WAFTA, seeing Chinese capital as a
+# useful counterweight to Western multinationals. Favors state media
+# discipline over press freedom, viewing private media as captured by
+# oligarchs. Anti-traditional authority and supportive of keeping the AZ
+# system that weakens old regional power structures. The party of people
+# who have been promised development for sixty years and received pipeline
+# explosions.
 PLF_POSITIONS = np.array([
     -4.0,  #  0  sharia: strongly secular
-    -4.5,  #  1  fiscal: strong centralism
+    -3.0,  #  1  fiscal: centralist (but less extreme — resource revenue is separate)
     +2.5,  #  2  chinese: moderate WAFTA
     -2.0,  #  3  bic: anti-BIC
     +2.0,  #  4  ethnic_quotas: affirmative action
     -3.0,  #  5  fertility: population control
     -3.5,  #  6  constitutional: strongly parliamentary
-    -4.5,  #  7  resource: strong federal control
+    +3.0,  #  7  resource: strong local control (Niger Delta core demand)
     +5.0,  #  8  housing: maximum intervention
     +3.0,  #  9  education: centralism
     +5.0,  # 10  labor: maximum pro-labor
