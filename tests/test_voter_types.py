@@ -14,6 +14,7 @@ from election_engine.voter_types import (
     precompute_compat_factors,
     build_voter_ideal_base,
     compute_lga_ideal_offset,
+    compute_all_lga_ideal_offsets,
     _build_type_indices,
     _CORE_ETHNICITIES,
     RELIGIONS,
@@ -302,6 +303,29 @@ def test_voter_ideal_base_shape():
     voter_types = generate_all_voter_types()
     base = build_voter_ideal_base(voter_types)
     assert base.shape == (TOTAL_TYPES, N_ISSUES)
+
+
+def test_vectorised_lga_offsets_match_per_row():
+    """compute_all_lga_ideal_offsets must match per-row compute_lga_ideal_offset."""
+    # Build a small DataFrame with 3 LGAs with different features
+    rows = [
+        _make_lga_row(**{"GDP Per Capita Est": 10000, "Oil Producing": 1,
+                         "Urban Pct": 80, "Conflict History": 3}),
+        _make_lga_row(**{"GDP Per Capita Est": 50000, "Oil Producing": 0,
+                         "Urban Pct": 20, "Al-Shahid Influence": 4}),
+        _make_lga_row(**{"GDP Per Capita Est": 25000, "Extraction Intensity": 3,
+                         "Urban Pct": 50, "Fertility Rate Est": 6.0}),
+    ]
+    df = pd.DataFrame(rows)
+    bulk_offsets = compute_all_lga_ideal_offsets(df)
+    assert bulk_offsets.shape == (3, N_ISSUES)
+
+    for idx in range(3):
+        per_row = compute_lga_ideal_offset(df.iloc[idx])
+        np.testing.assert_allclose(
+            bulk_offsets[idx], per_row, atol=1e-12,
+            err_msg=f"Mismatch at LGA {idx}",
+        )
 
 
 if __name__ == "__main__":
