@@ -425,10 +425,10 @@ def aggregate_monte_carlo(
     # ---- Winner per LGA per run (vectorised argmax) ----
     winner_indices = np.argmax(all_shares, axis=2)  # (n_runs, n_lgas) — int indices
 
-    # ---- Seat counts: count how many LGAs each party wins per run ----
-    seat_matrix = np.zeros((n_runs, J), dtype=int)
-    for j in range(J):
-        seat_matrix[:, j] = np.sum(winner_indices == j, axis=1)
+    # ---- Seat counts per run (vectorised via bincount) ----
+    seat_matrix = np.array([
+        np.bincount(winner_indices[r], minlength=J) for r in range(n_runs)
+    ])
 
     seat_stats_rows = []
     for j, p in enumerate(party_names):
@@ -570,10 +570,10 @@ def aggregate_monte_carlo_from_arrays(
     # Winner per LGA per run
     winner_indices = np.argmax(all_shares, axis=2)
 
-    # Seat counts per run
-    seat_matrix = np.zeros((n_runs, J), dtype=int)
-    for j in range(J):
-        seat_matrix[:, j] = np.sum(winner_indices == j, axis=1)
+    # Seat counts per run (vectorised via bincount)
+    seat_matrix = np.array([
+        np.bincount(winner_indices[r], minlength=J) for r in range(n_runs)
+    ])
 
     seat_stats_rows = []
     for j, p in enumerate(party_names):
@@ -663,6 +663,23 @@ def aggregate_monte_carlo_from_arrays(
         "p95": float(np.percentile(enp_per_run, 95)),
     }
 
+    # National competitiveness margin: gap between 1st and 2nd place national share
+    sorted_nat = np.sort(national_shares_per_run, axis=1)[:, ::-1]  # (n_runs, J) desc
+    if J >= 2:
+        nat_margins = sorted_nat[:, 0] - sorted_nat[:, 1]  # (n_runs,)
+    else:
+        nat_margins = np.ones(n_runs)
+    margin_stats = {
+        "mean": float(nat_margins.mean()),
+        "std": float(nat_margins.std()),
+        "p5": float(np.percentile(nat_margins, 5)),
+        "p95": float(np.percentile(nat_margins, 95)),
+    }
+
+    # Per-LGA vote volatility: mean std of each party's share across MC runs
+    lga_volatility = all_shares.std(axis=0).mean(axis=1)  # (n_lgas,) avg over parties
+    share_stats_df["Volatility"] = lga_volatility
+
     return {
         "seat_stats": seat_stats,
         "national_share_stats": national_share_stats,
@@ -672,6 +689,7 @@ def aggregate_monte_carlo_from_arrays(
         "win_probabilities": win_probabilities,
         "swing_lgas": swing_lgas,
         "enp_stats": enp_stats,
+        "margin_stats": margin_stats,
         "n_runs": n_runs,
     }
 

@@ -186,11 +186,14 @@ def apply_noise_to_results(
     zone_values = result[admin_zone_col].values
     N_lga = len(result)
 
-    # Build regional shock array aligned with rows: (N_lga, J)
-    reg_shock_array = np.zeros((N_lga, J))
-    for zone in admin_zones:
-        mask = zone_values == zone
-        reg_shock_array[mask] = regional_shocks.get(zone, np.zeros(J))
+    # Map zone IDs to contiguous integer codes for vectorised indexing
+    zone_to_code = {z: i for i, z in enumerate(admin_zones)}
+    zone_codes = np.array([zone_to_code[z] for z in zone_values], dtype=np.intp)
+    n_zones = len(admin_zones)
+
+    # Build regional shock array via fancy indexing: (n_zones, J) → (N_lga, J)
+    zone_shock_matrix = np.array([regional_shocks.get(z, np.zeros(J)) for z in admin_zones])
+    reg_shock_array = zone_shock_matrix[zone_codes]  # (N_lga, J)
 
     # ---- Vectorised: log → shock → softmax → alpha (all N_lga rows at once) ----
     safe_shares = np.maximum(share_values, _LOG_EPSILON)           # (N_lga, J)
@@ -201,10 +204,11 @@ def apply_noise_to_results(
     shocked_shares = exp_vals / exp_vals.sum(axis=1, keepdims=True)
     alphas = np.maximum(params.kappa * shocked_shares, 1e-6)       # (N_lga, J)
 
-    # ---- Dirichlet draws (per-row — each LGA has different alpha) ----
-    noisy_shares = np.empty_like(share_values)
-    for idx in range(N_lga):
-        noisy_shares[idx] = rng.dirichlet(alphas[idx])
+    # ---- Batch Dirichlet draws via gamma: Dirichlet(alpha) = normalise(Gamma(alpha_j, 1)) ----
+    gamma_draws = rng.standard_gamma(alphas)  # (N_lga, J)
+    row_sums = gamma_draws.sum(axis=1, keepdims=True)
+    row_sums = np.maximum(row_sums, 1e-30)
+    noisy_shares = gamma_draws / row_sums
 
     # Bulk assignment back to dataframe
     result[share_cols] = noisy_shares
@@ -218,12 +222,12 @@ def apply_noise_to_results(
         logit_t = np.log(safe_t / (1.0 - safe_t))
         # National turnout shock
         national_t_shock = rng.normal(0.0, params.sigma_turnout) if params.sigma_turnout > 0 else 0.0
-        # Regional turnout shocks (one per admin zone, shared by all LGAs in zone)
-        reg_t_shocks = np.zeros(N_lga)
+        # Regional turnout shocks: draw per zone, broadcast via zone_codes
         if params.sigma_turnout_regional > 0:
-            for zone in admin_zones:
-                mask = zone_values == zone
-                reg_t_shocks[mask] = rng.normal(0.0, params.sigma_turnout_regional)
+            zone_t_shocks = rng.normal(0.0, params.sigma_turnout_regional, size=n_zones)
+            reg_t_shocks = zone_t_shocks[zone_codes]  # (N_lga,)
+        else:
+            reg_t_shocks = np.zeros(N_lga)
         # Per-LGA turnout shock
         lga_t_shocks = rng.normal(0.0, params.sigma_turnout, size=N_lga) if params.sigma_turnout > 0 else np.zeros(N_lga)
         noisy_logit = logit_t + national_t_shock + reg_t_shocks + lga_t_shocks
@@ -265,15 +269,19 @@ def apply_noise_arrays(
     """
     N_lga, J = base_shares.shape
 
+    # --- Map zone IDs to contiguous integer codes for vectorised indexing ---
+    n_zones = len(admin_zones)
+    zone_to_code = {z: i for i, z in enumerate(admin_zones)}
+    zone_codes = np.array([zone_to_code[z] for z in zone_ids], dtype=np.intp)
+
     # Draw shocks (zero-sum: one party's gain is another's loss on log scale)
     national_shocks = rng.normal(0.0, params.sigma_national, size=J)
     national_shocks -= national_shocks.mean()
-    reg_shock_array = np.zeros((N_lga, J))
-    for zone in admin_zones:
-        z = rng.normal(0.0, params.sigma_regional, size=J)
-        z -= z.mean()
-        mask = zone_ids == zone
-        reg_shock_array[mask] = z
+
+    # Regional shocks: draw (n_zones, J), zero-sum per zone, then broadcast
+    zone_shocks = rng.normal(0.0, params.sigma_regional, size=(n_zones, J))
+    zone_shocks -= zone_shocks.mean(axis=1, keepdims=True)
+    reg_shock_array = zone_shocks[zone_codes]  # (N_lga, J) via fancy indexing
 
     # Vectorised: log → shock → softmax → alpha
     safe_shares = np.maximum(base_shares, _LOG_EPSILON)
@@ -284,10 +292,11 @@ def apply_noise_arrays(
     shocked_shares = exp_vals / exp_vals.sum(axis=1, keepdims=True)
     alphas = np.maximum(params.kappa * shocked_shares, 1e-6)
 
-    # Dirichlet draws (per-row)
-    noisy_shares = np.empty_like(base_shares)
-    for idx in range(N_lga):
-        noisy_shares[idx] = rng.dirichlet(alphas[idx])
+    # Batch Dirichlet draws via gamma: Dirichlet(alpha) = normalise(Gamma(alpha_j, 1))
+    gamma_draws = rng.standard_gamma(alphas)  # (N_lga, J)
+    row_sums = gamma_draws.sum(axis=1, keepdims=True)
+    row_sums = np.maximum(row_sums, 1e-30)  # prevent division by zero
+    noisy_shares = gamma_draws / row_sums
 
     # Turnout noise (3-tier: national + regional + LGA)
     has_turnout_noise = (params.sigma_turnout > 0 or params.sigma_turnout_regional > 0)
@@ -296,12 +305,12 @@ def apply_noise_arrays(
         logit_t = np.log(safe_t / (1.0 - safe_t))
         # National turnout shock
         national_t_shock = rng.normal(0.0, params.sigma_turnout) if params.sigma_turnout > 0 else 0.0
-        # Regional turnout shocks (one per admin zone)
-        reg_t_shocks = np.zeros(N_lga)
+        # Regional turnout shocks: draw per zone, broadcast via zone_codes
         if params.sigma_turnout_regional > 0:
-            for zone in admin_zones:
-                mask = zone_ids == zone
-                reg_t_shocks[mask] = rng.normal(0.0, params.sigma_turnout_regional)
+            zone_t_shocks = rng.normal(0.0, params.sigma_turnout_regional, size=n_zones)
+            reg_t_shocks = zone_t_shocks[zone_codes]  # (N_lga,)
+        else:
+            reg_t_shocks = np.zeros(N_lga)
         # Per-LGA turnout shocks
         lga_t_shocks = rng.normal(0.0, params.sigma_turnout, size=N_lga) if params.sigma_turnout > 0 else np.zeros(N_lga)
         noisy_logit = logit_t + national_t_shock + reg_t_shocks + lga_t_shocks
