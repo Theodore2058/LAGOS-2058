@@ -12,6 +12,7 @@ from election_engine.results import (
     check_presidential_spread,
     aggregate_monte_carlo,
     compute_summary_stats,
+    compute_vote_counts,
 )
 
 
@@ -313,6 +314,69 @@ def test_run_election_integration():
     summary = compute_summary_stats(base, ["A", "B"])
     assert abs(sum(summary["national_shares"].values()) - 1.0) < 0.05
     assert 0.0 <= summary["national_turnout"] <= 1.0
+
+
+# ---- Vote Count Tests ----
+
+def test_vote_counts_basic():
+    """Vote counts should equal population × turnout × share."""
+    parties = ["A", "B"]
+    df = pd.DataFrame([{
+        "State": "S1", "LGA Name": "L1",
+        "Estimated Population": 100000,
+        "Turnout": 0.70,
+        "A_share": 0.60, "B_share": 0.40,
+    }])
+    result = compute_vote_counts(df, parties)
+    assert result["A_votes"].iloc[0] == 42000  # 100000 * 0.70 * 0.60
+    assert result["B_votes"].iloc[0] == 28000  # 100000 * 0.70 * 0.40
+    assert result["Total_Votes"].iloc[0] == 70000
+
+
+def test_vote_counts_sum_consistency():
+    """Sum of party votes should approximate total votes."""
+    df, parties = _make_simple_results()
+    df["Estimated Population"] = 50000
+    result = compute_vote_counts(df, parties)
+    vote_cols = [f"{p}_votes" for p in parties]
+    per_row_sum = result[vote_cols].sum(axis=1)
+    # Rounding can cause off-by-one per party, so allow tolerance
+    assert np.all(np.abs(per_row_sum - result["Total_Votes"]) <= len(parties))
+
+
+def test_vote_counts_columns_exist():
+    """Output should have {party}_votes and Total_Votes columns."""
+    df, parties = _make_simple_results()
+    df["Estimated Population"] = 50000
+    result = compute_vote_counts(df, parties)
+    for p in parties:
+        assert f"{p}_votes" in result.columns
+    assert "Total_Votes" in result.columns
+
+
+def test_national_votes_in_summary():
+    """compute_summary_stats should include national_votes and total_votes."""
+    df, parties = _make_simple_results()
+    df["Estimated Population"] = 50000
+    summary = compute_summary_stats(df, parties)
+    assert "national_votes" in summary
+    assert "total_votes" in summary
+    assert summary["total_votes"] > 0
+    assert sum(summary["national_votes"].values()) > 0
+
+
+def test_mc_national_share_stats():
+    """MC aggregation should include national_share_stats."""
+    df, parties = _make_simple_results()
+    df["Estimated Population"] = 50000
+    runs = [df.copy() for _ in range(5)]
+    mc = aggregate_monte_carlo(runs, parties)
+    assert "national_share_stats" in mc
+    ns = mc["national_share_stats"]
+    assert len(ns) == len(parties)
+    assert "Mean Share" in ns.columns
+    assert "P5 Share" in ns.columns
+    assert "P95 Share" in ns.columns
 
 
 if __name__ == "__main__":

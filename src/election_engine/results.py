@@ -1,11 +1,12 @@
 """
-Results processing, seat allocation, and presidential spread check for LAGOS-2058.
+Results processing, vote counts, and presidential spread check for LAGOS-2058.
 
 Key functions:
+    compute_vote_counts()       — raw vote counts from shares × population × turnout
     determine_winners()         — LGA-level plurality winners
     check_presidential_spread() — Nigeria constitutional spread requirement
     aggregate_monte_carlo()     — MC distributional results
-    compute_summary_stats()     — national and zonal vote shares
+    compute_summary_stats()     — national and zonal vote shares + vote counts
 """
 
 from __future__ import annotations
@@ -21,6 +22,47 @@ logger = logging.getLogger(__name__)
 # Presidential spread requirement (2058 constitution, following 1999 model)
 _REQUIRED_STATES_WITH_25PCT = 24   # ≥25% in at least this many states
 _TOTAL_STATES = 37                  # 36 states + FCT
+
+
+def compute_vote_counts(
+    lga_results: pd.DataFrame,
+    party_names: list[str],
+    pop_col: str = "Estimated Population",
+    turnout_col: str = "Turnout",
+) -> pd.DataFrame:
+    """
+    Compute raw vote counts per party per LGA from shares, population, and turnout.
+
+    Vote count for party j in LGA c:
+        votes_jc = population_c × turnout_c × share_jc
+
+    Parameters
+    ----------
+    lga_results : pd.DataFrame
+        LGA-level results with {party}_share, population, and turnout columns.
+    party_names : list[str]
+        Party names in order.
+    pop_col : str
+        Column name for LGA population.
+    turnout_col : str
+        Column name for LGA turnout rate (0–1).
+
+    Returns
+    -------
+    pd.DataFrame
+        Copy of lga_results with added {party}_votes columns and Total_Votes column.
+    """
+    result = lga_results.copy()
+    pop = result[pop_col].values.astype(float)
+    turnout = result[turnout_col].values.astype(float) if turnout_col in result.columns else np.ones(len(result))
+    total_voters = pop * turnout
+
+    for p in party_names:
+        share_col = f"{p}_share"
+        result[f"{p}_votes"] = np.round(total_voters * result[share_col].values.astype(float)).astype(int)
+
+    result["Total_Votes"] = np.round(total_voters).astype(int)
+    return result
 
 
 def determine_lga_winner(lga_result_row: pd.Series, party_names: list[str]) -> str:
@@ -214,6 +256,7 @@ def aggregate_monte_carlo(
     all_runs: list[pd.DataFrame],
     party_names: list[str],
     state_col: str = "State",
+    pop_col: str = "Estimated Population",
 ) -> dict:
     """
     Aggregate results from multiple Monte Carlo runs into distributional statistics.
@@ -223,11 +266,14 @@ def aggregate_monte_carlo(
     all_runs : list[pd.DataFrame]
         Each element is one MC run's LGA results (output of apply_noise_to_results).
     party_names : list[str]
+    pop_col : str
+        Column name for LGA population (used for national share weighting).
 
     Returns
     -------
     dict with:
         seat_stats : pd.DataFrame — mean/std/p5/p95 seats per party
+        national_share_stats : pd.DataFrame — mean/std/p5/p95 national share per party
         share_stats : pd.DataFrame — per-LGA: mean share, std per party
         win_probabilities : dict[party, float] — fraction of runs where party wins most seats
         swing_lgas : pd.DataFrame — LGAs where winner changes across runs
@@ -272,6 +318,29 @@ def aggregate_monte_carlo(
     for j, p in enumerate(party_names):
         win_probabilities[p] = float(np.sum(national_winner_idx == j)) / n_runs
 
+    # ---- National share statistics (population-weighted) ----
+    has_pop = pop_col in all_runs[0].columns
+    if has_pop:
+        pop = all_runs[0][pop_col].values.astype(float)  # (n_lgas,)
+        pop_weights = pop / pop.sum()  # (n_lgas,)
+        # (n_runs, n_lgas, J) × (n_lgas, 1) → sum over LGAs → (n_runs, J)
+        national_shares_per_run = np.einsum("rlj,l->rj", all_shares, pop_weights)
+    else:
+        national_shares_per_run = all_shares.mean(axis=1)  # (n_runs, J)
+
+    nat_share_rows = []
+    for j, p in enumerate(party_names):
+        arr = national_shares_per_run[:, j]
+        nat_share_rows.append({
+            "Party": p,
+            "Mean Share": float(arr.mean()),
+            "Std Share": float(arr.std()),
+            "P5 Share": float(np.percentile(arr, 5)),
+            "P95 Share": float(np.percentile(arr, 95)),
+            "Median Share": float(np.median(arr)),
+        })
+    national_share_stats = pd.DataFrame(nat_share_rows)
+
     # ---- Per-LGA share statistics ----
     share_stats_df = all_runs[0][["State", "LGA Name"]].copy()
     for j, col in enumerate(share_cols):
@@ -291,6 +360,7 @@ def aggregate_monte_carlo(
 
     return {
         "seat_stats": seat_stats,
+        "national_share_stats": national_share_stats,
         "share_stats": share_stats_df,
         "win_probabilities": win_probabilities,
         "swing_lgas": swing_lgas,
@@ -310,14 +380,34 @@ def compute_summary_stats(
 
     Returns dict with:
         national_shares : dict[party, float]
+        national_votes : dict[party, int]
+        total_votes : int
         zonal_shares : pd.DataFrame (one row per zone)
-        seat_counts : dict[party, int]
+        seat_counts : dict[party, int] (kept for backwards compatibility)
         national_turnout : float
     """
     seats = count_seats(lga_results, party_names)
 
     # Population-weighted national shares
     national = _pop_weighted_national(lga_results, party_names)
+
+    # National vote counts
+    pop_col = "Estimated Population"
+    turnout_col = "Turnout"
+    has_pop = pop_col in lga_results.columns
+    has_turnout = turnout_col in lga_results.columns
+    if has_pop and has_turnout:
+        pop = lga_results[pop_col].values.astype(float)
+        turnout = lga_results[turnout_col].values.astype(float)
+        total_voters = pop * turnout
+        national_votes = {}
+        for p in party_names:
+            votes = total_voters * lga_results[f"{p}_share"].values.astype(float)
+            national_votes[p] = int(np.round(votes.sum()))
+        total_votes = int(np.round(total_voters.sum()))
+    else:
+        national_votes = {p: 0 for p in party_names}
+        total_votes = 0
 
     # Population-weighted zonal shares
     share_and_turnout = [f"{p}_share" for p in party_names]
@@ -366,6 +456,8 @@ def compute_summary_stats(
 
     return {
         "national_shares": national,
+        "national_votes": national_votes,
+        "total_votes": total_votes,
         "zonal_shares": zonal,
         "seat_counts": seats,
         "national_turnout": turnout,

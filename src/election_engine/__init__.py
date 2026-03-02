@@ -7,6 +7,7 @@ from .config import (
     Party,
     ElectionConfig,
 )
+from .results import compute_vote_counts
 
 __all__ = [
     "ISSUE_NAMES",
@@ -14,4 +15,5 @@ __all__ = [
     "EngineParams",
     "Party",
     "ElectionConfig",
+    "compute_vote_counts",
 ]

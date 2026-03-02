@@ -48,7 +48,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from election_engine.config import Party, EngineParams, ElectionConfig, N_ISSUES
 from election_engine.election import run_election
-from election_engine.results import compute_state_shares
+from election_engine.results import compute_state_shares, compute_vote_counts
 
 logging.basicConfig(
     level=logging.INFO,
@@ -721,6 +721,8 @@ def main():
     parser.add_argument("--seed", type=int, default=2058, help="Random seed (default: 2058)")
     parser.add_argument("--mc", type=int, default=100, help="Monte Carlo runs (default: 100)")
     parser.add_argument("--quiet", action="store_true", help="Suppress progress logging")
+    parser.add_argument("--export", type=str, default=None,
+                        help="Export LGA results to CSV (e.g. --export results.csv)")
     args = parser.parse_args()
 
     params = EngineParams(
@@ -733,44 +735,38 @@ def main():
     data_path = Path(__file__).parent.parent / "data" / "nigeria_lga_polsim_2058.xlsx"
     results = run_election(data_path, config, seed=args.seed, verbose=not args.quiet)
 
+    # ---- Compute vote counts ----
+    party_names = [p.name for p in PARTIES]
+    lga_with_votes = compute_vote_counts(results["lga_results_base"], party_names)
+
     # ---- Print summary ----
     summary = results["summary"]
     mc = results["mc_aggregated"]
-    party_names = [p.name for p in PARTIES]
 
     print("\n" + "=" * 70)
     print("LAGOS-2058 ELECTION RESULTS SUMMARY")
     print(f"  Seed: {args.seed}  |  MC runs: {args.mc}  |  Parties: {len(PARTIES)}")
     print("=" * 70)
 
-    # --- National vote shares ---
-    print("\nNATIONAL VOTE SHARES (base run):")
-    for p, share in sorted(summary["national_shares"].items(), key=lambda x: -x[1]):
-        print(f"  {p:10s}  {share:6.1%}")
-
+    # --- National vote counts and shares ---
     print(f"\nNational Turnout: {summary['national_turnout']:.1%}")
+    print(f"Total Votes Cast: {summary['total_votes']:,}")
 
-    # --- Seat allocation ---
-    print("\nSEAT ALLOCATION (LGA plurality, base run):")
-    seats = summary["seat_counts"]
-    for p, s in sorted(seats.items(), key=lambda x: -x[1]):
-        if s > 0:
-            print(f"  {p:10s}  {s:4d} seats  ({s/774*100:5.1f}%)")
-    print(f"  {'Total':10s}  {sum(seats.values()):4d}")
+    print("\nNATIONAL RESULTS (base run):")
+    print(f"  {'Party':10s}  {'Votes':>12s}  {'Share':>7s}")
+    print(f"  {'-'*10}  {'-'*12}  {'-'*7}")
+    sorted_parties = sorted(summary["national_shares"].items(), key=lambda x: -x[1])
+    for p, share in sorted_parties:
+        votes = summary["national_votes"][p]
+        print(f"  {p:10s}  {votes:12,}  {share:6.1%}")
 
-    # --- MC seat confidence intervals ---
-    print("\nMC SEAT DISTRIBUTION (mean [P5 - P95]):")
-    seat_stats = mc["seat_stats"].sort_values("Mean Seats", ascending=False)
-    for _, row in seat_stats.iterrows():
-        if row["Mean Seats"] >= 1.0:
-            print(f"  {row['Party']:10s}  {row['Mean Seats']:6.1f}  "
-                  f"[{row['P5 Seats']:5.0f} - {row['P95 Seats']:5.0f}]")
-
-    # --- Win probabilities ---
-    print("\nNATIONAL WIN PROBABILITY (most seats across MC runs):")
-    for p, prob in sorted(mc["win_probabilities"].items(), key=lambda x: -x[1]):
-        if prob > 0:
-            print(f"  {p:10s}  {prob:6.1%}")
+    # --- MC national share confidence intervals ---
+    print("\nMC NATIONAL SHARE UNCERTAINTY (mean [P5 - P95]):")
+    ns = mc["national_share_stats"].sort_values("Mean Share", ascending=False)
+    for _, row in ns.iterrows():
+        if row["Mean Share"] >= 0.005:
+            print(f"  {row['Party']:10s}  {row['Mean Share']:6.1%}  "
+                  f"[{row['P5 Share']:5.1%} - {row['P95 Share']:5.1%}]")
 
     # --- Presidential spread check ---
     print("\nPRESIDENTIAL SPREAD CHECK (>=25% in >=24 states + national plurality):")
@@ -812,7 +808,29 @@ def main():
             winner = row[[c for c in share_cols]].idxmax().replace("_share", "")
             margin = row["_margin"]
             print(f"  {row['State']:20s}  {row['LGA Name']:25s}  "
-                  f"winner: {winner:6s}  margin: {margin:.1%}")
+                  f"leader: {winner:6s}  margin: {margin:.1%}")
+
+    # --- Turnout distribution ---
+    if "Turnout" in lga_with_votes.columns:
+        t = lga_with_votes["Turnout"].values
+        print(f"\nTURNOUT DISTRIBUTION:")
+        print(f"  Mean: {t.mean():.1%}  Median: {np.median(t):.1%}  "
+              f"Min: {t.min():.1%}  Max: {t.max():.1%}  Std: {t.std():.1%}")
+        for threshold in [0.60, 0.70, 0.80, 0.85, 0.90]:
+            n = np.sum(t > threshold)
+            print(f"  LGAs > {threshold:.0%}: {n}")
+
+    # --- CSV export ---
+    if args.export:
+        vote_cols = [f"{p}_votes" for p in party_names]
+        share_cols = [f"{p}_share" for p in party_names]
+        export_cols = ["State", "LGA Name", "Administrative Zone", "AZ Name",
+                       "Estimated Population", "Turnout", "Total_Votes"]
+        export_cols.extend(vote_cols)
+        export_cols.extend(share_cols)
+        available = [c for c in export_cols if c in lga_with_votes.columns]
+        lga_with_votes[available].to_csv(args.export, index=False)
+        print(f"\nExported LGA results to {args.export}")
 
 
 if __name__ == "__main__":
