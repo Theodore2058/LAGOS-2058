@@ -1,0 +1,134 @@
+"""
+Global parameters, constants, and dataclasses for the LAGOS-2058 election engine.
+
+Parameter reference table:
+┌─────────────────────┬────────┬─────────┬──────────┬──────────────────────────────────────────┐
+│ Parameter           │ Symbol │ Default │ Range    │ Effect                                   │
+├─────────────────────┼────────┼─────────┼──────────┼──────────────────────────────────────────┤
+│ Prox-Dir mix        │ q      │ 0.50    │ 0–1      │ 0=extremism pays, 1=centrism pays        │
+│ Spatial sensitivity │ β_s    │ 1.00    │ 0–5      │ Higher → policy matters more vs identity │
+│ Ethnic sensitivity  │ α_e    │ 2.50    │ 0–5+     │ Likely largest param in Nigerian context  │
+│ Religious sensitiv. │ α_r    │ 1.50    │ 0–5      │ Lower than ethnic; negative matrix amps  │
+│ Scale/rationality   │ λ      │ 1.00    │ 0.1–10   │ Higher → sharper; lower → mushier        │
+│ Baseline abstention │ τ₀     │ 1.50    │ 0–5      │ Higher → lower turnout everywhere        │
+│ Alienation          │ τ₁     │ 0.30    │ 0–2      │ More abstention when all parties distant │
+│ Indifference        │ τ₂     │ 0.50    │ 0–2      │ More abstention when top parties similar │
+│ Dirichlet conc.     │ κ      │ 200     │ 50–1000  │ Higher → less noise                      │
+│ National shock SD   │ σ_nat  │ 0.10    │ 0–0.5    │ Bigger national swings                   │
+│ Regional shock SD   │ σ_reg  │ 0.15    │ 0–0.5    │ Bigger regional swings                   │
+│ LGA shock SD        │ σ_lga  │ 0.20    │ 0–0.5    │ More local randomness                    │
+└─────────────────────┴────────┴─────────┴──────────┴──────────────────────────────────────────┘
+"""
+
+from dataclasses import dataclass, field
+from typing import Optional
+import numpy as np
+
+# The 28 issue dimensions — all scales run -5 to +5
+# Zero = Khalilian status quo or neutral midpoint
+ISSUE_NAMES: list[str] = [
+    "sharia_jurisdiction",       # 1  secular ↔ full Sharia
+    "fiscal_autonomy",           # 2  centralism ↔ confederalism
+    "chinese_relations",         # 3  Western pivot ↔ deepen WAFTA
+    "bic_reform",                # 4  abolish ↔ preserve BIC
+    "ethnic_quotas",             # 5  meritocracy ↔ affirmative action
+    "fertility_policy",          # 6  population control ↔ pro-natalism
+    "constitutional_structure",  # 7  parliamentary ↔ presidential
+    "resource_revenue",          # 8  federal monopoly ↔ local control
+    "housing",                   # 9  pure market ↔ state intervention
+    "education",                 # 10 radical localism ↔ meritocratic centralism
+    "labor_automation",          # 11 pro-capital ↔ pro-labor
+    "military_role",             # 12 civilian control ↔ military guardianship
+    "immigration",               # 13 open borders ↔ restrictionism
+    "language_policy",           # 14 vernacular ↔ English supremacy
+    "womens_rights",             # 15 traditional patriarchy ↔ aggressive feminism
+    "traditional_authority",     # 16 marginalization ↔ formal integration
+    "infrastructure",            # 17 targeted ↔ universal provision
+    "land_tenure",               # 18 customary ↔ formalization
+    "taxation",                  # 19 low tax ↔ high redistribution
+    "agricultural_policy",       # 20 free market ↔ protectionist smallholder
+    "biological_enhancement",    # 21 prohibition ↔ universal access
+    "trade_policy",              # 22 autarky ↔ full openness
+    "environmental_regulation",  # 23 growth first ↔ strong regulation
+    "media_freedom",             # 24 state control ↔ full press freedom
+    "healthcare",                # 25 pure market ↔ universal provision
+    "pada_status",               # 26 anti-Padà ↔ Padà preservation
+    "energy_policy",             # 27 fossil status quo ↔ green transition
+    "az_restructuring",          # 28 return to 36+ states ↔ keep 8 AZs
+]
+
+N_ISSUES: int = 28  # D — total number of policy dimensions
+
+
+@dataclass
+class EngineParams:
+    """Global simulation parameters with calibrated defaults."""
+
+    # Spatial model
+    q: float = 0.5          # Proximity-directional mix (0=directional, 1=proximity)
+    beta_s: float = 1.0     # Spatial sensitivity (β_s)
+
+    # Identity affinity
+    alpha_e: float = 2.5    # Ethnic sensitivity (α_e)
+    alpha_r: float = 1.5    # Religious sensitivity (α_r)
+
+    # Multinomial logit
+    scale: float = 1.0      # Softmax scale / rationality (λ). Higher = sharper choices
+
+    # Turnout / abstention
+    tau_0: float = 1.5      # Baseline abstention utility (τ₀)
+    tau_1: float = 0.3      # Alienation strength (τ₁)
+    tau_2: float = 0.5      # Indifference strength (τ₂)
+
+    # Noise model
+    kappa: float = 200.0          # Dirichlet concentration (κ). Higher = less noise
+    sigma_national: float = 0.10  # National shock SD (σ_nat)
+    sigma_regional: float = 0.15  # Regional shock SD (σ_reg)
+    sigma_lga: float = 0.20       # LGA shock SD (σ_lga)
+
+
+@dataclass
+class Party:
+    """A political party in the simulation."""
+
+    name: str
+    positions: np.ndarray              # shape (28,) — position on each issue, scale -5 to +5
+    valence: float = 0.0               # Baseline valence advantage (one party must be 0)
+    leader_ethnicity: str = ""         # Key into ethnic affinity matrix
+    religious_alignment: str = ""      # Key into religious affinity matrix
+    demographic_coefficients: Optional[dict] = None  # γ_mj terms for demographic utility
+
+    def __post_init__(self) -> None:
+        self.positions = np.asarray(self.positions, dtype=float)
+        if self.positions.shape != (N_ISSUES,):
+            raise ValueError(
+                f"Party '{self.name}' positions must have shape ({N_ISSUES},), "
+                f"got {self.positions.shape}"
+            )
+        if np.any(np.abs(self.positions) > 5.0):
+            raise ValueError(
+                f"Party '{self.name}' positions must be in [-5, +5]; "
+                f"found values: {self.positions[np.abs(self.positions) > 5]}"
+            )
+
+
+@dataclass
+class ElectionConfig:
+    """Full configuration for one election run."""
+
+    params: EngineParams
+    parties: list  # list[Party]
+    issue_names: list[str] = field(default_factory=lambda: list(ISSUE_NAMES))
+    n_monte_carlo: int = 1000
+
+    def __post_init__(self) -> None:
+        if len(self.issue_names) != N_ISSUES:
+            raise ValueError(
+                f"issue_names must have {N_ISSUES} entries, got {len(self.issue_names)}"
+            )
+        if not self.parties:
+            raise ValueError("ElectionConfig must have at least one party")
+
+    @property
+    def n_parties(self) -> int:
+        return len(self.parties)
