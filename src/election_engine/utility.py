@@ -158,6 +158,67 @@ def compute_utility(
     return valences + u_spatial + u_ethnic + u_religious + u_demographic
 
 
+def precompute_demographic_utility_table(
+    voter_types: list,
+    parties: list,
+) -> np.ndarray:
+    """
+    Precompute demographic utility for every (voter type, party) pair.
+
+    Returns (N_types, J) array. Since demographic utility depends only on
+    voter-type attributes (education, livelihood, income, etc.) and party
+    coefficients — not on LGA data — this table is computed once and reused
+    for all LGAs.
+    """
+    N = len(voter_types)
+    J = len(parties)
+    table = np.zeros((N, J))
+
+    # Build per-party lookup for speed: list of (demo_key_index, value_str, coefficient)
+    demo_keys = ["education", "livelihood", "income", "age_cohort", "setting", "gender"]
+    vt_attrs = {
+        "education": "education",
+        "livelihood": "livelihood",
+        "income": "income",
+        "age_cohort": "age_cohort",
+        "setting": "setting",
+        "gender": "gender",
+    }
+
+    for j, party in enumerate(parties):
+        if not party.demographic_coefficients:
+            continue
+        # Flatten: collect all (attr_name, value_str, coeff) triples
+        triples = []
+        for demo_key, coeff_spec in party.demographic_coefficients.items():
+            attr_name = vt_attrs.get(demo_key)
+            if attr_name is None:
+                continue
+            if isinstance(coeff_spec, dict):
+                for val_str, coeff in coeff_spec.items():
+                    triples.append((attr_name, val_str, coeff))
+            else:
+                # Numeric coefficient × numeric attribute (rare but supported)
+                triples.append((attr_name, None, float(coeff_spec)))
+
+        # Vectorise: for each triple, build a boolean mask of matching types
+        for attr_name, val_str, coeff in triples:
+            if val_str is not None:
+                mask = np.array(
+                    [getattr(vt, attr_name) == val_str for vt in voter_types],
+                    dtype=float,
+                )
+                table[:, j] += coeff * mask
+            else:
+                vals = np.array(
+                    [float(getattr(vt, attr_name, 0)) for vt in voter_types],
+                    dtype=float,
+                )
+                table[:, j] += coeff * vals
+
+    return table
+
+
 def precompute_all_ethnic_indices(
     voter_types: list,
     ethnic_group_to_idx: dict[str, int],
@@ -201,6 +262,8 @@ def compute_utilities_batch(
     party_positions: Optional[np.ndarray] = None,
     valences: Optional[np.ndarray] = None,
     has_demographic_coefficients: bool = False,
+    precomputed_demo_table: Optional[np.ndarray] = None,
+    active_indices: Optional[np.ndarray] = None,
 ) -> np.ndarray:
     """
     Compute full utilities for a batch of voter types × all parties.
@@ -281,19 +344,27 @@ def compute_utilities_batch(
                     rel, party.religious_alignment, params.alpha_r
                 )
 
-    # 5. Demographic utility (N, J) — sparse; most parties have no demo coefficients
+    # 5. Demographic utility (N, J) — use precomputed table when available
     result = valences + u_spatial + u_ethnic + u_religious
     if has_demographic_coefficients:
-        u_demographic = np.zeros((N, J))
-        for j, party in enumerate(parties):
-            if party.demographic_coefficients:
-                for i, demos in enumerate(voter_demographics_list):
-                    for demo_key, demo_val in demos.items():
-                        coeff = party.demographic_coefficients.get(demo_key, {})
-                        if isinstance(coeff, dict):
-                            u_demographic[i, j] += coeff.get(str(demo_val), 0.0)
-                        else:
-                            u_demographic[i, j] += float(coeff) * float(demo_val)
-        result += u_demographic
+        if precomputed_demo_table is not None and active_indices is not None:
+            # Fast path: slice precomputed (N_all_types, J) table by active indices
+            result += precomputed_demo_table[active_indices]
+        elif precomputed_demo_table is not None:
+            # Table provided but no index mapping — use directly (N must match)
+            result += precomputed_demo_table[:N]
+        else:
+            # Slow fallback: triple loop (only used when no precomputation)
+            u_demographic = np.zeros((N, J))
+            for j, party in enumerate(parties):
+                if party.demographic_coefficients:
+                    for i, demos in enumerate(voter_demographics_list):
+                        for demo_key, demo_val in demos.items():
+                            coeff = party.demographic_coefficients.get(demo_key, {})
+                            if isinstance(coeff, dict):
+                                u_demographic[i, j] += coeff.get(str(demo_val), 0.0)
+                            else:
+                                u_demographic[i, j] += float(coeff) * float(demo_val)
+            result += u_demographic
 
     return result

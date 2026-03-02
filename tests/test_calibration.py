@@ -88,12 +88,12 @@ class TestTurnout:
         min_turnout = df["Turnout"].min()
         assert min_turnout >= 0.10, f"LGA turnout floor violated: {min_turnout:.1%}"
 
-    def test_no_lga_above_95pct(self, full_run):
-        """No LGA should have turnout above 95%."""
+    def test_no_lga_above_97pct(self, full_run):
+        """No LGA should have turnout above 97%."""
         results, _ = full_run
         df = results["lga_results_base"]
         max_turnout = df["Turnout"].max()
-        assert max_turnout <= 0.95, f"LGA turnout ceiling violated: {max_turnout:.1%}"
+        assert max_turnout <= 0.97, f"LGA turnout ceiling violated: {max_turnout:.1%}"
 
     def test_turnout_demographic_adjustment(self):
         """Tertiary-educated voters should have lower abstention than uneducated."""

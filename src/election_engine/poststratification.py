@@ -34,6 +34,7 @@ from .utility import (
     compute_utility, compute_utilities_batch,
     precompute_ethnic_utility_table, precompute_religious_utility_table,
     precompute_all_ethnic_indices, precompute_all_religious_indices,
+    precompute_demographic_utility_table,
 )
 from .turnout import compute_vote_probs_with_turnout, batch_compute_vote_probs_with_turnout
 
@@ -108,6 +109,7 @@ def compute_lga_results(
     has_demographic_coefficients: bool = False,
     voter_ideal_base: np.ndarray | None = None,
     lga_ideal_offset: np.ndarray | None = None,
+    precomputed_demo_table: np.ndarray | None = None,
 ) -> tuple[np.ndarray, float, int]:
     """
     Compute vote shares and turnout for one LGA (fully vectorised).
@@ -187,8 +189,8 @@ def compute_lga_results(
         active_ethnicities = [voter_types[i].ethnicity for i in active_idx]
         active_religions = [voter_types[i].religion for i in active_idx]
 
-    # Build demographics list only if needed
-    if has_demographic_coefficients:
+    # Build demographics list only if needed (skip when precomputed table available)
+    if has_demographic_coefficients and precomputed_demo_table is None:
         active_demographics = [
             {"education": voter_types[i].education,
              "age_cohort": voter_types[i].age_cohort,
@@ -216,6 +218,8 @@ def compute_lga_results(
         party_positions=party_positions,
         valences=valences,
         has_demographic_coefficients=has_demographic_coefficients,
+        precomputed_demo_table=precomputed_demo_table,
+        active_indices=active_idx,
     )
 
     # Slice integer-coded demographic arrays for batch turnout
@@ -308,6 +312,10 @@ def compute_all_lga_results(
     valences = np.array([p.valence for p in parties])  # (J,)
     has_demo_coeffs = any(p.demographic_coefficients for p in parties)
 
+    # Precompute demographic utility table (N_types, J) — avoids triple loop per LGA
+    demo_table = (precompute_demographic_utility_table(voter_types, parties)
+                  if has_demo_coeffs else None)
+
     # Use pre-computed salience if provided; otherwise compute here
     if precomputed_salience is not None:
         salience_matrix = precomputed_salience
@@ -347,6 +355,7 @@ def compute_all_lga_results(
             has_demographic_coefficients=has_demo_coeffs,
             voter_ideal_base=voter_ideal_base,
             lga_ideal_offset=lga_ideal_offset,
+            precomputed_demo_table=demo_table,
         )
 
         row_dict = {
