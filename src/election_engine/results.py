@@ -341,6 +341,44 @@ def aggregate_monte_carlo(
         })
     national_share_stats = pd.DataFrame(nat_share_rows)
 
+    # ---- National vote count statistics ----
+    turnout_col = "Turnout"
+    has_turnout = turnout_col in all_runs[0].columns
+    if has_pop and has_turnout:
+        # Stack turnout across runs: (n_runs, n_lgas)
+        all_turnout = np.empty((n_runs, lga_count))
+        for r, run_df in enumerate(all_runs):
+            all_turnout[r] = run_df[turnout_col].values.astype(float)
+
+        # total_voters per LGA per run: pop * turnout
+        total_voters_per_run = pop[np.newaxis, :] * all_turnout  # (n_runs, n_lgas)
+
+        # votes per party per run: total_voters * share → sum over LGAs → (n_runs, J)
+        national_votes_per_run = np.einsum("rl,rlj->rj", total_voters_per_run, all_shares)
+        total_votes_per_run = total_voters_per_run.sum(axis=1)  # (n_runs,)
+
+        nat_vote_rows = []
+        for j, p in enumerate(party_names):
+            arr = national_votes_per_run[:, j]
+            nat_vote_rows.append({
+                "Party": p,
+                "Mean Votes": float(arr.mean()),
+                "Std Votes": float(arr.std()),
+                "P5 Votes": float(np.percentile(arr, 5)),
+                "P95 Votes": float(np.percentile(arr, 95)),
+                "Median Votes": float(np.median(arr)),
+            })
+        national_vote_stats = pd.DataFrame(nat_vote_rows)
+        total_vote_stats = {
+            "mean": float(total_votes_per_run.mean()),
+            "std": float(total_votes_per_run.std()),
+            "p5": float(np.percentile(total_votes_per_run, 5)),
+            "p95": float(np.percentile(total_votes_per_run, 95)),
+        }
+    else:
+        national_vote_stats = pd.DataFrame()
+        total_vote_stats = {}
+
     # ---- Per-LGA share statistics ----
     share_stats_df = all_runs[0][["State", "LGA Name"]].copy()
     for j, col in enumerate(share_cols):
@@ -361,6 +399,8 @@ def aggregate_monte_carlo(
     return {
         "seat_stats": seat_stats,
         "national_share_stats": national_share_stats,
+        "national_vote_stats": national_vote_stats,
+        "total_vote_stats": total_vote_stats,
         "share_stats": share_stats_df,
         "win_probabilities": win_probabilities,
         "swing_lgas": swing_lgas,

@@ -85,6 +85,7 @@ class EngineParams:
     sigma_national: float = 0.10  # National shock SD (σ_nat)
     sigma_regional: float = 0.15  # Regional shock SD (σ_reg)
     sigma_lga: float = 0.20       # LGA shock SD (σ_lga)
+    sigma_turnout: float = 0.0    # Turnout noise SD on logit scale. 0 = deterministic turnout
 
     def __post_init__(self) -> None:
         if not (0.0 <= self.q <= 1.0):
@@ -111,6 +112,8 @@ class EngineParams:
             raise ValueError(f"sigma_regional must be >= 0, got {self.sigma_regional}")
         if self.sigma_lga < 0:
             raise ValueError(f"sigma_lga must be >= 0, got {self.sigma_lga}")
+        if self.sigma_turnout < 0:
+            raise ValueError(f"sigma_turnout must be >= 0, got {self.sigma_turnout}")
 
 
 @dataclass

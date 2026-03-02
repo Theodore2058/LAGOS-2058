@@ -729,6 +729,7 @@ def main():
         q=0.5, beta_s=0.7, alpha_e=3.0, alpha_r=2.0,
         scale=1.0, tau_0=1.9, tau_1=0.3, tau_2=0.5,
         kappa=400.0, sigma_national=0.07, sigma_regional=0.10,
+        sigma_turnout=0.02,
     )
     config = ElectionConfig(params=params, parties=PARTIES, n_monte_carlo=args.mc)
 
@@ -767,6 +768,20 @@ def main():
         if row["Mean Share"] >= 0.005:
             print(f"  {row['Party']:10s}  {row['Mean Share']:6.1%}  "
                   f"[{row['P5 Share']:5.1%} - {row['P95 Share']:5.1%}]")
+
+    # --- MC national vote count confidence intervals ---
+    nv = mc.get("national_vote_stats")
+    if nv is not None and len(nv) > 0:
+        print("\nMC NATIONAL VOTE COUNT UNCERTAINTY (mean [P5 - P95]):")
+        nv_sorted = nv.sort_values("Mean Votes", ascending=False)
+        for _, row in nv_sorted.iterrows():
+            if row["Mean Votes"] >= 1000:
+                print(f"  {row['Party']:10s}  {row['Mean Votes']:12,.0f}  "
+                      f"[{row['P5 Votes']:12,.0f} - {row['P95 Votes']:12,.0f}]")
+        tvs = mc.get("total_vote_stats", {})
+        if tvs:
+            print(f"  {'TOTAL':10s}  {tvs['mean']:12,.0f}  "
+                  f"[{tvs['p5']:12,.0f} - {tvs['p95']:12,.0f}]")
 
     # --- Presidential spread check ---
     print("\nPRESIDENTIAL SPREAD CHECK (>=25% in >=24 states + national plurality):")

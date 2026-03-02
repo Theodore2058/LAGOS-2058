@@ -191,4 +191,20 @@ def apply_noise_to_results(
     # Bulk assignment back to dataframe
     result[share_cols] = noisy_shares
 
+    # ---- Turnout noise (logit-scale) ----
+    turnout_col = "Turnout"
+    if params.sigma_turnout > 0 and turnout_col in result.columns:
+        base_turnout = result[turnout_col].values.astype(float)
+        # Clip to avoid logit(0) or logit(1)
+        safe_t = np.clip(base_turnout, 0.01, 0.99)
+        logit_t = np.log(safe_t / (1.0 - safe_t))
+        # National turnout shock (common to all LGAs in this run)
+        national_t_shock = rng.normal(0.0, params.sigma_turnout)
+        # Per-LGA turnout shock
+        lga_t_shocks = rng.normal(0.0, params.sigma_turnout, size=len(result))
+        noisy_logit = logit_t + national_t_shock + lga_t_shocks
+        # Sigmoid back to [0, 1]
+        noisy_turnout = 1.0 / (1.0 + np.exp(-noisy_logit))
+        result[turnout_col] = noisy_turnout
+
     return result

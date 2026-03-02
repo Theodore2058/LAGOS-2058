@@ -2,11 +2,12 @@
 
 import sys
 import numpy as np
+import pandas as pd
 import pytest
 
 sys.path.insert(0, "src")
 from election_engine.config import EngineParams
-from election_engine.noise import draw_shocks, apply_dirichlet_noise
+from election_engine.noise import draw_shocks, apply_dirichlet_noise, apply_noise_to_results
 
 
 def _params(**kwargs):
@@ -105,6 +106,39 @@ def test_no_nan_or_inf():
     noisy = apply_dirichlet_noise(shares, params.kappa, national, regional[1], rng)
     assert not np.any(np.isnan(noisy))
     assert not np.any(np.isinf(noisy))
+
+
+def test_turnout_noise_zero_sigma():
+    """With sigma_turnout=0, turnout should be unchanged."""
+    params = _params(sigma_turnout=0.0)
+    df = pd.DataFrame([{
+        "State": "S1", "LGA Name": "L1", "Administrative Zone": 1,
+        "A_share": 0.6, "B_share": 0.4, "Turnout": 0.70,
+    }])
+    rng = np.random.default_rng(42)
+    result = apply_noise_to_results(df, ["A", "B"], params, rng=rng)
+    assert abs(result["Turnout"].iloc[0] - 0.70) < 1e-10
+
+
+def test_turnout_noise_positive_sigma():
+    """With sigma_turnout>0, turnout should vary across MC runs."""
+    params = _params(sigma_turnout=0.10)
+    df = pd.DataFrame([{
+        "State": "S1", "LGA Name": "L1", "Administrative Zone": 1,
+        "A_share": 0.6, "B_share": 0.4, "Turnout": 0.70,
+    }])
+    rng = np.random.default_rng(42)
+    turnouts = []
+    for _ in range(50):
+        result = apply_noise_to_results(df, ["A", "B"], params, rng=rng)
+        turnouts.append(result["Turnout"].iloc[0])
+    turnouts = np.array(turnouts)
+    # Should still be in [0, 1]
+    assert np.all(turnouts >= 0.0) and np.all(turnouts <= 1.0)
+    # Should have variation
+    assert turnouts.std() > 0.01, "Turnout should vary with sigma_turnout > 0"
+    # Mean should be roughly around base
+    assert abs(turnouts.mean() - 0.70) < 0.10
 
 
 if __name__ == "__main__":
