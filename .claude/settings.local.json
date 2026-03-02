@@ -7,7 +7,8 @@
       "Bash(python3 -m pytest tests/test_softmax.py -v)",
       "Bash(python3 -m pytest tests/test_spatial.py -v)",
       "Bash(python3 -m pytest tests/test_affinity.py -v)",
-      "Bash(python3 -m pytest tests/test_turnout.py -v)"
+      "Bash(python3 -m pytest tests/test_turnout.py -v)",
+      "Bash(python3 -m pytest tests/test_poststratification.py -v)"
     ]
   }
 }
