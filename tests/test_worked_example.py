@@ -35,14 +35,14 @@ def test_appendix_a_spatial_2d():
 
     Weighted dot: 2.5*3*4 + 0.3*0*1 = 30.0
     Weighted norm²: 2.5*4² + 0.3*1² = 40.3
-    U_spatial = 1.0 * (0.5 * 30.0 - 0.25 * 40.3) = 15.0 - 10.075 = 4.925
+    U_spatial = 1.0 * (30.0 - 0.25 * 40.3) = 30.0 - 10.075 = 19.925
     """
     voter = np.array([3.0, 0.0])
     party_N = np.array([[4.0, 1.0]])
     salience = np.array([2.5, 0.3])
 
     u = spatial_utility(voter, party_N, beta_s=1.0, q=0.5, salience_weights=salience)
-    assert abs(u[0] - 4.925) < 1e-6, f"Expected 4.925, got {u[0]:.6f}"
+    assert abs(u[0] - 19.925) < 1e-6, f"Expected 19.925, got {u[0]:.6f}"
 
 
 # ---------------------------------------------------------------------------

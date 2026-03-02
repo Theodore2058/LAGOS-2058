@@ -59,10 +59,10 @@ def test_output_always_sums_to_one():
 
 
 def test_national_shock_correlation():
-    """National shock should shift all LGAs in same direction for a given party."""
+    """Same national shock applied to two LGAs produces correlated log-space residuals."""
     rng = np.random.default_rng(7)
     params = _params(kappa=1_000_000, sigma_national=2.0, sigma_regional=0.0)
-    # With huge kappa and huge national shock, all LGAs should be affected similarly
+    # Huge kappa → near-zero Dirichlet noise; large sigma_national → strong shock signal.
     national, regional = draw_shocks(3, [1], params, rng)
 
     shares1 = np.array([0.40, 0.35, 0.25])
@@ -71,10 +71,14 @@ def test_national_shock_correlation():
     n1 = apply_dirichlet_noise(shares1, params.kappa, national, regional[1], rng)
     n2 = apply_dirichlet_noise(shares2, params.kappa, national, regional[1], rng)
 
-    # The shocked log-space shift is the same, so rank order should be preserved
-    # (Both should be approximately shocked by same national shock)
-    # Check that the dominant party (party 0 or 1 depending on shock) is same for both
-    assert np.argmax(n1) == np.argmax(n2) or True  # soft assertion (can fail by chance)
+    # With negligible Dirichlet noise, log(n) ≈ log(shares) + national_shocks.
+    # The residuals (log(n) - log(shares)) should be nearly identical for both LGAs,
+    # so their correlation must be very high (> 0.99).
+    _EPS = 1e-12
+    residual1 = np.log(n1 + _EPS) - np.log(shares1 + _EPS)
+    residual2 = np.log(n2 + _EPS) - np.log(shares2 + _EPS)
+    correlation = float(np.corrcoef(residual1, residual2)[0, 1])
+    assert correlation > 0.99, f"Expected high shock correlation, got {correlation:.4f}"
 
 
 def test_mean_converges_to_predicted():

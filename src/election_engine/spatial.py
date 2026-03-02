@@ -3,14 +3,19 @@ Unified spatial voting model (Merrill-Grofman proximity-directional blend).
 
 The spatial utility of voter i for party j is:
 
-    U_spatial(i, j) = β_s · [(1 - q) · (x_i · z_j) - (q / 2) · ||z_j||²]
+    U_spatial(i, j) = β_s · [(x_i · z_j) - (q / 2) · ||z_j||²]
+
+Derivation: mixing directional utility U_dir = x·z with proximity utility
+U_prox = −½||x−z||² (dropping the voter-constant ||x||² term):
+
+    U = (1−q)·x·z + q·(x·z − ½||z||²) = x·z − (q/2)·||z||²
 
 Where:
   - x_i  = voter ideal point in issue space  (shape D)
   - z_j  = party j position in issue space   (shape D)
   - q    ∈ [0, 1]: mix parameter
-      q = 0 → pure directional (extremist parties rewarded for distance from origin)
-      q = 1 → pure proximity   (parties penalised for distance from voter)
+      q = 0 → pure directional (no extremism penalty)
+      q = 1 → pure proximity   (equivalent to −½||x−z||² up to voter-constant)
   - β_s  = spatial sensitivity scalar
 
 With salience weights w_d the dot products become:
@@ -70,8 +75,8 @@ def spatial_utility(
     # Weighted squared norm: Σ_d w_d · z_{jd}²        → shape (J,)
     sq_norm = party_positions ** 2 @ w
 
-    # Unified model
-    utility = beta_s * ((1.0 - q) * dot_product - (q / 2.0) * sq_norm)
+    # Unified model: x·z - (q/2)·||z||²
+    utility = beta_s * (dot_product - (q / 2.0) * sq_norm)
     return utility
 
 
@@ -119,5 +124,5 @@ def batch_spatial_utility(
     sq_norms = (party_positions ** 2) @ w                      # (J,)
 
     # Broadcast: (N, J) and (J,)
-    utilities = beta_s * ((1.0 - q) * dot_products - (q / 2.0) * sq_norms)
+    utilities = beta_s * (dot_products - (q / 2.0) * sq_norms)
     return utilities

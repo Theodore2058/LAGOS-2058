@@ -48,6 +48,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from election_engine.config import Party, EngineParams, ElectionConfig, N_ISSUES
 from election_engine.election import run_election
+from election_engine.results import compute_state_shares
 
 logging.basicConfig(
     level=logging.INFO,
@@ -258,9 +259,13 @@ PARTIES = [
     Party(
         name="NIM",
         positions=NIM_POSITIONS,
-        valence=-0.2,
+        valence=0.0,
+        # NIM represents a pan-northern conservative Islamic platform.  The party
+        # was founded in Borno (Kanuri heartland) but its religious appeal targets
+        # the broad Mainstream Sunni majority across the north, not just the small
+        # Al-Shahid order — giving it a viable base among conservative northern voters.
         leader_ethnicity="Kanuri",
-        religious_alignment="Al-Shahid",
+        religious_alignment="Mainstream Sunni",
     ),
 ]
 
@@ -278,7 +283,6 @@ def main():
 
     # ---- Print summary ----
     summary = results["summary"]
-    mc = results["mc_aggregated"]
 
     print("\n" + "=" * 60)
     print("LAGOS-2058 ELECTION RESULTS SUMMARY")
@@ -290,20 +294,13 @@ def main():
 
     print(f"\nNational Turnout (base run): {summary['national_turnout']:.1%}")
 
-    print("\nMonte Carlo Seat Projections (100 runs):")
-    print(mc["seat_stats"].to_string(index=False))
-
-    print("\nWin Probabilities:")
-    for p, prob in sorted(mc["win_probabilities"].items(), key=lambda x: -x[1]):
-        print(f"  {p:10s}  {prob:.1%}")
-
     print(f"\nSwing LGAs: {len(results['mc_aggregated']['swing_lgas'])}")
 
-    print("\nPresidential Spread Check:")
-    for p_name, spread in results["spread_checks"].items():
-        status = "PASS" if spread["meets_requirement"] else "FAIL"
-        print(f"  {p_name:10s} [{status}] national={spread['national_share']:.1%}  "
-              f"states>=25%: {spread['states_meeting_25pct']}/36")
+    party_names = [p.name for p in PARTIES]
+    state_shares = compute_state_shares(results["lga_results_base"], party_names)
+    share_cols = [c for c in state_shares.columns if c.endswith("_share")]
+    print("\nVote Shares per State (base run):")
+    print(state_shares[["State"] + share_cols].to_string(index=False))
 
     print("\nZonal Shares (base run):")
     zonal = summary["zonal_shares"]
@@ -311,8 +308,15 @@ def main():
     print(zonal[["Administrative Zone", "AZ Name"] + party_share_cols].to_string(index=False))
 
     print("\nTop 10 Swing LGAs:")
-    swing = mc["swing_lgas"]
+    swing = results["mc_aggregated"]["swing_lgas"]
     if len(swing) > 0:
+        # Sort by margin (smallest = most competitive) so head(10) is meaningful
+        share_cols = [c for c in swing.columns if c.endswith("_share")]
+        shares = swing[share_cols].values
+        sorted_shares = np.sort(shares, axis=1)
+        swing = swing.copy()
+        swing["_margin"] = sorted_shares[:, -1] - sorted_shares[:, -2]
+        swing = swing.sort_values("_margin")
         print(swing.head(10)[["State", "LGA Name"]].to_string(index=False))
     else:
         print("  None (all LGAs have stable winners across MC runs)")

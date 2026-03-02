@@ -245,12 +245,14 @@ _ETHNIC_COL_MAP: dict[str, str] = {
 }
 
 _NIGER_DELTA_COLS = [
-    "% Ijaw", "% Ogoni", "% Ikwerre", "% Etche", "% Pere", "% Isoko",
+    # Ijaw excluded — has its own category in _CORE_ETHNICITIES
+    "% Ogoni", "% Ikwerre", "% Etche", "% Pere", "% Isoko",
     "% Itsekiri", "% Urhobo",
 ]
 
 _MIDDLE_BELT_COLS = [
-    "% Tiv", "% Nupe", "% Ebira", "% Gwari Gbagyi", "% Idoma",
+    # Tiv and Nupe excluded — have their own categories in _CORE_ETHNICITIES
+    "% Ebira", "% Gwari Gbagyi", "% Idoma",
     "% Berom", "% Angas", "% Igala", "% Jukun", "% Ham Jaba",
 ]
 
@@ -270,6 +272,37 @@ def _get_ethnic_pcts(lga_row: pd.Series) -> dict[str, float]:
                 float(lga_row.get(c, 0.0)) for c in _MIDDLE_BELT_COLS
             ))
     return result
+
+
+@lru_cache(maxsize=1)
+def _build_type_indices() -> dict[str, np.ndarray]:
+    """
+    Precompute integer category indices for every voter type (runs once, then cached).
+
+    Returns a dict of int32 arrays of length N_types, one per attribute dimension.
+    idx["eth"][i] is the _CORE_ETHNICITIES index of voter_types[i].ethnicity, etc.
+    These are used in compute_type_weights to replace the per-type Python loop with
+    vectorised numpy indexing.
+    """
+    voter_types = generate_all_voter_types()
+    eth_map = {e: j for j, e in enumerate(_CORE_ETHNICITIES)}
+    rel_map = {r: j for j, r in enumerate(RELIGIONS)}
+    set_map = {s: j for j, s in enumerate(SETTINGS)}
+    age_map = {a: j for j, a in enumerate(AGE_COHORTS)}
+    edu_map = {e: j for j, e in enumerate(EDUCATIONS)}
+    gen_map = {g: j for j, g in enumerate(GENDERS)}
+    liv_map = {l: j for j, l in enumerate(LIVELIHOODS)}
+    inc_map = {c: j for j, c in enumerate(INCOMES)}
+    return {
+        "eth": np.array([eth_map[vt.ethnicity]  for vt in voter_types], dtype=np.int32),
+        "rel": np.array([rel_map[vt.religion]   for vt in voter_types], dtype=np.int32),
+        "set": np.array([set_map[vt.setting]    for vt in voter_types], dtype=np.int32),
+        "age": np.array([age_map[vt.age_cohort] for vt in voter_types], dtype=np.int32),
+        "edu": np.array([edu_map[vt.education]  for vt in voter_types], dtype=np.int32),
+        "gen": np.array([gen_map[vt.gender]     for vt in voter_types], dtype=np.int32),
+        "liv": np.array([liv_map[vt.livelihood] for vt in voter_types], dtype=np.int32),
+        "inc": np.array([inc_map[vt.income]     for vt in voter_types], dtype=np.int32),
+    }
 
 
 def compute_type_weights(
@@ -336,6 +369,9 @@ def compute_type_weights(
     # Education fractions — derive from literacy and tertiary indicator
     literacy = float(lga_row.get("Adult Literacy Rate Pct", 50.0)) / 100.0
     tertiary = float(lga_row.get("Tertiary Institution", 0))
+    # 0.15: each tertiary-institution ordinal point ≈ 15% share uplift (calibrated to
+    # Nigerian HEI penetration rates); 0.10: urban areas add 10 pp regardless of
+    # institutions (proximity to cities draws educated workers from elsewhere).
     tertiary_pct = min(0.25, tertiary * 0.15 + urban_pct * 0.10)
     secondary_pct = min(0.60, literacy * 0.5)
     below_sec = max(0.05, 1.0 - tertiary_pct - secondary_pct)
@@ -371,6 +407,8 @@ def compute_type_weights(
         "Trade/informal": informal_pct,
         "Formal private": (manuf_pct + extract_pct + service_pct * 0.6),
         "Public sector": service_pct * 0.4,
+        # +0.05: floor for students/unemployed not captured by any livelihood column,
+        # preventing this category from collapsing to zero in small urban LGAs.
         "Unemployed/student": other_pct + 0.05,
     }
     _normalise(livelihood_base)
@@ -379,34 +417,46 @@ def compute_type_weights(
     # Conditioned mildly on education and livelihood
     income_frac = {"Bottom 40%": 0.40, "Middle 40%": 0.40, "Top 20%": 0.20}
 
-    # ---- Compute type weights ----
-    weights = np.zeros(len(voter_types))
+    # ---- Compute type weights (vectorised — no per-type Python loop) ----
+    # Build one value array per attribute category, then index into them using
+    # precomputed integer index arrays (_build_type_indices).  This replaces
+    # O(N_types × N_LGAs) dict.get() calls with O(N_types) numpy indexing.
+    idx = _build_type_indices()
 
-    for i, vt in enumerate(voter_types):
-        # Independence assumption: product of marginals
-        w = (
-            eth_frac.get(vt.ethnicity, 0.0)
-            * rel_frac.get(vt.religion, 0.0)
-            * _setting_frac(vt.setting, urban_pct, peri_urban_pct, rural_pct)
-            * age_frac.get(vt.age_cohort, 0.25)
-            * edu_frac.get(vt.education, 0.33)
-            * gender_frac.get(vt.gender, 0.5)
-            * livelihood_base.get(vt.livelihood, 1.0 / N_LIVELIHOOD)
-            * income_frac.get(vt.income, 1.0 / N_INCOME)
-        )
+    eth_vals = np.array([eth_frac.get(e, 0.0)           for e in _CORE_ETHNICITIES])
+    rel_vals = np.array([rel_frac.get(r, 0.0)            for r in RELIGIONS])
+    set_vals = np.array([urban_pct, peri_urban_pct, rural_pct])   # matches SETTINGS order
+    age_vals = np.array([age_frac[a]                     for a in AGE_COHORTS])
+    edu_vals = np.array([edu_frac[e]                     for e in EDUCATIONS])
+    gen_vals = np.array([gender_frac[g]                  for g in GENDERS])
+    liv_vals = np.array([livelihood_base.get(l, 1.0 / N_LIVELIHOOD) for l in LIVELIHOODS])
+    inc_vals = np.array([income_frac[i]                  for i in INCOMES])
 
-        # Conditional adjustments: religion × ethnicity, income × education,
-        # livelihood × setting compatibility
-        if precomputed_compat is not None:
-            w *= precomputed_compat[i]
-        else:
-            w *= _religion_ethnicity_compat(vt)
-            w *= _income_education_compat(vt)
-            w *= _livelihood_setting_compat(vt)
+    weights = (
+        eth_vals[idx["eth"]]
+        * rel_vals[idx["rel"]]
+        * set_vals[idx["set"]]
+        * age_vals[idx["age"]]
+        * edu_vals[idx["edu"]]
+        * gen_vals[idx["gen"]]
+        * liv_vals[idx["liv"]]
+        * inc_vals[idx["inc"]]
+    )
 
-        weights[i] = w if w > weight_threshold else 0.0
+    # Conditional adjustments: religion × ethnicity, income × education,
+    # livelihood × setting compatibility
+    if precomputed_compat is not None:
+        weights *= precomputed_compat
+    else:
+        weights *= np.array([
+            _religion_ethnicity_compat(vt)
+            * _income_education_compat(vt)
+            * _livelihood_setting_compat(vt)
+            for vt in voter_types
+        ])
 
-    # Normalise to sum to 1
+    # Apply threshold and normalise to sum to 1
+    weights[weights <= weight_threshold] = 0.0
     total = weights.sum()
     if total > 0:
         weights /= total

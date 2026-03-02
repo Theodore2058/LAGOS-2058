@@ -11,7 +11,28 @@
       "Bash(python3 -m pytest tests/test_poststratification.py -v)",
       "Bash(python3 -m pytest tests/test_noise.py -v)",
       "Bash(python3 -m pip install scipy numpy pandas openpyxl --quiet)",
-      "Bash(python3 -m pytest tests/test_election.py -v)"
+      "Bash(python3 -m pytest tests/test_election.py -v)",
+      "Bash(python3 -m pytest tests/test_worked_example.py -v)",
+      "Bash(python -m pytest tests/ -v)",
+      "Bash(python examples/run_election.py)",
+      "Bash(python -c \"from election_engine.election import run_election; print\\(''OK''\\)\")",
+      "Bash(python -m pip list)",
+      "Bash(ls -lh /c/Default/LAGOS-2058/*.xlsx)",
+      "Bash(python -c \"import sys; sys.path.insert\\(0, ''src''\\); from election_engine.election import run_election; print\\(''OK''\\)\")",
+      "Bash(python -m pytest tests/ -v --tb=short)",
+      "Bash(wc -l /c/Default/LAGOS-2058/src/election_engine/*.py)",
+      "Bash(python -c \"import sys; print\\(''Python:'', sys.version\\); print\\(''Executable:'', sys.executable\\)\")",
+      "Bash(python -m pytest tests/test_election.py::test_monte_carlo_aggregation -v)",
+      "Bash(python -m pip install -e .)",
+      "Bash(python -m pip install --upgrade pip)",
+      "Bash(python -c \"import setuptools; print\\(f''setuptools version: {setuptools.__version__}''\\)\")",
+      "Bash(python -m pytest tests/ --collect-only -q)",
+      "Bash(pip install -e . --quiet)",
+      "Bash(python -c \"from election_engine.election import run_election; print\\(''Direct import OK''\\)\")",
+      "Bash(python -m pytest tests/ -x -q --tb=short)",
+      "Bash(python3:*)",
+      "Bash(python -m pytest tests/ -x -v)",
+      "Bash(python -m pytest tests/test_salience.py tests/test_spatial.py tests/test_worked_example.py -v)"
     ]
   }
 }

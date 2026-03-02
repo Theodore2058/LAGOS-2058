@@ -13,7 +13,7 @@ from election_engine.spatial import spatial_utility, batch_spatial_utility
 # salience = [2.5, 0.3], q=0.5, beta_s=1.0
 # Weighted dot: 2.5*3*4 + 0.3*0*1 = 30.0
 # Weighted norm²: 2.5*16 + 0.3*1 = 40.3
-# Spatial = 1.0 * (0.5 * 30.0 - 0.25 * 40.3) = 15.0 - 10.075 = 4.925
+# Spatial = 1.0 * (30.0 - 0.25 * 40.3) = 30.0 - 10.075 = 19.925
 
 VOTER_A = np.array([3.0, 0.0])
 PARTY_N = np.array([[4.0, 1.0]])   # shape (1, 2)
@@ -21,10 +21,10 @@ SALIENCE = np.array([2.5, 0.3])
 
 
 def test_appendix_a_spatial():
-    """Reproduce Appendix A spatial utility: Type A + Party N = 4.925."""
+    """Reproduce Appendix A spatial utility: Type A + Party N = 19.925."""
     u = spatial_utility(VOTER_A, PARTY_N, beta_s=1.0, q=0.5, salience_weights=SALIENCE)
     assert u.shape == (1,)
-    assert abs(u[0] - 4.925) < 1e-6, f"Expected 4.925, got {u[0]:.6f}"
+    assert abs(u[0] - 19.925) < 1e-6, f"Expected 19.925, got {u[0]:.6f}"
 
 
 def test_pure_directional_q0():
@@ -37,14 +37,15 @@ def test_pure_directional_q0():
 
 
 def test_pure_proximity_q1():
-    """q=1: only norm penalty term survives. Utility = -beta_s * 0.5 * ||z||²."""
+    """q=1: pure proximity. Utility = beta_s * (x·z - 0.5 * ||z||²)."""
     x = np.array([2.0, 1.0])
     z = np.array([[3.0, 2.0]])
     u = spatial_utility(x, z, beta_s=1.0, q=1.0)
-    # Formula: beta_s * [(1-q)*dot - (q/2)*||z||²]
-    # q=1 → (1-1)*dot - 0.5*||z||²  = -0.5 * (9+4) = -6.5
+    # Formula: beta_s * [dot - (q/2)*||z||²]
+    # q=1 → dot - 0.5*||z||² = (2*3+1*2) - 0.5*(9+4) = 8 - 6.5 = 1.5
+    dot = 2*3 + 1*2                    # 8.0
     norm2 = 3**2 + 2**2               # 13.0
-    expected = -0.5 * norm2           # -6.5
+    expected = dot - 0.5 * norm2       # 1.5
     assert abs(u[0] - expected) < 1e-10, f"Expected {expected}, got {u[0]}"
 
 

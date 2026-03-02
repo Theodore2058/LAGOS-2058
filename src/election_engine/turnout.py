@@ -145,10 +145,11 @@ def compute_turnout_probability(
         setting=voter_demographics.get("setting", ""),
     )
 
-    # Softmax over [party utilities..., abstention]
-    # Scale parameter = 1 for turnout model (not the election-level scale)
+    # Softmax over [party utilities..., abstention] with the election-level scale λ.
+    # Applying params.scale here keeps the turnout trade-off consistent with the
+    # party-choice softmax (higher λ → sharper abstain/vote boundary).
     all_utils = np.append(utilities, v_abstain)
-    shifted = all_utils - np.max(all_utils)
+    shifted = (all_utils - np.max(all_utils)) * params.scale
     exp_vals = np.exp(shifted)
     probs = exp_vals / exp_vals.sum()
 
@@ -186,7 +187,7 @@ def compute_vote_probs_with_turnout(
     )
 
     all_utils = np.append(utilities, v_abstain)
-    shifted = all_utils - np.max(all_utils)
+    shifted = (all_utils - np.max(all_utils)) * params.scale
     exp_vals = np.exp(shifted)
     probs = exp_vals / exp_vals.sum()
 

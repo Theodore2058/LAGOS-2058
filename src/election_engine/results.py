@@ -137,7 +137,7 @@ def check_presidential_spread(
     # Check whether this party has national plurality
     all_national = {p: float(lga_results[f"{p}_share"].mean()) for p in party_names}
     max_share = max(all_national.values())
-    has_national_plurality = abs(national_share - max_share) < 1e-9
+    has_national_plurality = abs(national_share - max_share) < 1e-6
 
     # State-level shares
     state_shares = compute_state_shares(lga_results, party_names, state_col)

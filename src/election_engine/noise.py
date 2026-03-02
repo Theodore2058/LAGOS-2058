@@ -6,10 +6,12 @@ Three-tier stochastic model:
   2. Regional shock  — one draw per party per Administrative Zone from N(0, σ_reg²)
   3. LGA shock       — Dirichlet noise using concentration parameter κ
 
-Shocks are applied on the logit (log-odds) scale, then converted to shares:
-    logit_j = log(share_j / (1 - share_j))  (approximately log(share_j) for simplex)
-    shocked_logit_j = logit_j + national_shock_j + regional_shock_j
-    shocked_share_j = softmax(shocked_logit_j)
+Shocks are applied on the log-scale (simplex proxy), then converted back via softmax:
+    log_j = log(share_j)          (not true logit — omits the (1-share_j) denominator,
+                                   but this is standard practice on the simplex because
+                                   softmax renormalises, making the proxy exact)
+    shocked_log_j = log_j + national_shock_j + regional_shock_j
+    shocked_share_j = softmax(shocked_log_j)
 
 Then Dirichlet noise:
     alpha_j = κ · shocked_share_j

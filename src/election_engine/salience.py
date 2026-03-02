@@ -498,7 +498,8 @@ def compute_salience(
     Returns
     -------
     np.ndarray, shape (28,)
-        Salience weights, all ≥ 0.
+        Salience weights, all ≥ 0 and summing to 1.0 (unless all raw
+        weights are zero, in which case the zero vector is returned).
     """
     if rules is None:
         rules = DEFAULT_SALIENCE_RULES
@@ -515,8 +516,11 @@ def compute_salience(
                 val = DERIVED_FEATURE_KEYS[feat_key](lga_row)
             else:
                 raw = lga_row.get(feat_key, 0.0)
-                val = float(raw) if raw is not None else 0.0
-                if isinstance(val, float) and np.isnan(val):
+                try:
+                    val = float(raw) if raw is not None else 0.0
+                except (ValueError, TypeError):
+                    val = 0.0
+                if np.isnan(val):
                     val = 0.0
 
             w += coeff * val
@@ -530,27 +534,29 @@ def compute_salience(
                 raw_fert = float(lga_row.get("Fertility Rate Est", 2.1))
                 w -= raw_fert_coeff * raw_fert  # undo raw contribution
 
-        # Special sign corrections for (max - value) style features
+        # Constant corrections for "inverted" features encoded with negative coefficients.
+        # Each affected rule stores a NEGATIVE coefficient on a raw value so that a
+        # HIGHER raw value → LOWER weight (e.g. more affordable housing → less salient).
+        # The intent is salience ∝ (max - raw), which expands to:
+        #   coeff_neg * raw + constant  where  constant = |coeff_neg| * max
+        # The feature_coefficients dict holds coeff_neg; these blocks add the constant.
         if rule.issue_name == "housing":
-            # Housing Affordability: spec uses (10 - afford)/10 * 1.5
-            # We coded -1.5/10 on raw, but need base +1.5/10 * 10 = 1.5 added
-            # The net effect: w += 1.5 * (10 - afford)/10 = 1.5 - 1.5*afford/10
-            # Already handled by negative coefficient → just add constant 1.5
+            # salience contribution = 1.5*(10-afford)/10 = -0.15*afford + 1.5
             w += 1.5
         if rule.issue_name == "infrastructure":
-            # Road Quality: (10 - road)/10 * 1.0 → already negated + need +1.0
+            # salience contribution = 1.0*(10-road)/10 = -0.10*road + 1.0
             w += 1.0
         if rule.issue_name == "healthcare":
-            # (100 - health)/100 * 2.0 → already negated + need +2.0
+            # salience contribution = 2.0*(100-health)/100 = -0.02*health + 2.0
             w += 2.0
         if rule.issue_name == "energy_policy":
-            # (100 - elec)/100 * 2.0 → already negated + need +2.0
+            # salience contribution = 2.0*(100-elec)/100 = -0.02*elec + 2.0
             w += 2.0
         if rule.issue_name == "immigration":
-            # (10 - afford)/10 * 0.5 → add 0.5
+            # salience contribution = 0.5*(10-afford)/10 = -0.05*afford + 0.5
             w += 0.5
         if rule.issue_name == "traditional_authority":
-            # land_formalization_gap / 100 already gives (100-land)/100
+            # land_formalization_gap helper already returns (100-land)/100; no correction needed
             pass
 
         # Conditional term
@@ -558,6 +564,12 @@ def compute_salience(
             w += rule.conditional(lga_row)
 
         weights[i] = max(0.0, w)  # clamp to non-negative
+
+    # Normalize so weights sum to 1.0 — prevents any single dimension
+    # from dominating spatial utility purely due to scale.
+    total = weights.sum()
+    if total > 0:
+        weights /= total
 
     return weights
 

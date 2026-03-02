@@ -190,5 +190,130 @@ def test_spread_check_plurality_on_exact_tie():
     )
 
 
+def _make_toy_lga_df(n_lgas: int = 20, seed: int = 42) -> pd.DataFrame:
+    """Build a minimal LGA DataFrame suitable for compute_all_lga_results."""
+    rng = np.random.default_rng(seed)
+    records = []
+    for i in range(n_lgas):
+        records.append({
+            "LGA Name": f"LGA{i}",
+            "State": f"State{i % 6}",
+            "Administrative Zone": (i % 4) + 1,
+            "AZ Name": f"Zone{(i % 4) + 1}",
+            "Urban Pct": float(rng.integers(20, 80)),
+            "% Muslim": float(rng.integers(10, 80)),
+            "% Christian": float(rng.integers(10, 70)),
+            "% Traditionalist": 5.0,
+            "% Hausa": 10.0, "% Fulani": 5.0, "% Hausa Fulani Undiff": 8.0,
+            "% Yoruba": 10.0, "% Igbo": 8.0, "% Ijaw": 2.0, "% Kanuri": 1.0,
+            "% Tiv": 2.0, "% Nupe": 1.0, "% Edo Bini": 1.0, "% Ibibio": 1.0,
+            "% Pada": 0.5, "% Naijin": 0.5,
+            "% Ogoni": 0.0, "% Ikwerre": 0.0, "% Etche": 0.0, "% Pere": 0.0,
+            "% Isoko": 0.0, "% Itsekiri": 0.0, "% Urhobo": 0.0,
+            "% Ebira": 0.0, "% Gwari Gbagyi": 0.0, "% Idoma": 0.0,
+            "% Berom": 0.0, "% Angas": 0.0, "% Igala": 0.0,
+            "% Jukun": 0.0, "% Ham Jaba": 0.0,
+            "Adult Literacy Rate Pct": float(rng.integers(30, 80)),
+            "Tertiary Institution": int(rng.integers(0, 3)),
+            "Tijaniyya Presence": int(rng.integers(0, 3)),
+            "Qadiriyya Presence": int(rng.integers(0, 2)),
+            "Pentecostal Growth": int(rng.integers(0, 4)),
+            "Al-Shahid Influence": float(rng.random() * 2),
+            "Pct Livelihood Agriculture": 35.0,
+            "Pct Livelihood Manufacturing": 10.0,
+            "Pct Livelihood Extraction": 3.0,
+            "Pct Livelihood Services": 20.0,
+            "Pct Livelihood Informal": 22.0,
+            "GDP Per Capita Est": float(rng.integers(8000, 50000)),
+            "Oil Producing": int(rng.integers(0, 2)),
+            "Extraction Intensity": float(rng.integers(0, 5)),
+            "Cobalt Extraction Active": 0,
+            "Chinese Economic Presence": float(rng.integers(0, 5)),
+            "Mandarin Presence": float(rng.integers(0, 3)),
+            "Planned City": 0,
+            "BIC Effectiveness": float(rng.integers(3, 8)),
+            "Fertility Rate Est": float(rng.uniform(3.0, 8.0)),
+            "Trad Authority Index": float(rng.integers(1, 5)),
+            "Housing Affordability": float(rng.integers(2, 9)),
+            "Out of School Children Pct": float(rng.uniform(5, 40)),
+            "Conflict History": float(rng.integers(0, 4)),
+            "English Prestige": float(rng.integers(3, 8)),
+            "Arabic Prestige": float(rng.integers(1, 6)),
+            "Gender Parity Index": float(rng.uniform(0.6, 1.0)),
+            "Access Electricity Pct": float(rng.uniform(20, 95)),
+            "Access Water Pct": float(rng.uniform(20, 90)),
+            "Access Healthcare Pct": float(rng.uniform(15, 85)),
+            "Land Formalization Pct": float(rng.uniform(5, 70)),
+            "Gini Proxy": float(rng.uniform(0.25, 0.65)),
+            "Poverty Rate Pct": float(rng.uniform(10, 70)),
+            "Biological Enhancement Pct": float(rng.uniform(0, 10)),
+            "Rail Corridor": int(rng.integers(0, 2)),
+            "Internet Access Pct": float(rng.uniform(5, 60)),
+            "Male Literacy Rate Pct": float(rng.integers(35, 85)),
+            "Female Literacy Rate Pct": float(rng.integers(25, 75)),
+            "Colonial Era Region": "North Central",
+        })
+    return pd.DataFrame(records)
+
+
+def test_run_election_integration():
+    """
+    Integration test: compute_all_lga_results on a 20-LGA toy dataset.
+
+    Tests the full computation pipeline (voter types, ideals, utilities, turnout,
+    poststratification) without going through the file-loading layer.  Verifies
+    that shares sum to 1, turnout is in [0,1], and the pipeline completes cleanly.
+    """
+    from election_engine.config import EngineParams, ElectionConfig, Party, N_ISSUES
+    from election_engine.poststratification import compute_all_lga_results
+    from election_engine.results import count_seats, compute_summary_stats
+
+    p_a = Party(
+        name="A", positions=np.zeros(N_ISSUES), valence=0.0,
+        leader_ethnicity="Yoruba", religious_alignment="Mainline Protestant",
+    )
+    p_b = Party(
+        name="B", positions=np.zeros(N_ISSUES), valence=0.1,
+        leader_ethnicity="Hausa-Fulani Undiff", religious_alignment="Mainstream Sunni",
+    )
+    params = EngineParams(tau_0=1.5, tau_1=0.3, tau_2=0.5,
+                          kappa=200.0, sigma_national=0.05, sigma_regional=0.10)
+    config = ElectionConfig(params=params, parties=[p_a, p_b], n_monte_carlo=3)
+
+    toy_df = _make_toy_lga_df(n_lgas=20)
+
+    base = compute_all_lga_results(lga_data=toy_df, election_config=config)
+
+    # ---- Structural checks ----
+    assert len(base) == 20, f"Expected 20 rows, got {len(base)}"
+
+    share_cols = ["A_share", "B_share"]
+    for col in share_cols:
+        assert col in base.columns, f"Missing column {col}"
+
+    # Shares sum to 1 per row
+    row_sums = base[share_cols].sum(axis=1)
+    np.testing.assert_allclose(row_sums.values, 1.0, atol=1e-6,
+                                err_msg="Share columns must sum to 1 per row")
+
+    # Turnout in [0, 1]
+    assert "Turnout" in base.columns
+    assert base["Turnout"].between(0.0, 1.0).all(), "Turnout values out of [0,1]"
+
+    # Shares are non-negative
+    for col in share_cols:
+        assert (base[col] >= 0.0).all(), f"Negative shares in {col}"
+
+    # Seat counts sum to N_LGAs and are non-negative
+    seats = count_seats(base, ["A", "B"])
+    assert sum(seats.values()) == 20
+    assert all(v >= 0 for v in seats.values())
+
+    # Summary stats well-formed
+    summary = compute_summary_stats(base, ["A", "B"])
+    assert abs(sum(summary["national_shares"].values()) - 1.0) < 0.05
+    assert 0.0 <= summary["national_turnout"] <= 1.0
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
