@@ -13,6 +13,7 @@ from election_engine.utility import (
     precompute_religious_utility_table,
     precompute_all_ethnic_indices,
     precompute_all_religious_indices,
+    precompute_demographic_utility_table,
 )
 from election_engine.ethnic_affinity import DEFAULT_ETHNIC_MATRIX
 from election_engine.religious_affinity import DEFAULT_RELIGIOUS_MATRIX
@@ -286,6 +287,92 @@ class TestParamValidation:
                          sigma_national=0.0, sigma_regional=0.0, sigma_lga=0.0)
         assert p.q == 0.0
         assert p.beta_s == 0.0
+
+
+class TestDemographicPrecomputation:
+    """Tests for precomputed demographic utility table."""
+
+    def test_precomputed_demo_matches_slow_path(self, params):
+        """Precomputed demographic table should match per-voter slow computation."""
+        from election_engine.voter_types import generate_all_voter_types
+
+        # Two parties with different demographic coefficients
+        p_with_demo = Party(
+            name="D", positions=np.zeros(N_ISSUES), valence=0.0,
+            leader_ethnicity="Yoruba", religious_alignment="Secular",
+            demographic_coefficients={
+                "education": {"Tertiary": 0.8, "Below secondary": -0.3},
+                "livelihood": {"Formal private": 0.5},
+                "income": {"Top 20%": 0.4},
+            },
+        )
+        p_no_demo = _make_party("N", ethnicity="Yoruba", religion="Secular")
+        parties = [p_with_demo, p_no_demo]
+
+        voter_types = generate_all_voter_types()
+        table = precompute_demographic_utility_table(voter_types, parties)
+
+        assert table.shape == (len(voter_types), 2)
+        # Party without demo coefficients should have all zeros
+        assert np.all(table[:, 1] == 0.0)
+
+        # Spot-check a few voter types against manual computation
+        for i in [0, 100, 1000, len(voter_types) - 1]:
+            vt = voter_types[i]
+            expected = 0.0
+            dc = p_with_demo.demographic_coefficients
+            for key, spec in dc.items():
+                val = getattr(vt, key, None)
+                if val is not None and isinstance(spec, dict):
+                    expected += spec.get(str(val), 0.0)
+            assert abs(table[i, 0] - expected) < 1e-10, (
+                f"Mismatch at voter type {i}: got {table[i, 0]}, expected {expected}"
+            )
+
+    def test_batch_with_precomputed_demo_table(self, params):
+        """Batch utility with precomputed demo table should match without."""
+        from election_engine.voter_types import generate_all_voter_types
+
+        p_with = Party(
+            name="D", positions=np.zeros(N_ISSUES), valence=0.0,
+            leader_ethnicity="Yoruba", religious_alignment="Secular",
+            demographic_coefficients={"education": {"Tertiary": 1.0}},
+        )
+        p_plain = _make_party("N", ethnicity="Yoruba", religion="Secular")
+        parties = [p_with, p_plain]
+
+        voter_types = generate_all_voter_types()
+        demo_table = precompute_demographic_utility_table(voter_types, parties)
+
+        # Use a small subset for speed
+        subset = list(range(0, 200, 10))
+        ideals = np.zeros((len(subset), N_ISSUES))
+        ethnicities = [voter_types[i].ethnicity for i in subset]
+        religions = [voter_types[i].religion for i in subset]
+        demos = [
+            {"education": voter_types[i].education}
+            for i in subset
+        ]
+        salience = np.ones(N_ISSUES)
+
+        # Slow path (uses demo dicts)
+        u_slow = compute_utilities_batch(
+            ideals, ethnicities, religions, demos,
+            parties, params, salience,
+            has_demographic_coefficients=True,
+        )
+        # Fast path (uses precomputed table)
+        active_idx = np.array(subset, dtype=np.intp)
+        u_fast = compute_utilities_batch(
+            ideals, ethnicities, religions, None,
+            parties, params, salience,
+            has_demographic_coefficients=True,
+            precomputed_demo_table=demo_table,
+            active_indices=active_idx,
+        )
+        assert np.allclose(u_slow, u_fast, atol=1e-10), (
+            f"Max diff: {np.abs(u_slow - u_fast).max()}"
+        )
 
 
 if __name__ == "__main__":

@@ -872,6 +872,15 @@ def main():
     cols_to_show.extend(party_share_cols)
     print(zonal[cols_to_show].to_string(index=False))
 
+    # --- Zonal MC vote stats ---
+    zonal_mc = mc.get("zonal_vote_stats")
+    if zonal_mc is not None and len(zonal_mc) > 0:
+        print("\nZONAL MC VOTE TOTALS (mean [P5 - P95]):")
+        for _, row in zonal_mc.iterrows():
+            az = row.get("AZ Name", row.get("Administrative Zone", "?"))
+            print(f"  {az:30s}  {row['Total Votes Mean']:12,.0f}  "
+                  f"[{row['Total Votes P5']:12,.0f} - {row['Total Votes P95']:12,.0f}]")
+
     # --- State vote counts ---
     state_votes = compute_state_vote_counts(results["lga_results_base"], party_names)
     print("\nSTATE VOTE COUNTS (base run):")

@@ -680,6 +680,11 @@ def aggregate_monte_carlo_from_arrays(
     lga_volatility = all_shares.std(axis=0).mean(axis=1)  # (n_lgas,) avg over parties
     share_stats_df["Volatility"] = lga_volatility
 
+    # Zonal MC vote count statistics
+    zonal_vote_stats = _compute_zonal_mc_stats(
+        all_shares, all_turnout, pop, base_run_df, party_names
+    )
+
     return {
         "seat_stats": seat_stats,
         "national_share_stats": national_share_stats,
@@ -690,8 +695,59 @@ def aggregate_monte_carlo_from_arrays(
         "swing_lgas": swing_lgas,
         "enp_stats": enp_stats,
         "margin_stats": margin_stats,
+        "zonal_vote_stats": zonal_vote_stats,
         "n_runs": n_runs,
     }
+
+
+def _compute_zonal_mc_stats(
+    all_shares: np.ndarray,
+    all_turnout: np.ndarray,
+    pop: np.ndarray,
+    base_run_df: pd.DataFrame,
+    party_names: list[str],
+    az_col: str = "Administrative Zone",
+    az_name_col: str = "AZ Name",
+) -> pd.DataFrame:
+    """
+    Compute per-zone MC vote count and share statistics.
+
+    Returns a DataFrame with one row per zone containing mean/P5/P95
+    vote counts and shares for each party across MC runs.
+    """
+    n_runs, lga_count, J = all_shares.shape
+    zone_ids = base_run_df[az_col].values
+    az_names = base_run_df[az_name_col].values if az_name_col in base_run_df.columns else None
+    unique_zones = sorted(np.unique(zone_ids).tolist())
+
+    # votes_per_run: (n_runs, n_lgas, J)
+    total_voters_per_run = pop[np.newaxis, :] * all_turnout  # (n_runs, n_lgas)
+    votes_per_run = total_voters_per_run[:, :, np.newaxis] * all_shares  # (n_runs, n_lgas, J)
+
+    rows = []
+    for zone in unique_zones:
+        mask = zone_ids == zone
+        zone_votes = votes_per_run[:, mask, :].sum(axis=1)  # (n_runs, J)
+        zone_total = total_voters_per_run[:, mask].sum(axis=1)  # (n_runs,)
+        safe_total = np.maximum(zone_total, 1.0)
+        zone_shares = zone_votes / safe_total[:, np.newaxis]  # (n_runs, J)
+
+        row = {
+            az_col: zone,
+            "Total Votes Mean": float(zone_total.mean()),
+            "Total Votes P5": float(np.percentile(zone_total, 5)),
+            "Total Votes P95": float(np.percentile(zone_total, 95)),
+        }
+        if az_names is not None:
+            row[az_name_col] = az_names[mask][0]
+        for j, p in enumerate(party_names):
+            row[f"{p}_votes_mean"] = float(zone_votes[:, j].mean())
+            row[f"{p}_share_mean"] = float(zone_shares[:, j].mean())
+            row[f"{p}_share_p5"] = float(np.percentile(zone_shares[:, j], 5))
+            row[f"{p}_share_p95"] = float(np.percentile(zone_shares[:, j], 95))
+        rows.append(row)
+
+    return pd.DataFrame(rows)
 
 
 def compute_summary_stats(
