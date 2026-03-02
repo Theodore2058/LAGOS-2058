@@ -82,7 +82,7 @@ NRP_POSITIONS = np.array([
     +3.5,  #  9  education: meritocratic centralism
     -2.0,  # 10  labor: pro-capital
     +1.0,  # 11  military: mild guardianship
-    +1.0,  # 12  immigration: mildly open
+    +1.0,  # 12  immigration: mildly restrictionist
     +4.0,  # 13  language: English supremacy
     +3.0,  # 14  womens_rights: progressive
     -3.5,  # 15  trad_authority: marginalize
@@ -194,7 +194,7 @@ IPA_POSITIONS = np.array([
     +1.5,  #  9  education: mild centralism
     -3.0,  # 10  labor: pro-capital
     -2.0,  # 11  military: civilian control
-    +0.5,  # 12  immigration: mildly open
+    +0.5,  # 12  immigration: centrist
     +1.5,  # 13  language: pro-English
     +1.0,  # 14  womens_rights: mildly progressive
     -1.5,  # 15  trad_authority: mildly marginalize
@@ -289,11 +289,11 @@ UJP_POSITIONS = np.array([
 
 # NWF — Nigerian Workers' Front
 # Urban labor-left party strongest among factory workers, gig laborers, and
-# informal-sector unions. Highest scores on labor protection, housing
-# intervention, taxation/redistribution, and healthcare. Skeptical of both
-# capital and traditional authority. Cosmopolitan by default rather than
-# ideology — its base crosses ethnic lines in the industrial belts of Lagos,
-# Kano, and Port Harcourt.
+# informal-sector unions. Among the highest scores on labor protection, housing
+# intervention, taxation/redistribution, and healthcare — second only to the
+# more radical PLF. Skeptical of both capital and traditional authority.
+# Cosmopolitan by default rather than ideology — its base crosses ethnic lines
+# in the industrial belts of Lagos, Kano, and Port Harcourt.
 NWF_POSITIONS = np.array([
     -1.0,  #  0  sharia: mildly secular
     -1.5,  #  1  fiscal: mildly centralist
@@ -305,9 +305,9 @@ NWF_POSITIONS = np.array([
     -1.0,  #  7  resource: mildly federal
     +4.0,  #  8  housing: strong state intervention
     +0.5,  #  9  education: centrist
-    +4.5,  # 10  labor: strongest pro-labor
+    +4.5,  # 10  labor: near-strongest pro-labor
     -2.5,  # 11  military: civilian control
-    +1.5,  # 12  immigration: mildly open
+    +1.5,  # 12  immigration: mildly restrictionist
     -2.0,  # 13  language: vernacular
     +2.0,  # 14  womens_rights: progressive
     -1.5,  # 15  trad_authority: mildly marginalize
@@ -328,10 +328,11 @@ NWF_POSITIONS = np.array([
 # NHA — New Horizon Alliance
 # Techno-futurist party built around the Naijin diaspora-return community and
 # WAFTA-aligned business networks. Strongest pro-WAFTA position in the system.
-# Pro-bio-enhancement, pro-trade openness, pro-English, and aggressively
-# pro-education centralism. Culturally liberal but economically globalist. The
-# party of people who think Nigeria's future is in Shenzhen, not Washington or
-# Abuja.
+# Pro-bio-enhancement, pro-trade openness, and aggressively pro-education
+# centralism. Mildly favors multilingualism over English supremacy, reflecting
+# Naijin comfort with Mandarin as a co-prestige language. Culturally liberal
+# but economically globalist. The party of people who think Nigeria's future
+# is in Shenzhen, not Washington or Abuja.
 NHA_POSITIONS = np.array([
     -2.5,  #  0  sharia: secular
     -1.0,  #  1  fiscal: mildly centralist
@@ -345,7 +346,7 @@ NHA_POSITIONS = np.array([
     +4.0,  #  9  education: strongest centralism
     -1.5,  # 10  labor: mildly pro-capital
     +0.5,  # 11  military: centrist
-    -2.0,  # 12  immigration: open borders
+    -2.0,  # 12  immigration: moderately open
     -1.0,  # 13  language: mildly vernacular
     +2.0,  # 14  womens_rights: progressive
     -3.0,  # 15  trad_authority: marginalize
@@ -383,7 +384,7 @@ SNM_POSITIONS = np.array([
     -1.5,  #  9  education: mildly localist
     +2.5,  # 10  labor: pro-labor
     +1.5,  # 11  military: mild guardianship
-    +4.5,  # 12  immigration: strongest restrictionism
+    +4.5,  # 12  immigration: near-strongest restrictionism
     -1.5,  # 13  language: mildly vernacular
     -0.5,  # 14  womens_rights: mildly conservative
     +1.0,  # 15  trad_authority: mild integration
@@ -402,12 +403,13 @@ SNM_POSITIONS = np.array([
 ])
 
 # NSA — National Security Alliance
-# Authoritarian-securitarian party. Strongest position on military
-# guardianship and presidential power in the system. Anti-press freedom,
-# pro-centralism, and hawkish on immigration. Draws support from military
-# families, security contractors, and populations in conflict-affected zones
-# who want order above all else. Not ideological so much as dispositional: the
-# party of people who think civilians talk too much.
+# Authoritarian-securitarian party. Among the strongest positions on military
+# guardianship and presidential power in the system, second only to the NNV.
+# Anti-press freedom, pro-centralism, and hawkish on immigration. Draws
+# support from military families, security contractors, and populations in
+# conflict-affected zones who want order above all else. Not ideological so
+# much as dispositional: the party of people who think civilians talk too
+# much.
 NSA_POSITIONS = np.array([
     -2.0,  #  0  sharia: secular
     -3.0,  #  1  fiscal: centralist
@@ -480,10 +482,10 @@ CDA_POSITIONS = np.array([
 # MBPP — Middle Belt People's Party
 # Regional party of the Middle Belt minorities — Plateau, Benue, Nassarawa,
 # and southern Kaduna communities. Strongest position on traditional authority
-# integration and infrastructure provision. Pro-fiscal autonomy and local
-# resource control. Represents populations caught between northern Islamic
-# hegemony and southern commercial dominance, demanding recognition and
-# development on their own terms.
+# integration in the system. Near-strongest on infrastructure provision and
+# healthcare. Pro-fiscal autonomy and local resource control. Represents
+# populations caught between northern Islamic hegemony and southern commercial
+# dominance, demanding recognition and development on their own terms.
 MBPP_POSITIONS = np.array([
     -2.5,  #  0  sharia: secular
     +2.0,  #  1  fiscal: autonomy
@@ -518,11 +520,14 @@ MBPP_POSITIONS = np.array([
 # PLF — People's Liberation Front
 # Radical left party rooted in Niger Delta resource activism and Lagos slum
 # organizing. Highest scores on labor, housing, taxation, healthcare, and
-# infrastructure in the entire system. Wants total restructuring back to
-# states, anti-centralist, anti-traditional authority, anti-press censorship —
-# but also deeply suspicious of foreign capital and WAFTA. The party of people
-# who have been promised development for sixty years and received pipeline
-# explosions.
+# infrastructure in the entire system. Strongly centralist — believes only
+# an empowered federal state can redistribute wealth from extractive elites
+# to the masses. Moderately pro-WAFTA, seeing Chinese capital as a useful
+# counterweight to Western multinationals. Favors state media discipline
+# over press freedom, viewing private media as captured by oligarchs.
+# Anti-traditional authority and supportive of keeping the AZ system that
+# weakens old regional power structures. The party of people who have been
+# promised development for sixty years and received pipeline explosions.
 PLF_POSITIONS = np.array([
     -4.0,  #  0  sharia: strongly secular
     -4.5,  #  1  fiscal: strong centralism
@@ -551,7 +556,7 @@ PLF_POSITIONS = np.array([
     +5.0,  # 24  healthcare: maximum universal
     -4.0,  # 25  pada_status: anti-Padà
     +3.0,  # 26  energy: green
-    +3.5,  # 27  az_restructuring: restructure to states
+    +3.5,  # 27  az_restructuring: mildly keep AZs
 ])
 
 # NNV — Nigerian National Vanguard
@@ -712,7 +717,7 @@ def main():
     params = EngineParams(
         q=0.5, beta_s=1.0, alpha_e=2.5, alpha_r=1.5,
         scale=1.0, tau_0=1.5, tau_1=0.3, tau_2=0.5,
-        kappa=200.0, sigma_national=0.10, sigma_regional=0.15, sigma_lga=0.20,
+        kappa=400.0, sigma_national=0.07, sigma_regional=0.10,
     )
     config = ElectionConfig(params=params, parties=PARTIES, n_monte_carlo=100)
 
