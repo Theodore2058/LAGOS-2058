@@ -1,10 +1,10 @@
 """
-Example: Run a full LAGOS-2058 election with 5 sample parties.
+Example: Run a full LAGOS-2058 election with 14 sample parties.
 
 Usage:
     python examples/run_election.py
 
-This script defines 5 parties spanning the 2058 Nigerian political landscape,
+This script defines 14 parties spanning the 2058 Nigerian political landscape,
 runs 100 Monte Carlo iterations, and prints a summary.
 
 Issue dimension order (28 dimensions, -5 to +5):
@@ -63,209 +63,647 @@ logging.basicConfig(
 # Positions are on the -5 to +5 scale for each of the 28 issue dimensions.
 # Listed in issue order above.
 
-NDF_POSITIONS = np.array([
-    +3.0,  # 0  sharia: moderate pro
-    -1.0,  # 1  fiscal: mildly centralist
-    -1.0,  # 2  chinese: mild Western tilt
-    -2.0,  # 3  bic: anti-BIC
-    +3.0,  # 4  ethnic quotas: pro (northern advantage)
-    +2.0,  # 5  fertility: pro-natalist
-    +2.0,  # 6  constitutional: presidential (majority friendly)
-    -2.0,  # 7  resource: centralist
-    -1.0,  # 8  housing: mildly market
-    -2.0,  # 9  education: decentralist
-    -2.0,  # 10 labor: pro-capital
-    +2.0,  # 11 military: guardianship
-    +1.0,  # 12 immigration: mildly restrictionist
-    -1.5,  # 13 language: anti-English supremacy
-    -2.0,  # 14 women's rights: conservative
-    +2.5,  # 15 trad authority: pro
-    -0.5,  # 16 infrastructure: mildly targeted
-    +1.0,  # 17 land tenure: customary
-    -1.5,  # 18 taxation: low tax
-    +1.5,  # 19 agriculture: protectionist
-    -2.5,  # 20 bio enhancement: against
-    -1.5,  # 21 trade: autarky leaning
-    -1.0,  # 22 environment: growth first
-    -2.0,  # 23 media: state control
-    -1.5,  # 24 healthcare: market leaning
-    -2.0,  # 25 pada status: anti-Padà
-    -1.5,  # 26 energy: fossil
-    -1.5,  # 27 az restructuring: keep current AZs
+# NRP — Nigerian Renaissance Party
+# Cosmopolitan modernizers rooted in the Lagos-Abuja professional class and
+# the Padà community. Champions meritocracy, secular governance, English-medium
+# education, BIC preservation, and Padà cultural rights. Economically
+# centrist-liberal with a mild pro-market lean. The closest thing to a
+# classical liberal party in the 2058 landscape.
+NRP_POSITIONS = np.array([
+    -3.5,  #  0  sharia: strongly secular
+    -2.5,  #  1  fiscal: centralist
+    +0.5,  #  2  chinese: mild WAFTA tilt
+    +3.0,  #  3  bic: preserve BIC
+    -4.0,  #  4  ethnic_quotas: strongly meritocratic
+    -2.0,  #  5  fertility: population control
+    -3.0,  #  6  constitutional: parliamentary
+    -2.0,  #  7  resource: federal control
+    -2.0,  #  8  housing: market-oriented
+    +3.5,  #  9  education: meritocratic centralism
+    -2.0,  # 10  labor: pro-capital
+    +1.0,  # 11  military: mild guardianship
+    +1.0,  # 12  immigration: mildly open
+    +4.0,  # 13  language: English supremacy
+    +3.0,  # 14  womens_rights: progressive
+    -3.5,  # 15  trad_authority: marginalize
+    -1.5,  # 16  infrastructure: mildly targeted
+    +3.5,  # 17  land_tenure: formalization
+    -1.5,  # 18  taxation: low tax
+    -1.5,  # 19  agriculture: free market
+    +2.0,  # 20  bio_enhancement: pro-access
+    +2.0,  # 21  trade: open
+    +1.0,  # 22  environment: mild regulation
+    -1.0,  # 23  media: mild state lean
+    +0.5,  # 24  healthcare: mildly universal
+    +4.5,  # 25  pada_status: strong Padà preservation
+    +1.5,  # 26  energy: mild green
+    +4.0,  # 27  az_restructuring: keep AZs
 ])
 
-TECHNOCRATIC_POSITIONS = np.array([
-    -3.0,  # 0  sharia: secularist
-    +0.0,  # 1  fiscal: centrist
-    +3.0,  # 2  chinese: WAFTA pro
-    +3.0,  # 3  bic: preserve BIC
-    -3.0,  # 4  ethnic quotas: meritocratic
-    -1.0,  # 5  fertility: mild control
-    -2.0,  # 6  constitutional: parliamentary
-    +1.0,  # 7  resource: mild decentralization
-    -1.0,  # 8  housing: mildly market
-    +3.0,  # 9  education: meritocratic centralism
-    +1.0,  # 10 labor: mild labor
-    -2.0,  # 11 military: civilian
-    +2.0,  # 12 immigration: open
-    +2.5,  # 13 language: English prestige
-    +2.0,  # 14 women's rights: progressive
-    -2.5,  # 15 trad authority: marginalize
-    +1.5,  # 16 infrastructure: universal
-    +2.0,  # 17 land tenure: formalization
-    +0.5,  # 18 taxation: mild redistribution
-    -1.0,  # 19 agriculture: market
-    +2.5,  # 20 bio enhancement: pro
-    +3.5,  # 21 trade: openness
-    +2.0,  # 22 environment: regulatory
-    +3.0,  # 23 media: press freedom
-    +1.5,  # 24 healthcare: mild universal
-    +4.0,  # 25 pada status: preserve Padà
-    +2.0,  # 26 energy: green leaning
-    +2.0,  # 27 az restructuring: keep AZs
+# CND — Congress for Nigerian Democracy
+# Reformist democratic party with roots in the old southwestern progressive
+# tradition. Strongly pro-press freedom, moderately secular, pro-women's
+# rights, and pro-trade openness. Favors parliamentary reform and civilian
+# control. Appeals broadly to educated southerners and urban professionals
+# outside the Padà orbit. The party of newspaper editors and university
+# lecturers.
+CND_POSITIONS = np.array([
+    -3.0,  #  0  sharia: secular
+    +1.0,  #  1  fiscal: mild autonomy
+    -3.0,  #  2  chinese: Western pivot
+    -3.5,  #  3  bic: abolish BIC
+    -1.5,  #  4  ethnic_quotas: mildly meritocratic
+    -1.0,  #  5  fertility: mild population control
+    -2.0,  #  6  constitutional: parliamentary
+    +1.0,  #  7  resource: mild local control
+    +1.5,  #  8  housing: mild intervention
+    +1.0,  #  9  education: mild centralism
+    +0.5,  # 10  labor: mildly pro-labor
+    -4.0,  # 11  military: strong civilian control
+    -1.5,  # 12  immigration: mildly open
+    +2.0,  # 13  language: pro-English
+    +3.5,  # 14  womens_rights: strongly progressive
+    -2.5,  # 15  trad_authority: marginalize
+    +1.0,  # 16  infrastructure: mildly universal
+    +2.0,  # 17  land_tenure: formalization
+    +0.5,  # 18  taxation: mild redistribution
+    +0.0,  # 19  agriculture: neutral
+    +1.5,  # 20  bio_enhancement: moderate pro
+    +3.0,  # 21  trade: open
+    +2.5,  # 22  environment: regulatory
+    +4.5,  # 23  media: strongest press freedom
+    +2.0,  # 24  healthcare: universal
+    +0.5,  # 25  pada_status: mild pro-Padà
+    +2.5,  # 26  energy: green transition
+    -1.0,  # 27  az_restructuring: mild restructure
 ])
 
-YORUBA_CONGRESS_POSITIONS = np.array([
-    -1.0,  # 0  sharia: mild secular
-    +3.0,  # 1  fiscal: strong fiscal autonomy
-    +1.0,  # 2  chinese: mild WAFTA
-    +0.0,  # 3  bic: neutral
-    +1.0,  # 4  ethnic quotas: mild pro
-    +0.0,  # 5  fertility: neutral
-    -1.5,  # 6  constitutional: semi-parliamentary
-    +2.5,  # 7  resource: strong decentralization
-    +0.5,  # 8  housing: mild intervention
-    +0.5,  # 9  education: centrist
-    +1.5,  # 10 labor: pro-labor
-    -1.0,  # 11 military: civilian
-    +0.5,  # 12 immigration: mild open
-    +1.5,  # 13 language: vernacular empowerment
-    +1.0,  # 14 women's rights: moderate
-    +0.5,  # 15 trad authority: mild integration
-    +2.0,  # 16 infrastructure: universal
-    +1.0,  # 17 land tenure: mild formalization
-    +1.0,  # 18 taxation: mild redistribution
-    +1.0,  # 19 agriculture: mild protectionism
-    +0.5,  # 20 bio enhancement: cautious pro
-    +2.0,  # 21 trade: open
-    +1.0,  # 22 environment: moderate regulatory
-    +2.0,  # 23 media: press freedom
-    +2.0,  # 24 healthcare: universal
-    +0.5,  # 25 pada status: mild pro
-    +1.0,  # 26 energy: mild green
-    -3.0,  # 27 az restructuring: restructure (back to states)
+# ANPC — All-Nigeria People's Congress
+# Centrist catch-all party that tries to bridge north-south, Muslim-Christian,
+# and urban-rural divides. Moderate on nearly everything, slightly favoring
+# fiscal autonomy and press freedom. Often accused of standing for nothing;
+# supporters say it stands for stability. The party of governors who want to
+# keep their jobs.
+ANPC_POSITIONS = np.array([
+    -2.0,  #  0  sharia: moderately secular
+    +3.0,  #  1  fiscal: fiscal autonomy
+    -1.5,  #  2  chinese: mild Western lean
+    -1.0,  #  3  bic: mildly anti-BIC
+    +1.5,  #  4  ethnic_quotas: mild affirmative action
+    +1.0,  #  5  fertility: mildly pro-natalist
+    +1.5,  #  6  constitutional: mildly presidential
+    +1.5,  #  7  resource: mild local control
+    +0.5,  #  8  housing: mildly interventionist
+    -1.0,  #  9  education: mildly localist
+    -0.5,  # 10  labor: centrist
+    -1.5,  # 11  military: mild civilian control
+    +1.0,  # 12  immigration: mildly restrictionist
+    -1.0,  # 13  language: mildly vernacular
+    +1.5,  # 14  womens_rights: moderate progressive
+    +1.5,  # 15  trad_authority: mild integration
+    -0.5,  # 16  infrastructure: centrist
+    +0.5,  # 17  land_tenure: mild formalization
+    -0.5,  # 18  taxation: centrist
+    -0.5,  # 19  agriculture: centrist
+    +1.0,  # 20  bio_enhancement: mild pro
+    +1.0,  # 21  trade: mildly open
+    +1.0,  # 22  environment: mild regulation
+    +2.0,  # 23  media: press freedom
+    +1.0,  # 24  healthcare: mildly universal
+    -1.5,  # 25  pada_status: mildly anti-Padà
+    +0.5,  # 26  energy: mild green
+    -3.0,  # 27  az_restructuring: restructure to states
 ])
 
-PEOPLES_JUSTICE_POSITIONS = np.array([
-    -2.0,  # 0  sharia: secular
-    +2.0,  # 1  fiscal: strong autonomy
-    -3.0,  # 2  chinese: anti-WAFTA/Western
-    -3.0,  # 3  bic: abolish
-    +2.0,  # 4  ethnic quotas: pro
-    -0.5,  # 5  fertility: mild control
-    -2.0,  # 6  constitutional: parliamentary
-    +3.0,  # 7  resource: strong local control
-    +3.0,  # 8  housing: strong state intervention
-    +1.0,  # 9  education: mild centralism
-    +3.0,  # 10 labor: strong pro-labor
-    -1.5,  # 11 military: civilian
-    +0.0,  # 12 immigration: neutral
-    +0.5,  # 13 language: mild vernacular
-    +1.5,  # 14 women's rights: moderate
-    -1.0,  # 15 trad authority: marginalize
-    +2.5,  # 16 infrastructure: universal
-    +0.5,  # 17 land tenure: mild formalization
-    +3.0,  # 18 taxation: high redistribution
-    +2.0,  # 19 agriculture: protectionist smallholder
-    +0.5,  # 20 bio enhancement: cautious pro
-    -0.5,  # 21 trade: mild autarky
-    +2.0,  # 22 environment: regulatory
-    +2.5,  # 23 media: press freedom
-    +3.0,  # 24 healthcare: strong universal
-    -3.0,  # 25 pada status: anti-Padà
-    +1.5,  # 26 energy: green
-    -2.0,  # 27 az restructuring: restructure
+# IPA — Igbo Progressive Alliance
+# Southeastern autonomist party built on Igbo commercial networks and diaspora
+# capital. Strongly pro-fiscal autonomy and meritocracy, secular, and
+# pro-trade openness. Skeptical of both northern Islamic institutions and
+# Lagos-based technocratic elitism. Wants strong local resource control and
+# formal land tenure. The party of Onitsha traders and Aba manufacturers.
+IPA_POSITIONS = np.array([
+    -3.0,  #  0  sharia: secular
+    +3.5,  #  1  fiscal: strong autonomy
+    -2.5,  #  2  chinese: Western pivot
+    -1.5,  #  3  bic: mildly anti-BIC
+    -2.5,  #  4  ethnic_quotas: meritocratic
+    +0.5,  #  5  fertility: mildly pro-natalist
+    +1.0,  #  6  constitutional: mildly presidential
+    +2.5,  #  7  resource: strong local control
+    -1.5,  #  8  housing: mildly market
+    +1.5,  #  9  education: mild centralism
+    -3.0,  # 10  labor: pro-capital
+    -2.0,  # 11  military: civilian control
+    +0.5,  # 12  immigration: mildly open
+    +1.5,  # 13  language: pro-English
+    +1.0,  # 14  womens_rights: mildly progressive
+    -1.5,  # 15  trad_authority: mildly marginalize
+    -2.0,  # 16  infrastructure: targeted
+    +3.0,  # 17  land_tenure: formalization
+    -3.0,  # 18  taxation: low tax
+    -2.5,  # 19  agriculture: free market
+    +2.5,  # 20  bio_enhancement: pro-access
+    +1.5,  # 21  trade: open
+    -2.0,  # 22  environment: growth first
+    +2.0,  # 23  media: press freedom
+    -1.5,  # 24  healthcare: mildly market
+    -0.5,  # 25  pada_status: mildly anti-Padà
+    -1.0,  # 26  energy: mild fossil
+    -1.5,  # 27  az_restructuring: mild restructure
 ])
 
-NIM_POSITIONS = np.array([
-    +5.0,  # 0  sharia: full Sharia
-    +4.0,  # 1  fiscal: confederalist
-    -3.0,  # 2  chinese: anti-WAFTA
-    -4.0,  # 3  bic: abolish
-    +4.0,  # 4  ethnic quotas: strong pro
-    +4.0,  # 5  fertility: strong pro-natalist
-    +3.0,  # 6  constitutional: strong presidential
-    +1.0,  # 7  resource: mild local
-    -1.0,  # 8  housing: market
-    -3.0,  # 9  education: decentralist
-    -3.0,  # 10 labor: pro-capital
-    +3.5,  # 11 military: guardianship
-    +3.0,  # 12 immigration: strongly restrictionist
-    -2.5,  # 13 language: vernacular/Arabic
-    -4.0,  # 14 women's rights: conservative
-    +4.0,  # 15 trad authority: integrate strongly
-    -1.0,  # 16 infrastructure: targeted
-    +2.0,  # 17 land tenure: customary
-    -3.0,  # 18 taxation: low tax
-    +2.0,  # 19 agriculture: protectionist
-    -4.0,  # 20 bio enhancement: prohibition
-    -3.0,  # 21 trade: autarky
-    -1.0,  # 22 environment: growth first
-    -4.0,  # 23 media: state control
-    -1.0,  # 24 healthcare: market
-    -2.0,  # 25 pada status: anti-Padà
-    -2.0,  # 26 energy: fossil
-    -2.5,  # 27 az restructuring: keep AZs
+# NDC — Northern Democratic Congress
+# Northern Muslim establishment party. Pro-sharia, pro-ethnic quotas,
+# pro-natalist, and supportive of traditional authority — but within
+# democratic norms and existing AZ structures. Represents the Hausa-Fulani
+# political mainstream: conservative on social issues, moderately statist on
+# economics, and deeply suspicious of both Lagos cosmopolitanism and radical
+# Islamism.
+NDC_POSITIONS = np.array([
+    +3.0,  #  0  sharia: pro-sharia
+    +2.5,  #  1  fiscal: autonomy
+    -0.5,  #  2  chinese: mildly Western
+    -3.0,  #  3  bic: abolish BIC
+    +3.5,  #  4  ethnic_quotas: strong affirmative action
+    +3.0,  #  5  fertility: pro-natalist
+    +3.0,  #  6  constitutional: presidential
+    +2.0,  #  7  resource: local control
+    +1.0,  #  8  housing: mild intervention
+    -2.5,  #  9  education: localist
+    +0.5,  # 10  labor: mildly pro-labor
+    +0.5,  # 11  military: mild guardianship
+    +3.0,  # 12  immigration: restrictionist
+    -2.0,  # 13  language: vernacular
+    -2.0,  # 14  womens_rights: conservative
+    +3.0,  # 15  trad_authority: integration
+    +3.0,  # 16  infrastructure: universal
+    -1.5,  # 17  land_tenure: customary
+    +1.0,  # 18  taxation: mild redistribution
+    +2.5,  # 19  agriculture: protectionist
+    -1.5,  # 20  bio_enhancement: against
+    -0.5,  # 21  trade: mildly autarkic
+    -1.0,  # 22  environment: growth first
+    +1.0,  # 23  media: mildly free press
+    +2.5,  # 24  healthcare: universal
+    -3.0,  # 25  pada_status: anti-Padà
+    -1.5,  # 26  energy: fossil
+    -1.5,  # 27  az_restructuring: mild restructure
+])
+
+# UJP — Ummah Justice Party
+# Islamist party anchored in the Al-Shahid movement and the northeastern
+# Kanuri heartland. Full sharia jurisdiction, strong pro-natalism, aggressive
+# anti-Padà, anti-bio-enhancement, and deep hostility to secular governance.
+# Economically redistributive within an Islamic framework. The most
+# ideologically coherent party in the system — and the most polarizing.
+UJP_POSITIONS = np.array([
+    +4.0,  #  0  sharia: near-full sharia
+    +3.5,  #  1  fiscal: strong autonomy
+    -1.0,  #  2  chinese: mildly Western
+    -3.5,  #  3  bic: abolish BIC
+    +3.0,  #  4  ethnic_quotas: affirmative action
+    +4.0,  #  5  fertility: strongly pro-natalist
+    +2.5,  #  6  constitutional: presidential
+    +1.5,  #  7  resource: mild local control
+    +2.0,  #  8  housing: interventionist
+    -3.5,  #  9  education: localist/Islamic
+    +2.0,  # 10  labor: pro-labor
+    -1.0,  # 11  military: mildly civilian
+    +2.0,  # 12  immigration: restrictionist
+    -3.0,  # 13  language: vernacular/Arabic
+    -3.5,  # 14  womens_rights: conservative
+    +2.5,  # 15  trad_authority: integration
+    +3.5,  # 16  infrastructure: universal
+    -2.5,  # 17  land_tenure: customary
+    +2.5,  # 18  taxation: redistribution
+    +3.5,  # 19  agriculture: protectionist
+    -3.5,  # 20  bio_enhancement: prohibition
+    -1.5,  # 21  trade: autarkic
+    +0.5,  # 22  environment: mild regulation
+    +0.5,  # 23  media: centrist
+    +3.5,  # 24  healthcare: universal
+    -3.5,  # 25  pada_status: anti-Padà
+    -0.5,  # 26  energy: centrist
+    -2.0,  # 27  az_restructuring: mild restructure
+])
+
+# NWF — Nigerian Workers' Front
+# Urban labor-left party strongest among factory workers, gig laborers, and
+# informal-sector unions. Highest scores on labor protection, housing
+# intervention, taxation/redistribution, and healthcare. Skeptical of both
+# capital and traditional authority. Cosmopolitan by default rather than
+# ideology — its base crosses ethnic lines in the industrial belts of Lagos,
+# Kano, and Port Harcourt.
+NWF_POSITIONS = np.array([
+    -1.0,  #  0  sharia: mildly secular
+    -1.5,  #  1  fiscal: mildly centralist
+    -1.0,  #  2  chinese: mildly Western
+    -1.0,  #  3  bic: mildly anti-BIC
+    +1.0,  #  4  ethnic_quotas: mild affirmative action
+    -0.5,  #  5  fertility: centrist
+    -1.5,  #  6  constitutional: mildly parliamentary
+    -1.0,  #  7  resource: mildly federal
+    +4.0,  #  8  housing: strong state intervention
+    +0.5,  #  9  education: centrist
+    +4.5,  # 10  labor: strongest pro-labor
+    -2.5,  # 11  military: civilian control
+    +1.5,  # 12  immigration: mildly open
+    -2.0,  # 13  language: vernacular
+    +2.0,  # 14  womens_rights: progressive
+    -1.5,  # 15  trad_authority: mildly marginalize
+    +3.0,  # 16  infrastructure: universal
+    -1.0,  # 17  land_tenure: mildly customary
+    +4.0,  # 18  taxation: high redistribution
+    +3.0,  # 19  agriculture: protectionist
+    +3.0,  # 20  bio_enhancement: pro-access
+    -2.0,  # 21  trade: autarkic
+    +2.0,  # 22  environment: regulatory
+    +3.0,  # 23  media: press freedom
+    +4.0,  # 24  healthcare: universal
+    -2.0,  # 25  pada_status: mildly anti-Padà
+    +1.0,  # 26  energy: mild green
+    +0.0,  # 27  az_restructuring: neutral
+])
+
+# NHA — New Horizon Alliance
+# Techno-futurist party built around the Naijin diaspora-return community and
+# WAFTA-aligned business networks. Strongest pro-WAFTA position in the system.
+# Pro-bio-enhancement, pro-trade openness, pro-English, and aggressively
+# pro-education centralism. Culturally liberal but economically globalist. The
+# party of people who think Nigeria's future is in Shenzhen, not Washington or
+# Abuja.
+NHA_POSITIONS = np.array([
+    -2.5,  #  0  sharia: secular
+    -1.0,  #  1  fiscal: mildly centralist
+    +4.5,  #  2  chinese: strongest WAFTA
+    +1.5,  #  3  bic: mild BIC preservation
+    -2.0,  #  4  ethnic_quotas: meritocratic
+    -2.5,  #  5  fertility: population control
+    -2.5,  #  6  constitutional: parliamentary
+    -1.5,  #  7  resource: mildly federal
+    +2.5,  #  8  housing: interventionist
+    +4.0,  #  9  education: strongest centralism
+    -1.5,  # 10  labor: mildly pro-capital
+    +0.5,  # 11  military: centrist
+    -2.0,  # 12  immigration: open borders
+    -1.0,  # 13  language: mildly vernacular
+    +2.0,  # 14  womens_rights: progressive
+    -3.0,  # 15  trad_authority: marginalize
+    -1.0,  # 16  infrastructure: mildly targeted
+    +2.5,  # 17  land_tenure: formalization
+    +1.5,  # 18  taxation: mild redistribution
+    -1.0,  # 19  agriculture: free market
+    +3.0,  # 20  bio_enhancement: strong pro-access
+    +3.5,  # 21  trade: strongly open
+    +1.5,  # 22  environment: mild regulation
+    -0.5,  # 23  media: centrist
+    +2.5,  # 24  healthcare: universal
+    +1.0,  # 25  pada_status: mild pro-Padà
+    +2.0,  # 26  energy: green
+    +2.0,  # 27  az_restructuring: keep AZs
+])
+
+# SNM — Sovereign Nigeria Movement
+# Economic nationalist and sovereigntist party. Fiercely anti-WAFTA,
+# anti-immigration, anti-Padà, and anti-trade openness. Wants to reassert
+# Nigerian economic independence from Chinese influence. Pro-housing and
+# pro-healthcare but through autarkic industrial policy, not redistribution.
+# Appeals to northern traders squeezed by WAFTA competition and southern small
+# manufacturers facing Chinese imports.
+SNM_POSITIONS = np.array([
+    -1.5,  #  0  sharia: mildly secular
+    +1.0,  #  1  fiscal: mild autonomy
+    -4.0,  #  2  chinese: fiercely anti-WAFTA
+    -2.5,  #  3  bic: anti-BIC
+    +2.0,  #  4  ethnic_quotas: affirmative action
+    +2.5,  #  5  fertility: pro-natalist
+    +2.0,  #  6  constitutional: presidential
+    +2.0,  #  7  resource: local control
+    +3.0,  #  8  housing: strong intervention
+    -1.5,  #  9  education: mildly localist
+    +2.5,  # 10  labor: pro-labor
+    +1.5,  # 11  military: mild guardianship
+    +4.5,  # 12  immigration: strongest restrictionism
+    -1.5,  # 13  language: mildly vernacular
+    -0.5,  # 14  womens_rights: mildly conservative
+    +1.0,  # 15  trad_authority: mild integration
+    +2.0,  # 16  infrastructure: universal
+    -1.0,  # 17  land_tenure: mildly customary
+    +2.0,  # 18  taxation: redistribution
+    +2.0,  # 19  agriculture: protectionist
+    -0.5,  # 20  bio_enhancement: mildly against
+    -4.0,  # 21  trade: strong autarky
+    -1.5,  # 22  environment: growth first
+    +1.5,  # 23  media: mild press freedom
+    +2.5,  # 24  healthcare: universal
+    -4.5,  # 25  pada_status: strongly anti-Padà
+    -2.0,  # 26  energy: fossil
+    -1.0,  # 27  az_restructuring: mild restructure
+])
+
+# NSA — National Security Alliance
+# Authoritarian-securitarian party. Strongest position on military
+# guardianship and presidential power in the system. Anti-press freedom,
+# pro-centralism, and hawkish on immigration. Draws support from military
+# families, security contractors, and populations in conflict-affected zones
+# who want order above all else. Not ideological so much as dispositional: the
+# party of people who think civilians talk too much.
+NSA_POSITIONS = np.array([
+    -2.0,  #  0  sharia: secular
+    -3.0,  #  1  fiscal: centralist
+    +0.5,  #  2  chinese: centrist
+    +2.5,  #  3  bic: preserve BIC
+    -2.0,  #  4  ethnic_quotas: meritocratic
+    +1.0,  #  5  fertility: mildly pro-natalist
+    +3.5,  #  6  constitutional: strongly presidential
+    -2.5,  #  7  resource: federal control
+    +0.5,  #  8  housing: centrist
+    +2.0,  #  9  education: centralism
+    -1.0,  # 10  labor: mildly pro-capital
+    +4.5,  # 11  military: strongest guardianship
+    +2.5,  # 12  immigration: restrictionist
+    +3.0,  # 13  language: English supremacy
+    +0.5,  # 14  womens_rights: centrist
+    -1.0,  # 15  trad_authority: mildly marginalize
+    +0.5,  # 16  infrastructure: centrist
+    +1.5,  # 17  land_tenure: mild formalization
+    -0.5,  # 18  taxation: centrist
+    +0.5,  # 19  agriculture: centrist
+    +2.0,  # 20  bio_enhancement: pro-access
+    +0.5,  # 21  trade: mildly open
+    -1.0,  # 22  environment: growth first
+    -3.0,  # 23  media: state control
+    +1.0,  # 24  healthcare: mildly universal
+    +2.0,  # 25  pada_status: pro-Padà
+    -1.5,  # 26  energy: fossil
+    +3.0,  # 27  az_restructuring: keep AZs
+])
+
+# CDA — Christian Democratic Alliance
+# Christian identity party strongest in the Middle Belt and southeastern
+# borderlands. Aggressively anti-sharia, pro-natalist, and socially
+# conservative within a Christian moral framework. Moderate on economics,
+# mildly pro-fiscal autonomy. Not ethno-nationalist — its Christianity is the
+# organizing principle, cutting across Tiv, Igbo, and southern minority lines.
+# The party of Sunday morning before the ballot box.
+CDA_POSITIONS = np.array([
+    -4.0,  #  0  sharia: aggressively anti-sharia
+    +1.5,  #  1  fiscal: mild autonomy
+    -2.0,  #  2  chinese: Western lean
+    +0.5,  #  3  bic: mildly preserve
+    +0.5,  #  4  ethnic_quotas: mildly pro
+    +4.0,  #  5  fertility: strongly pro-natalist
+    +1.0,  #  6  constitutional: mildly presidential
+    +1.0,  #  7  resource: mild local control
+    +1.5,  #  8  housing: mildly interventionist
+    -0.5,  #  9  education: centrist
+    +1.0,  # 10  labor: mildly pro-labor
+    -0.5,  # 11  military: centrist
+    +1.5,  # 12  immigration: mildly restrictionist
+    +1.5,  # 13  language: mildly English
+    -2.5,  # 14  womens_rights: socially conservative
+    +1.0,  # 15  trad_authority: mild integration
+    +1.5,  # 16  infrastructure: mildly universal
+    +0.5,  # 17  land_tenure: mild formalization
+    +0.5,  # 18  taxation: centrist
+    +1.5,  # 19  agriculture: mildly protectionist
+    -2.5,  # 20  bio_enhancement: against
+    +1.0,  # 21  trade: mildly open
+    +0.5,  # 22  environment: centrist
+    +1.5,  # 23  media: mildly free press
+    +2.0,  # 24  healthcare: universal
+    -1.5,  # 25  pada_status: mildly anti-Padà
+    +0.5,  # 26  energy: mild green
+    -1.0,  # 27  az_restructuring: mild restructure
+])
+
+# MBPP — Middle Belt People's Party
+# Regional party of the Middle Belt minorities — Plateau, Benue, Nassarawa,
+# and southern Kaduna communities. Strongest position on traditional authority
+# integration and infrastructure provision. Pro-fiscal autonomy and local
+# resource control. Represents populations caught between northern Islamic
+# hegemony and southern commercial dominance, demanding recognition and
+# development on their own terms.
+MBPP_POSITIONS = np.array([
+    -2.5,  #  0  sharia: secular
+    +2.0,  #  1  fiscal: autonomy
+    +0.0,  #  2  chinese: neutral
+    -2.0,  #  3  bic: anti-BIC
+    +4.0,  #  4  ethnic_quotas: strong affirmative action
+    +1.5,  #  5  fertility: mildly pro-natalist
+    -3.5,  #  6  constitutional: strongly parliamentary
+    +3.5,  #  7  resource: strong local control
+    +2.0,  #  8  housing: interventionist
+    -2.0,  #  9  education: localist
+    +1.5,  # 10  labor: mildly pro-labor
+    -2.0,  # 11  military: civilian control
+    +0.5,  # 12  immigration: centrist
+    -3.0,  # 13  language: vernacular
+    +0.5,  # 14  womens_rights: centrist
+    +3.5,  # 15  trad_authority: strong integration
+    +4.0,  # 16  infrastructure: strongest universal
+    -2.0,  # 17  land_tenure: customary
+    +2.5,  # 18  taxation: redistribution
+    +3.0,  # 19  agriculture: protectionist
+    +0.5,  # 20  bio_enhancement: mildly pro
+    +0.0,  # 21  trade: neutral
+    +3.0,  # 22  environment: strong regulation
+    +3.0,  # 23  media: press freedom
+    +3.5,  # 24  healthcare: universal
+    -2.5,  # 25  pada_status: anti-Padà
+    +2.5,  # 26  energy: green
+    -4.5,  # 27  az_restructuring: strongly restructure
+])
+
+# PLF — People's Liberation Front
+# Radical left party rooted in Niger Delta resource activism and Lagos slum
+# organizing. Highest scores on labor, housing, taxation, healthcare, and
+# infrastructure in the entire system. Wants total restructuring back to
+# states, anti-centralist, anti-traditional authority, anti-press censorship —
+# but also deeply suspicious of foreign capital and WAFTA. The party of people
+# who have been promised development for sixty years and received pipeline
+# explosions.
+PLF_POSITIONS = np.array([
+    -4.0,  #  0  sharia: strongly secular
+    -4.5,  #  1  fiscal: strong centralism
+    +2.5,  #  2  chinese: moderate WAFTA
+    -2.0,  #  3  bic: anti-BIC
+    +2.0,  #  4  ethnic_quotas: affirmative action
+    -3.0,  #  5  fertility: population control
+    -3.5,  #  6  constitutional: strongly parliamentary
+    -4.5,  #  7  resource: strong federal control
+    +5.0,  #  8  housing: maximum intervention
+    +3.0,  #  9  education: centralism
+    +5.0,  # 10  labor: maximum pro-labor
+    -3.0,  # 11  military: civilian control
+    -3.5,  # 12  immigration: open borders
+    -3.0,  # 13  language: vernacular
+    +4.0,  # 14  womens_rights: aggressively progressive
+    -5.0,  # 15  trad_authority: total marginalization
+    +4.5,  # 16  infrastructure: near-maximum universal
+    -4.5,  # 17  land_tenure: radical customary
+    +5.0,  # 18  taxation: maximum redistribution
+    +4.5,  # 19  agriculture: strong protectionist
+    +4.0,  # 20  bio_enhancement: strong pro-access
+    -3.5,  # 21  trade: autarkic
+    +3.0,  # 22  environment: strong regulation
+    -2.5,  # 23  media: mildly state-controlled
+    +5.0,  # 24  healthcare: maximum universal
+    -4.0,  # 25  pada_status: anti-Padà
+    +3.0,  # 26  energy: green
+    +3.5,  # 27  az_restructuring: restructure to states
+])
+
+# NNV — Nigerian National Vanguard
+# Hyper-nationalist authoritarian party. Strongest positions on military
+# guardianship, presidential power, immigration restriction, and anti-press
+# freedom in the entire system. Combines extreme centralism with cultural
+# conservatism and aggressive pro-natalism. Anti-sharia but not secularist —
+# draws on pre-Islamic traditional identity and military-state ideology. The
+# party for people who think what Nigeria needs is a man on horseback and a
+# closed border.
+NNV_POSITIONS = np.array([
+    -4.5,  #  0  sharia: strongly anti-sharia
+    -4.0,  #  1  fiscal: extreme centralism
+    -3.5,  #  2  chinese: anti-WAFTA
+    +4.5,  #  3  bic: strongly preserve BIC
+    -4.5,  #  4  ethnic_quotas: extreme meritocracy
+    +4.5,  #  5  fertility: extreme pro-natalist
+    +5.0,  #  6  constitutional: maximum presidential
+    -3.5,  #  7  resource: federal monopoly
+    +2.5,  #  8  housing: interventionist
+    +4.5,  #  9  education: strongest centralism
+    +1.0,  # 10  labor: mildly pro-labor
+    +5.0,  # 11  military: maximum guardianship
+    +5.0,  # 12  immigration: maximum restrictionism
+    +5.0,  # 13  language: maximum English supremacy
+    -1.0,  # 14  womens_rights: mildly conservative
+    -4.5,  # 15  trad_authority: extreme marginalization
+    +1.5,  # 16  infrastructure: mildly universal
+    +4.0,  # 17  land_tenure: strong formalization
+    +1.5,  # 18  taxation: mild redistribution
+    +1.5,  # 19  agriculture: mildly protectionist
+    +4.5,  # 20  bio_enhancement: extreme pro-access
+    -2.5,  # 21  trade: autarkic
+    -3.5,  # 22  environment: growth first
+    -5.0,  # 23  media: maximum state control
+    +2.5,  # 24  healthcare: universal
+    +1.5,  # 25  pada_status: mildly pro-Padà
+    -3.5,  # 26  energy: fossil
+    +4.5,  # 27  az_restructuring: strongly keep AZs
 ])
 
 # Validation check
 for name, pos in [
-    ("NDF", NDF_POSITIONS), ("TA", TECHNOCRATIC_POSITIONS),
-    ("YC", YORUBA_CONGRESS_POSITIONS), ("PJP", PEOPLES_JUSTICE_POSITIONS),
-    ("NIM", NIM_POSITIONS)
+    ("NRP", NRP_POSITIONS), ("CND", CND_POSITIONS),
+    ("ANPC", ANPC_POSITIONS), ("IPA", IPA_POSITIONS),
+    ("NDC", NDC_POSITIONS), ("UJP", UJP_POSITIONS),
+    ("NWF", NWF_POSITIONS), ("NHA", NHA_POSITIONS),
+    ("SNM", SNM_POSITIONS), ("NSA", NSA_POSITIONS),
+    ("CDA", CDA_POSITIONS), ("MBPP", MBPP_POSITIONS),
+    ("PLF", PLF_POSITIONS), ("NNV", NNV_POSITIONS),
 ]:
     assert pos.shape == (N_ISSUES,), f"{name} position shape mismatch"
     assert np.all(np.abs(pos) <= 5.0), f"{name} has out-of-range positions"
 
 PARTIES = [
     Party(
-        name="NDF",
-        positions=NDF_POSITIONS,
-        valence=0.0,  # baseline party
-        leader_ethnicity="Hausa-Fulani Undiff",
-        religious_alignment="Mainstream Sunni",
-    ),
-    Party(
-        name="TA",
-        positions=TECHNOCRATIC_POSITIONS,
-        valence=0.3,
+        name="NRP",
+        positions=NRP_POSITIONS,
+        valence=0.2,  # strong brand in educated urban constituencies
         leader_ethnicity="Pada",
         religious_alignment="Secular",
     ),
     Party(
-        name="YC",
-        positions=YORUBA_CONGRESS_POSITIONS,
-        valence=0.1,
+        name="CND",
+        positions=CND_POSITIONS,
+        valence=0.1,  # established party brand
         leader_ethnicity="Yoruba",
         religious_alignment="Mainline Protestant",
     ),
     Party(
-        name="PJP",
-        positions=PEOPLES_JUSTICE_POSITIONS,
+        name="ANPC",
+        positions=ANPC_POSITIONS,
+        valence=0.0,
+        leader_ethnicity="Edo",
+        religious_alignment="Catholic",
+    ),
+    Party(
+        name="IPA",
+        positions=IPA_POSITIONS,
         valence=0.0,
         leader_ethnicity="Igbo",
         religious_alignment="Pentecostal",
     ),
     Party(
-        name="NIM",
-        positions=NIM_POSITIONS,
-        valence=0.0,
-        # NIM represents a pan-northern conservative Islamic platform.  The party
-        # was founded in Borno (Kanuri heartland) but its religious appeal targets
-        # the broad Mainstream Sunni majority across the north, not just the small
-        # Al-Shahid order — giving it a viable base among conservative northern voters.
-        leader_ethnicity="Kanuri",
+        name="NDC",
+        positions=NDC_POSITIONS,
+        valence=0.1,  # deep organizational roots across the north
+        leader_ethnicity="Hausa-Fulani Undiff",
         religious_alignment="Mainstream Sunni",
+    ),
+    Party(
+        name="UJP",
+        positions=UJP_POSITIONS,
+        valence=0.0,
+        leader_ethnicity="Kanuri",
+        religious_alignment="Al-Shahid",
+    ),
+    Party(
+        name="NWF",
+        positions=NWF_POSITIONS,
+        valence=0.0,
+        leader_ethnicity="Ibibio",
+        religious_alignment="Secular",
+    ),
+    Party(
+        name="NHA",
+        positions=NHA_POSITIONS,
+        valence=0.15,  # WAFTA funding and organizational capacity
+        leader_ethnicity="Naijin",
+        religious_alignment="Secular",
+    ),
+    Party(
+        name="SNM",
+        positions=SNM_POSITIONS,
+        valence=0.0,
+        leader_ethnicity="Hausa",
+        religious_alignment="Tijaniyya",
+    ),
+    Party(
+        name="NSA",
+        positions=NSA_POSITIONS,
+        valence=0.0,
+        leader_ethnicity="Fulani",
+        religious_alignment="Mainstream Sunni",
+    ),
+    Party(
+        name="CDA",
+        positions=CDA_POSITIONS,
+        valence=0.0,
+        leader_ethnicity="Tiv",
+        religious_alignment="Catholic",
+    ),
+    Party(
+        name="MBPP",
+        positions=MBPP_POSITIONS,
+        valence=0.0,
+        leader_ethnicity="Middle Belt Minorities",
+        religious_alignment="Mainline Protestant",
+    ),
+    Party(
+        name="PLF",
+        positions=PLF_POSITIONS,
+        valence=-0.1,  # organizational weakness, radical stigma
+        leader_ethnicity="Ijaw",
+        religious_alignment="Secular",
+    ),
+    Party(
+        name="NNV",
+        positions=NNV_POSITIONS,
+        valence=-0.1,  # extreme positions limit broad appeal
+        leader_ethnicity="Nupe",
+        religious_alignment="Traditionalist",
     ),
 ]
 
