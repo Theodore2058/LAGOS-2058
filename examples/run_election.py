@@ -846,6 +846,13 @@ def main():
               f"mean {enp_stats['mean']:.2f}  "
               f"[P5 {enp_stats['p5']:.2f} - P95 {enp_stats['p95']:.2f}]")
 
+    # --- MC national competitiveness margin ---
+    margin_stats = mc.get("margin_stats")
+    if margin_stats:
+        print(f"MC NATIONAL MARGIN (1st-2nd): "
+              f"mean {margin_stats['mean']:.1%}  "
+              f"[P5 {margin_stats['p5']:.1%} - P95 {margin_stats['p95']:.1%}]")
+
     # --- Presidential spread check ---
     print("\nPRESIDENTIAL SPREAD CHECK (>=25% in >=24 states + national plurality):")
     for p in party_names:
@@ -888,6 +895,16 @@ def main():
     n_tight = np.sum(margins < 0.05)
     n_safe = np.sum(margins > 0.20)
     print(f"  Tight (<5% margin): {n_tight}  |  Safe (>20% margin): {n_safe}")
+
+    # --- LGA vote volatility ---
+    share_stats = mc.get("share_stats")
+    if share_stats is not None and "Volatility" in share_stats.columns:
+        vol = share_stats["Volatility"].values
+        print(f"\nLGA VOTE VOLATILITY (mean SD of party shares across MC runs):")
+        print(f"  Mean: {vol.mean():.3f}  Max: {vol.max():.3f}  "
+              f"Min: {vol.min():.3f}")
+        n_high_vol = np.sum(vol > 0.02)
+        print(f"  High volatility LGAs (>2%): {n_high_vol}")
 
     # --- Swing LGAs ---
     swing = mc["swing_lgas"]
