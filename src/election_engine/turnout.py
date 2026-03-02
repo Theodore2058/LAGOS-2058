@@ -253,56 +253,56 @@ def batch_compute_vote_probs_with_turnout(
 
     # --- Alienation: min mean-sq-distance to any party ---
     # Compute ||x - z_j||²/D = (||x||² + ||z_j||² - 2x·z_j) / D
-    # This avoids creating a (N, J, D) intermediate array.
-    voter_sq_norms = np.sum(voter_ideals ** 2, axis=1) / D  # (N,)
-    party_sq_norms = np.sum(party_positions ** 2, axis=1) / D  # (J,)
-    cross_terms = (voter_ideals @ party_positions.T) * (2.0 / D)  # (N, J)
+    # Uses BLAS matmul for the cross-term; avoids (N, J, D) intermediate.
+    inv_D = 1.0 / D
+    voter_sq_norms = np.sum(voter_ideals ** 2, axis=1) * inv_D  # (N,)
+    party_sq_norms = np.sum(party_positions ** 2, axis=1) * inv_D  # (J,)
+    cross_terms = (voter_ideals @ party_positions.T) * (2.0 * inv_D)  # (N, J)
     sq_dists = voter_sq_norms[:, np.newaxis] + party_sq_norms[np.newaxis, :] - cross_terms
     min_dist_sq = sq_dists.min(axis=1)  # (N,)
 
-    # --- Indifference: gap between top-1 and mean-of-rest utilities ---
-    # For J=2 this equals the top-2 gap; for J>2 it measures how much the
-    # voter's best choice stands out from the entire field.
-    sorted_utils = np.sort(utilities_matrix, axis=1)[:, ::-1]  # (N, J) descending
+    # --- Indifference: gap = top1 - mean(rest) without full sort ---
+    # top1 = max, mean_rest = (sum - top1) / (J - 1), gap = top1 - mean_rest
     if J >= 2:
-        mean_rest = sorted_utils[:, 1:].mean(axis=1)  # (N,)
-        gap = np.abs(sorted_utils[:, 0] - mean_rest)  # (N,)
+        top1 = utilities_matrix.max(axis=1)  # (N,)
+        row_sum = utilities_matrix.sum(axis=1)  # (N,)
+        mean_rest = (row_sum - top1) / (J - 1)
+        gap = np.abs(top1 - mean_rest)
     else:
-        # Single party: use |utility| as proxy (matches scalar function)
-        gap = np.abs(sorted_utils[:, 0]) + _EPSILON
+        gap = np.abs(utilities_matrix[:, 0]) + _EPSILON
     gap = np.maximum(gap, _EPSILON)
 
     # --- Base abstention utility ---
     v_abstain = params.tau_0 + params.tau_1 * min_dist_sq + params.tau_2 / gap  # (N,)
 
-    # --- Demographic adjustments (vectorised) ---
-    # Education: Tertiary → -1.0, Below secondary → +0.3
-    v_abstain = np.where(educations == 2, v_abstain - 1.0, v_abstain)
-    v_abstain = np.where(educations == 0, v_abstain + 0.3, v_abstain)
-
-    # Age: 50+ → -0.5, 18-24 → +0.2
-    v_abstain = np.where(age_cohorts == 3, v_abstain - 0.5, v_abstain)
-    v_abstain = np.where(age_cohorts == 0, v_abstain + 0.2, v_abstain)
-
-    # Setting: Urban → -0.2
-    v_abstain = np.where(settings == 0, v_abstain - 0.2, v_abstain)
+    # --- Demographic adjustments (vectorised, in-place) ---
+    v_abstain[educations == 2] -= 1.0  # Tertiary
+    v_abstain[educations == 0] += 0.3  # Below secondary
+    v_abstain[age_cohorts == 3] -= 0.5  # 50+
+    v_abstain[age_cohorts == 0] += 0.2  # 18-24
+    v_abstain[settings == 0] -= 0.2  # Urban
 
     # --- Softmax over [party utilities..., abstention] ---
-    # all_utils: (N, J+1)
-    all_utils = np.column_stack([utilities_matrix, v_abstain])  # (N, J+1)
-    shifted = (all_utils - all_utils.max(axis=1, keepdims=True)) * params.scale
-    exp_vals = np.exp(shifted)
-    probs = exp_vals / exp_vals.sum(axis=1, keepdims=True)  # (N, J+1)
+    # Compute max across parties and abstention without allocating (N, J+1)
+    max_party = utilities_matrix.max(axis=1)  # (N,)
+    row_max = np.maximum(max_party, v_abstain) * params.scale  # (N,)
 
-    p_abstain = probs[:, -1]  # (N,)
+    # exp(party_utils - max) and exp(v_abstain - max)
+    scaled_parties = utilities_matrix * params.scale - row_max[:, np.newaxis]
+    exp_parties = np.exp(scaled_parties)  # (N, J)
+    exp_abstain = np.exp(v_abstain * params.scale - row_max)  # (N,)
+
+    # Normalisation denominator
+    sum_exp = exp_parties.sum(axis=1) + exp_abstain  # (N,)
+    inv_sum = 1.0 / sum_exp  # (N,)
+
+    # Turnout = 1 - P(abstain)
+    p_abstain = exp_abstain * inv_sum
     turnout_probs = np.clip(1.0 - p_abstain, 0.0, 1.0)
 
     # Conditional vote probabilities (renormalise over parties only)
-    party_probs = probs[:, :-1]  # (N, J)
-    total_party = party_probs.sum(axis=1, keepdims=True)  # (N, 1)
-    # Avoid division by zero
-    safe_total = np.where(total_party > 0, total_party, 1.0)
-    conditional = np.where(total_party > 0, party_probs / safe_total,
-                           np.ones((N, J)) / J)
+    total_party = 1.0 - p_abstain  # sum of party probs
+    safe_total = np.maximum(total_party, 1e-30)
+    conditional = exp_parties * (inv_sum / safe_total)[:, np.newaxis]
 
     return conditional, turnout_probs
