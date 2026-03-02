@@ -537,3 +537,64 @@ class TestEdgeCases:
         assert df["Extreme_share"].mean() < 0.50, (
             "Extreme party should not dominate"
         )
+
+
+# ===================================================================
+# REPRODUCIBILITY AND FRAGMENTATION TESTS
+# ===================================================================
+
+class TestReproducibilityAndFragmentation:
+    """Seed reproducibility and multi-party fragmentation checks."""
+
+    def test_deterministic_with_same_seed(self):
+        """Two runs with the same seed should produce identical base results."""
+        sys.path.insert(0, str(Path(__file__).parent.parent / "examples"))
+        import run_election as example
+
+        params = EngineParams(
+            q=0.5, beta_s=0.7, alpha_e=3.0, alpha_r=2.0,
+            scale=1.0, tau_0=1.9, tau_1=0.3, tau_2=0.5,
+            kappa=400.0, sigma_national=0.07, sigma_regional=0.10,
+        )
+        config = ElectionConfig(params=params, parties=example.PARTIES, n_monte_carlo=5)
+
+        r1 = run_election(DATA_PATH, config, seed=42, verbose=False)
+        r2 = run_election(DATA_PATH, config, seed=42, verbose=False)
+
+        party_names = [p.name for p in example.PARTIES]
+        share_cols = [f"{p}_share" for p in party_names]
+        df1 = r1["lga_results_base"][share_cols].values
+        df2 = r2["lga_results_base"][share_cols].values
+        assert np.allclose(df1, df2, atol=1e-10), "Same seed should produce identical results"
+
+    def test_hhi_fragmentation(self, full_run):
+        """National HHI should be below 0.15 (fragmented, no dominant party)."""
+        results, _ = full_run
+        shares = np.array(list(results["summary"]["national_shares"].values()))
+        hhi = np.sum(shares ** 2)
+        assert hhi < 0.15, f"HHI = {hhi:.4f}, system is too concentrated (>0.15)"
+
+    def test_effective_number_of_parties(self, full_run):
+        """Effective number of parties (1/HHI) should be >= 5."""
+        results, _ = full_run
+        shares = np.array(list(results["summary"]["national_shares"].values()))
+        hhi = np.sum(shares ** 2)
+        enp = 1.0 / hhi
+        assert enp >= 5.0, f"Effective N parties = {enp:.1f}, should be >= 5"
+
+    def test_niger_delta_plf_viable(self, full_run):
+        """PLF should get >10% in at least 2 Niger Delta states."""
+        results, _ = full_run
+        df = results["lga_results_base"]
+        delta_states = ["Rivers", "Bayelsa", "Delta", "Akwa Ibom"]
+        states_above_10 = 0
+        for state in delta_states:
+            rows = df[df["State"] == state]
+            if len(rows) > 0 and "PLF_share" in rows.columns:
+                pop = rows["Estimated Population"].values
+                plf_share = np.average(rows["PLF_share"].values, weights=pop)
+                if plf_share > 0.10:
+                    states_above_10 += 1
+        assert states_above_10 >= 2, (
+            f"PLF >10% in only {states_above_10} Niger Delta states, need >=2"
+        )

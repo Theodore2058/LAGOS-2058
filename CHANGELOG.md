@@ -174,3 +174,26 @@ PLF (People's Liberation Front) is described as "rooted in Niger Delta resource 
 | PLF viable in Niger Delta | 25–27% ✓ |
 | MBPP does not dominate Bayelsa | 23.5% ✓ |
 | All parties >0% | Min NNV 0.5% ✓ |
+
+---
+
+## 2026-03-02 — Cycle 5: Final Validation and Edge Case Hardening
+
+### Tests Added
+- `test_deterministic_with_same_seed`: Verifies exact reproducibility with identical seeds
+- `test_hhi_fragmentation`: National HHI < 0.15 (confirming multi-party fragmentation)
+- `test_effective_number_of_parties`: ENP >= 5 (confirming no dominant party)
+- `test_niger_delta_plf_viable`: PLF >10% in at least 2 Niger Delta states
+- Total: 35 calibration tests across 8 classes
+
+### Final Parameters
+```
+q=0.5  β_s=0.7  α_e=3.0  α_r=2.0  λ=1.0
+τ₀=1.9  τ₁=0.3  τ₂=0.5
+κ=400  σ_national=0.07  σ_regional=0.10
+```
+
+### All Tests Green
+- 35 calibration tests: PASSED
+- 103 existing unit tests: PASSED
+- Total: 138 tests
