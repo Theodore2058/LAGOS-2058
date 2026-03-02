@@ -254,7 +254,11 @@ def batch_compute_vote_probs_with_turnout(
     # --- Indifference: gap between top-1 and top-2 utilities ---
     # Sort along party axis descending
     sorted_utils = np.sort(utilities_matrix, axis=1)[:, ::-1]  # (N, J) descending
-    gap = np.abs(sorted_utils[:, 0] - sorted_utils[:, 1])  # (N,)
+    if J >= 2:
+        gap = np.abs(sorted_utils[:, 0] - sorted_utils[:, 1])  # (N,)
+    else:
+        # Single party: use |utility| as proxy (matches scalar function)
+        gap = np.abs(sorted_utils[:, 0]) + _EPSILON
     gap = np.maximum(gap, _EPSILON)
 
     # --- Base abstention utility ---
