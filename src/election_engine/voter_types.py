@@ -1,10 +1,10 @@
 """
 Voter type generation and ideal point mapping for the LAGOS-2058 engine.
 
-The 8-dimensional voter typology produces 87,480 voter types:
+The 8-dimensional voter typology produces 174,960 voter types:
     15 ethnicities × 9 religious sub-categories × 3 settings × 4 age cohorts
     × 3 education levels × 2 genders × 6 livelihoods × 3 income brackets
-    = 87,480 types
+    = 174,960 types
 
 For each LGA, type weights (population fractions) are estimated using an
 independence assumption with conditional adjustments.
@@ -70,7 +70,7 @@ INCOMES: list[str] = ["Bottom 40%", "Middle 40%", "Top 20%"]
 N_INCOME = 3
 
 TOTAL_TYPES = N_ETHNICITIES * N_RELIGIONS * N_SETTINGS * N_AGE * N_EDUCATION * N_GENDER * N_LIVELIHOOD * N_INCOME
-# = 15 × 9 × 3 × 4 × 3 × 2 × 6 × 3 = 87,480
+# = 15 × 9 × 3 × 4 × 3 × 2 × 6 × 3 = 174,960
 
 
 @dataclass(frozen=True)
@@ -196,7 +196,7 @@ class VoterType:
 @lru_cache(maxsize=1)
 def generate_all_voter_types() -> list[VoterType]:
     """
-    Generate all 87,480 voter types.
+    Generate all 174,960 voter types.
 
     Returns a list ordered by (ethnicity, religion, setting, age, education,
     gender, livelihood, income) — the order is consistent across all calls.
@@ -487,6 +487,13 @@ def _religion_ethnicity_compat(vt: VoterType) -> float:
     """
     Compatibility factor between religion and ethnicity.
     Strongly reduces weight for implausible combinations.
+
+    Key assumptions (2058 Nigeria):
+    - Hausa-Fulani: overwhelmingly Muslim; Christians/Traditionalists ~3-5%
+    - Yoruba: ~35% Muslim, Tijaniyya is the dominant order; small Qadiriyya presence
+    - Edo: ~15% Muslim minority; small Tijaniyya presence
+    - Igbo/Ijaw/Ibibio/Niger Delta: <5% Muslim
+    - Al-Shahid: northern movement, negligible among all southern groups
     """
     if vt.is_hausa_fulani:
         if vt.is_christian:
@@ -494,8 +501,29 @@ def _religion_ethnicity_compat(vt: VoterType) -> float:
         if vt.religion == "Traditionalist":
             return 0.05
         return 1.0
-    if vt.ethnicity in ("Yoruba", "Igbo", "Ijaw", "Edo", "Ibibio", "Niger Delta Minorities"):
-        if vt.religion in ("Tijaniyya", "Qadiriyya", "Al-Shahid"):
+    if vt.is_yoruba:
+        # Yoruba have a large Muslim population (~35%), primarily Tijaniyya
+        if vt.religion == "Tijaniyya":
+            return 0.50  # Tijaniyya is dominant Yoruba Muslim order
+        if vt.religion == "Mainstream Sunni":
+            return 0.40  # non-order-affiliated Yoruba Muslims
+        if vt.religion == "Qadiriyya":
+            return 0.10  # exists but rare among Yoruba
+        if vt.religion == "Al-Shahid":
+            return 0.03  # northern movement, near-zero Yoruba presence
+        return 1.0
+    if vt.ethnicity == "Edo":
+        # Edo have a small but real Muslim minority (~15%)
+        if vt.religion == "Tijaniyya":
+            return 0.15
+        if vt.religion == "Mainstream Sunni":
+            return 0.15
+        if vt.religion in ("Qadiriyya", "Al-Shahid"):
+            return 0.03
+        return 1.0
+    if vt.ethnicity in ("Igbo", "Ijaw", "Ibibio", "Niger Delta Minorities"):
+        # Overwhelmingly Christian; Muslim subcategories near-zero
+        if vt.religion in ("Tijaniyya", "Qadiriyya", "Al-Shahid", "Mainstream Sunni"):
             return 0.05
         return 1.0
     if vt.is_pada or vt.is_naijin:

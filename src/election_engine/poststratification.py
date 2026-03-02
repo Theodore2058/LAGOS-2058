@@ -346,6 +346,7 @@ def compute_all_lga_results(
             "LGA Name": lga_row.get("LGA Name", ""),
             "Administrative Zone": lga_row.get("Administrative Zone", 0),
             "AZ Name": lga_row.get("AZ Name", ""),
+            "Estimated Population": lga_row.get("Estimated Population", 0),
             "Turnout": turnout,
             "Active Types": n_active,
         }

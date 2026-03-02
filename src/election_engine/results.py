@@ -76,24 +76,67 @@ def compute_state_shares(
     lga_results: pd.DataFrame,
     party_names: list[str],
     state_col: str = "State",
+    pop_col: str = "Estimated Population",
 ) -> pd.DataFrame:
     """
-    Compute vote shares aggregated to state level (population-weighted by LGA).
+    Compute vote shares aggregated to state level, weighted by LGA population.
 
     For the spread check we need each party's share in each state.
-    We approximate by averaging LGA shares within each state
-    (a proper implementation would weight by LGA population).
+    Each LGA's shares are weighted by its population to produce proper
+    state-level aggregates.
 
-    Returns DataFrame indexed by state with {party}_share columns.
+    Returns DataFrame with 'State' and {party}_share columns.
     """
     share_cols = [f"{p}_share" for p in party_names]
-    state_shares = (
-        lga_results.groupby(state_col)[share_cols]
-        .mean()
-        .reset_index()
-        .rename(columns={state_col: "State"})
-    )
+    has_pop = pop_col in lga_results.columns
+
+    if has_pop:
+        # Population-weighted aggregation
+        def _weighted_mean(group: pd.DataFrame) -> pd.Series:
+            pop = group[pop_col].values.astype(float)
+            total_pop = pop.sum()
+            if total_pop <= 0:
+                return group[share_cols].mean()
+            weights = pop / total_pop
+            return pd.Series(
+                {col: float(np.dot(weights, group[col].values)) for col in share_cols}
+            )
+
+        state_shares = (
+            lga_results.groupby(state_col)
+            .apply(_weighted_mean, include_groups=False)
+            .reset_index()
+            .rename(columns={state_col: "State"})
+        )
+    else:
+        # Fall back to unweighted mean if no population column
+        state_shares = (
+            lga_results.groupby(state_col)[share_cols]
+            .mean()
+            .reset_index()
+            .rename(columns={state_col: "State"})
+        )
     return state_shares
+
+
+def _pop_weighted_national(
+    lga_results: pd.DataFrame,
+    party_names: list[str],
+    pop_col: str = "Estimated Population",
+) -> dict[str, float]:
+    """Compute population-weighted national share per party."""
+    share_cols = [f"{p}_share" for p in party_names]
+    if pop_col in lga_results.columns:
+        pop = lga_results[pop_col].values.astype(float)
+        total_pop = pop.sum()
+        if total_pop > 0:
+            weights = pop / total_pop
+            return {
+                p: float(np.dot(weights, lga_results[f"{p}_share"].values))
+                for p in party_names
+            }
+    # Fallback: unweighted
+    return {p: float(lga_results[f"{p}_share"].mean()) for p in party_names}
 
 
 def check_presidential_spread(
@@ -131,15 +174,15 @@ def check_presidential_spread(
     if share_col not in lga_results.columns:
         raise ValueError(f"Column {share_col!r} not found in results")
 
-    # National share (mean of LGA shares — approximate)
-    national_share = float(lga_results[share_col].mean())
+    # National shares (population-weighted)
+    all_national = _pop_weighted_national(lga_results, party_names)
+    national_share = all_national[candidate_party]
 
     # Check whether this party has national plurality
-    all_national = {p: float(lga_results[f"{p}_share"].mean()) for p in party_names}
     max_share = max(all_national.values())
     has_national_plurality = abs(national_share - max_share) < 1e-6
 
-    # State-level shares
+    # State-level shares (population-weighted)
     state_shares = compute_state_shares(lga_results, party_names, state_col)
 
     state_breakdown = {}
@@ -269,16 +312,53 @@ def compute_summary_stats(
     """
     seats = count_seats(lga_results, party_names)
 
-    national = {p: float(lga_results[f"{p}_share"].mean()) for p in party_names}
+    # Population-weighted national shares
+    national = _pop_weighted_national(lga_results, party_names)
 
-    zonal = (
-        lga_results
-        .groupby([az_col, az_name_col])[[f"{p}_share" for p in party_names] + ["Turnout"]]
-        .mean()
-        .reset_index()
-    )
+    # Population-weighted zonal shares
+    share_and_turnout = [f"{p}_share" for p in party_names]
+    if "Turnout" in lga_results.columns:
+        share_and_turnout = share_and_turnout + ["Turnout"]
+    pop_col = "Estimated Population"
+    has_pop = pop_col in lga_results.columns
 
-    turnout = float(lga_results["Turnout"].mean()) if "Turnout" in lga_results.columns else 0.0
+    if has_pop:
+        def _weighted_zonal(group: pd.DataFrame) -> pd.Series:
+            pop = group[pop_col].values.astype(float)
+            total_pop = pop.sum()
+            if total_pop <= 0:
+                return group[share_and_turnout].mean()
+            weights = pop / total_pop
+            return pd.Series(
+                {col: float(np.dot(weights, group[col].values)) for col in share_and_turnout}
+            )
+
+        zonal = (
+            lga_results.groupby([az_col, az_name_col])
+            .apply(_weighted_zonal, include_groups=False)
+            .reset_index()
+        )
+    else:
+        zonal = (
+            lga_results
+            .groupby([az_col, az_name_col])[share_and_turnout]
+            .mean()
+            .reset_index()
+        )
+
+    # Population-weighted turnout
+    if "Turnout" in lga_results.columns:
+        if has_pop:
+            pop = lga_results[pop_col].values.astype(float)
+            total_pop = pop.sum()
+            if total_pop > 0:
+                turnout = float(np.dot(pop / total_pop, lga_results["Turnout"].values))
+            else:
+                turnout = float(lga_results["Turnout"].mean())
+        else:
+            turnout = float(lga_results["Turnout"].mean())
+    else:
+        turnout = 0.0
 
     return {
         "national_shares": national,
