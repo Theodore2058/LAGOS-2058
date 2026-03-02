@@ -10,7 +10,8 @@
       "Bash(python3 -m pytest tests/test_turnout.py -v)",
       "Bash(python3 -m pytest tests/test_poststratification.py -v)",
       "Bash(python3 -m pytest tests/test_noise.py -v)",
-      "Bash(python3 -m pip install scipy numpy pandas openpyxl --quiet)"
+      "Bash(python3 -m pip install scipy numpy pandas openpyxl --quiet)",
+      "Bash(python3 -m pytest tests/test_election.py -v)"
     ]
   }
 }
