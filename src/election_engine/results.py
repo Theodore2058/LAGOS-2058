@@ -685,6 +685,11 @@ def aggregate_monte_carlo_from_arrays(
         all_shares, all_turnout, pop, base_run_df, party_names
     )
 
+    # MC spread check: fraction of runs each party meets presidential spread
+    mc_spread = _compute_mc_spread_check(
+        all_shares, pop, base_run_df, party_names
+    )
+
     return {
         "seat_stats": seat_stats,
         "national_share_stats": national_share_stats,
@@ -696,8 +701,78 @@ def aggregate_monte_carlo_from_arrays(
         "enp_stats": enp_stats,
         "margin_stats": margin_stats,
         "zonal_vote_stats": zonal_vote_stats,
+        "mc_spread": mc_spread,
         "n_runs": n_runs,
     }
+
+
+def _compute_mc_spread_check(
+    all_shares: np.ndarray,
+    pop: np.ndarray,
+    base_run_df: pd.DataFrame,
+    party_names: list[str],
+    state_col: str = "State",
+    threshold: float = 0.25,
+    required_states: int = _REQUIRED_STATES_WITH_25PCT,
+) -> dict[str, dict]:
+    """
+    Compute presidential spread check across MC runs.
+
+    For each party, returns the fraction of MC runs where the party:
+    1. Has national plurality (highest pop-weighted share)
+    2. Meets the >=25% threshold in >=24 states
+    3. Meets both (the full constitutional requirement)
+    """
+    n_runs, lga_count, J = all_shares.shape
+    state_ids = base_run_df[state_col].values
+    unique_states = sorted(np.unique(state_ids).tolist())
+    n_states = len(unique_states)
+
+    # Precompute state population weights
+    state_masks = {}
+    state_pop_totals = {}
+    for state in unique_states:
+        mask = state_ids == state
+        state_masks[state] = mask
+        state_pop_totals[state] = pop[mask].sum()
+
+    # National pop-weighted shares per run: (n_runs, J)
+    total_pop = pop.sum()
+    if total_pop > 0:
+        pop_weights = pop / total_pop
+        national_shares = np.einsum("rlj,l->rj", all_shares, pop_weights)
+    else:
+        national_shares = all_shares.mean(axis=1)
+
+    result = {}
+    for j, pname in enumerate(party_names):
+        # National plurality: this party has the highest national share
+        is_plurality = national_shares[:, j] == national_shares.max(axis=1)
+
+        # State-level shares: for each run, how many states have >=25%?
+        states_above = np.zeros(n_runs, dtype=int)
+        for state in unique_states:
+            mask = state_masks[state]
+            spop = state_pop_totals[state]
+            if spop > 0:
+                state_share = np.einsum("rl,l->r", all_shares[:, mask, j], pop[mask]) / spop
+            else:
+                state_share = all_shares[:, mask, j].mean(axis=1)
+            states_above += (state_share >= threshold).astype(int)
+
+        meets_spread = states_above >= required_states
+        meets_both = is_plurality & meets_spread
+
+        result[pname] = {
+            "plurality_prob": float(is_plurality.mean()),
+            "spread_prob": float(meets_spread.mean()),
+            "full_requirement_prob": float(meets_both.mean()),
+            "states_above_25pct_mean": float(states_above.mean()),
+            "states_above_25pct_p5": float(np.percentile(states_above, 5)),
+            "states_above_25pct_p95": float(np.percentile(states_above, 95)),
+        }
+
+    return result
 
 
 def _compute_zonal_mc_stats(

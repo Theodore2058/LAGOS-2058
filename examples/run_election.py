@@ -862,6 +862,21 @@ def main():
         print(f"  {p:10s}  {mark}  ({sc['states_meeting_25pct']:2d}/24 states, "
               f"plurality: {plurality}, national: {sc['national_share']:.1%})")
 
+    # --- MC spread check probabilities ---
+    mc_spread = mc.get("mc_spread")
+    if mc_spread:
+        print("\nMC PRESIDENTIAL SPREAD PROBABILITIES (across MC runs):")
+        print(f"  {'Party':10s}  {'Plurality':>10s}  {'Spread':>8s}  {'Both':>8s}  "
+              f"{'States>=25% (mean)':>18s}  {'[P5 - P95]':>14s}")
+        print(f"  {'-'*10}  {'-'*10}  {'-'*8}  {'-'*8}  {'-'*18}  {'-'*14}")
+        for p, _ in sorted_parties:
+            sp = mc_spread.get(p)
+            if sp:
+                print(f"  {p:10s}  {sp['plurality_prob']:9.0%}  "
+                      f"{sp['spread_prob']:7.0%}  {sp['full_requirement_prob']:7.0%}  "
+                      f"{sp['states_above_25pct_mean']:17.1f}  "
+                      f"[{sp['states_above_25pct_p5']:.0f} - {sp['states_above_25pct_p95']:.0f}]")
+
     # --- Zonal shares and turnout ---
     print("\nZONAL SHARES (base run):")
     zonal = summary["zonal_shares"]
