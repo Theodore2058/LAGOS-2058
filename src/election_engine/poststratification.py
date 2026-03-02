@@ -151,7 +151,7 @@ def compute_lga_results(
 
     # Step 1: LGA population weights for each type
     type_weights = compute_type_weights(
-        lga_row, voter_types, _WEIGHT_THRESHOLD, precomputed_compat
+        lga_row, voter_types, _WEIGHT_THRESHOLD, precomputed_compat, type_indices
     )
 
     # Step 2: identify active types (skip near-zero weight to save computation)

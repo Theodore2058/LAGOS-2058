@@ -310,6 +310,7 @@ def compute_type_weights(
     voter_types: list[VoterType],
     weight_threshold: float = 1e-8,
     precomputed_compat: np.ndarray | None = None,
+    precomputed_type_indices: dict | None = None,
 ) -> np.ndarray:
     """
     Compute population weight for each voter type in the given LGA.
@@ -421,7 +422,7 @@ def compute_type_weights(
     # Build one value array per attribute category, then index into them using
     # precomputed integer index arrays (_build_type_indices).  This replaces
     # O(N_types × N_LGAs) dict.get() calls with O(N_types) numpy indexing.
-    idx = _build_type_indices()
+    idx = precomputed_type_indices if precomputed_type_indices is not None else _build_type_indices()
 
     eth_vals = np.array([eth_frac.get(e, 0.0)           for e in _CORE_ETHNICITIES])
     rel_vals = np.array([rel_frac.get(r, 0.0)            for r in RELIGIONS])
