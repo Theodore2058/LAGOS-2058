@@ -38,6 +38,8 @@ def add_lga_winners(
     """
     Add a 'Winner' column to the results dataframe.
 
+    Uses vectorised numpy argmax over all LGAs instead of row-by-row apply.
+
     Parameters
     ----------
     lga_results : pd.DataFrame
@@ -51,9 +53,11 @@ def add_lga_winners(
         Copy with added 'Winner' column.
     """
     result = lga_results.copy()
-    result["Winner"] = result.apply(
-        lambda row: determine_lga_winner(row, party_names), axis=1
-    )
+    share_cols = [f"{p}_share" for p in party_names]
+    shares = result[share_cols].values.astype(float)
+    winner_indices = np.argmax(shares, axis=1)
+    party_arr = np.array(party_names)
+    result["Winner"] = party_arr[winner_indices]
     return result
 
 

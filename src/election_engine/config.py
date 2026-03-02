@@ -86,6 +86,32 @@ class EngineParams:
     sigma_regional: float = 0.15  # Regional shock SD (σ_reg)
     sigma_lga: float = 0.20       # LGA shock SD (σ_lga)
 
+    def __post_init__(self) -> None:
+        if not (0.0 <= self.q <= 1.0):
+            raise ValueError(f"q must be in [0, 1], got {self.q}")
+        if self.beta_s < 0:
+            raise ValueError(f"beta_s must be >= 0, got {self.beta_s}")
+        if self.alpha_e < 0:
+            raise ValueError(f"alpha_e must be >= 0, got {self.alpha_e}")
+        if self.alpha_r < 0:
+            raise ValueError(f"alpha_r must be >= 0, got {self.alpha_r}")
+        if self.scale <= 0:
+            raise ValueError(f"scale must be > 0, got {self.scale}")
+        if self.tau_0 < 0:
+            raise ValueError(f"tau_0 must be >= 0, got {self.tau_0}")
+        if self.tau_1 < 0:
+            raise ValueError(f"tau_1 must be >= 0, got {self.tau_1}")
+        if self.tau_2 < 0:
+            raise ValueError(f"tau_2 must be >= 0, got {self.tau_2}")
+        if self.kappa <= 0:
+            raise ValueError(f"kappa must be > 0, got {self.kappa}")
+        if self.sigma_national < 0:
+            raise ValueError(f"sigma_national must be >= 0, got {self.sigma_national}")
+        if self.sigma_regional < 0:
+            raise ValueError(f"sigma_regional must be >= 0, got {self.sigma_regional}")
+        if self.sigma_lga < 0:
+            raise ValueError(f"sigma_lga must be >= 0, got {self.sigma_lga}")
+
 
 @dataclass
 class Party:
