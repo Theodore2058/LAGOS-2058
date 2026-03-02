@@ -166,20 +166,29 @@ def apply_noise_to_results(
     result = lga_results_df.copy()
     share_cols = [f"{p}_share" for p in party_names]
 
-    for idx in range(len(result)):
-        base_shares = result.iloc[idx][share_cols].values.astype(float)
-        zone = int(result.iloc[idx][admin_zone_col])
-        reg_shock = regional_shocks.get(zone, np.zeros(J))
+    # Extract share values and zones as numpy arrays for bulk processing
+    share_values = result[share_cols].values.astype(float)  # (N_lga, J)
+    zone_values = result[admin_zone_col].values
 
-        noisy = apply_dirichlet_noise(
-            predicted_shares=base_shares,
+    # Build regional shock array aligned with rows
+    reg_shock_array = np.zeros((len(result), J))
+    for zone in admin_zones:
+        mask = zone_values == zone
+        reg_shock_array[mask] = regional_shocks.get(zone, np.zeros(J))
+
+    # Apply noise per row (Dirichlet draw is inherently sequential per-LGA,
+    # but we avoid pandas overhead by collecting results into a numpy array)
+    noisy_shares = np.empty_like(share_values)
+    for idx in range(len(result)):
+        noisy_shares[idx] = apply_dirichlet_noise(
+            predicted_shares=share_values[idx],
             kappa=params.kappa,
             national_shocks=national_shocks,
-            regional_shocks=reg_shock,
+            regional_shocks=reg_shock_array[idx],
             rng=rng,
         )
 
-        for j, col in enumerate(share_cols):
-            result.at[result.index[idx], col] = noisy[j]
+    # Bulk assignment back to dataframe
+    result[share_cols] = noisy_shares
 
     return result

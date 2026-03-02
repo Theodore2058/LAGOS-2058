@@ -189,22 +189,26 @@ def aggregate_monte_carlo(
     if n_runs == 0:
         raise ValueError("No MC runs provided")
 
-    # ---- Seat counts across runs ----
-    all_seat_counts = []
-    all_winners = []
+    share_cols = [f"{p}_share" for p in party_names]
+    lga_count = len(all_runs[0])
+    J = len(party_names)
 
-    for run_df in all_runs:
-        seats = count_seats(run_df, party_names)
-        all_seat_counts.append(seats)
-        # National winner
-        overall_winner = max(seats, key=lambda p: seats[p])
-        all_winners.append(overall_winner)
+    # ---- Stack all share data into a 3D numpy array (n_runs, n_lgas, J) ----
+    all_shares = np.empty((n_runs, lga_count, J))
+    for r, run_df in enumerate(all_runs):
+        all_shares[r] = run_df[share_cols].values
 
-    seat_array = {p: np.array([s[p] for s in all_seat_counts]) for p in party_names}
+    # ---- Winner per LGA per run (vectorised argmax) ----
+    winner_indices = np.argmax(all_shares, axis=2)  # (n_runs, n_lgas) — int indices
+
+    # ---- Seat counts: count how many LGAs each party wins per run ----
+    seat_matrix = np.zeros((n_runs, J), dtype=int)
+    for j in range(J):
+        seat_matrix[:, j] = np.sum(winner_indices == j, axis=1)
 
     seat_stats_rows = []
-    for p in party_names:
-        arr = seat_array[p]
+    for j, p in enumerate(party_names):
+        arr = seat_matrix[:, j]
         seat_stats_rows.append({
             "Party": p,
             "Mean Seats": float(arr.mean()),
@@ -215,38 +219,24 @@ def aggregate_monte_carlo(
         })
     seat_stats = pd.DataFrame(seat_stats_rows)
 
-    # Win probabilities
-    win_counts = {p: sum(1 for w in all_winners if w == p) for p in party_names}
-    win_probabilities = {p: win_counts[p] / n_runs for p in party_names}
+    # National winner per run = party with most seats
+    national_winner_idx = np.argmax(seat_matrix, axis=1)  # (n_runs,)
+    win_probabilities = {}
+    for j, p in enumerate(party_names):
+        win_probabilities[p] = float(np.sum(national_winner_idx == j)) / n_runs
 
     # ---- Per-LGA share statistics ----
-    share_cols = [f"{p}_share" for p in party_names]
-    # Stack all runs (n_runs × n_lgas × n_parties)
-    lga_count = len(all_runs[0])
-    share_arrays = {col: np.zeros((n_runs, lga_count)) for col in share_cols}
-
-    for r, run_df in enumerate(all_runs):
-        for col in share_cols:
-            share_arrays[col][r] = run_df[col].values
-
     share_stats_df = all_runs[0][["State", "LGA Name"]].copy()
-    for col in share_cols:
-        share_stats_df[f"{col}_mean"] = share_arrays[col].mean(axis=0)
-        share_stats_df[f"{col}_std"] = share_arrays[col].std(axis=0)
+    for j, col in enumerate(share_cols):
+        col_data = all_shares[:, :, j]  # (n_runs, n_lgas)
+        share_stats_df[f"{col}_mean"] = col_data.mean(axis=0)
+        share_stats_df[f"{col}_std"] = col_data.std(axis=0)
 
-    # ---- Swing LGAs ----
-    # For each LGA, determine winner in each run and check if it changes
-    winners_per_run_per_lga = []
-    for run_df in all_runs:
-        run_with_winners = add_lga_winners(run_df, party_names)
-        winners_per_run_per_lga.append(run_with_winners["Winner"].values)
-
-    winner_matrix = np.array(winners_per_run_per_lga)  # (n_runs, n_lgas)
-    # Check which LGAs have > 1 unique winner
-    swing_mask = []
-    for lga_idx in range(lga_count):
-        unique_winners = len(set(winner_matrix[:, lga_idx]))
-        swing_mask.append(unique_winners > 1)
+    # ---- Swing LGAs (vectorised) ----
+    # Check which LGAs have > 1 unique winner across runs
+    first_run_winners = winner_indices[0]  # (n_lgas,)
+    # An LGA is swing if any run has a different winner than the first run
+    swing_mask = np.any(winner_indices != first_run_winners[np.newaxis, :], axis=0)
 
     swing_lgas = all_runs[0].copy()
     swing_lgas["Is Swing"] = swing_mask

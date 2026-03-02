@@ -21,8 +21,56 @@ from typing import Optional
 
 from .config import Party, EngineParams
 from .spatial import spatial_utility, batch_spatial_utility
-from .ethnic_affinity import EthnicAffinityMatrix, DEFAULT_ETHNIC_MATRIX
-from .religious_affinity import ReligiousAffinityMatrix, DEFAULT_RELIGIOUS_MATRIX
+from .ethnic_affinity import EthnicAffinityMatrix, DEFAULT_ETHNIC_MATRIX, ETHNIC_GROUPS
+from .religious_affinity import ReligiousAffinityMatrix, DEFAULT_RELIGIOUS_MATRIX, RELIGIOUS_GROUPS
+
+
+def precompute_ethnic_utility_table(
+    parties: list,
+    params: EngineParams,
+    ethnic_matrix: EthnicAffinityMatrix,
+) -> tuple[np.ndarray, dict[str, int]]:
+    """
+    Precompute ethnic utility for every (ethnic group, party) pair.
+
+    Returns
+    -------
+    (table, group_to_idx)
+        table : np.ndarray, shape (N_groups, J) — α_e × affinity
+        group_to_idx : dict mapping ethnic group name → row index
+    """
+    groups = ETHNIC_GROUPS
+    group_to_idx = {g: i for i, g in enumerate(groups)}
+    J = len(parties)
+    table = np.zeros((len(groups), J))
+    for i, g in enumerate(groups):
+        for j, p in enumerate(parties):
+            table[i, j] = ethnic_matrix.get_utility(g, p.leader_ethnicity, params.alpha_e)
+    return table, group_to_idx
+
+
+def precompute_religious_utility_table(
+    parties: list,
+    params: EngineParams,
+    religious_matrix: ReligiousAffinityMatrix,
+) -> tuple[np.ndarray, dict[str, int]]:
+    """
+    Precompute religious utility for every (religious group, party) pair.
+
+    Returns
+    -------
+    (table, group_to_idx)
+        table : np.ndarray, shape (N_groups, J) — α_r × affinity
+        group_to_idx : dict mapping religious group name → row index
+    """
+    groups = RELIGIOUS_GROUPS
+    group_to_idx = {g: i for i, g in enumerate(groups)}
+    J = len(parties)
+    table = np.zeros((len(groups), J))
+    for i, g in enumerate(groups):
+        for j, p in enumerate(parties):
+            table[i, j] = religious_matrix.get_utility(g, p.religious_alignment, params.alpha_r)
+    return table, group_to_idx
 
 
 def compute_utility(
@@ -110,6 +158,32 @@ def compute_utility(
     return valences + u_spatial + u_ethnic + u_religious + u_demographic
 
 
+def precompute_all_ethnic_indices(
+    voter_types: list,
+    ethnic_group_to_idx: dict[str, int],
+) -> np.ndarray:
+    """
+    Precompute ethnic group index for every voter type.
+
+    Returns np.ndarray of shape (N_types,) with integer indices into the
+    ethnic utility table.
+    """
+    return np.array([ethnic_group_to_idx[vt.ethnicity] for vt in voter_types], dtype=np.intp)
+
+
+def precompute_all_religious_indices(
+    voter_types: list,
+    religious_group_to_idx: dict[str, int],
+) -> np.ndarray:
+    """
+    Precompute religious group index for every voter type.
+
+    Returns np.ndarray of shape (N_types,) with integer indices into the
+    religious utility table.
+    """
+    return np.array([religious_group_to_idx[vt.religion] for vt in voter_types], dtype=np.intp)
+
+
 def compute_utilities_batch(
     voter_ideals: np.ndarray,
     voter_ethnicities: list[str],
@@ -120,6 +194,13 @@ def compute_utilities_batch(
     salience_weights: np.ndarray,
     ethnic_matrix: Optional[EthnicAffinityMatrix] = None,
     religious_matrix: Optional[ReligiousAffinityMatrix] = None,
+    ethnic_utility_table: Optional[tuple[np.ndarray, dict[str, int]]] = None,
+    religious_utility_table: Optional[tuple[np.ndarray, dict[str, int]]] = None,
+    precomputed_eth_indices: Optional[np.ndarray] = None,
+    precomputed_rel_indices: Optional[np.ndarray] = None,
+    party_positions: Optional[np.ndarray] = None,
+    valences: Optional[np.ndarray] = None,
+    has_demographic_coefficients: bool = False,
 ) -> np.ndarray:
     """
     Compute full utilities for a batch of voter types × all parties.
@@ -129,10 +210,20 @@ def compute_utilities_batch(
     voter_ideals : np.ndarray, shape (N, D)
         Ideal points for N voter types.
     voter_ethnicities : list[str], length N
+        (ignored if precomputed_eth_indices is provided)
     voter_religions : list[str], length N
+        (ignored if precomputed_rel_indices is provided)
     voter_demographics_list : list[dict], length N
+        (ignored if has_demographic_coefficients is False)
     parties, params, salience_weights : same as compute_utility
     ethnic_matrix, religious_matrix : optional overrides
+    ethnic_utility_table : optional precomputed (table, group_to_idx).
+    religious_utility_table : optional precomputed (table, group_to_idx).
+    precomputed_eth_indices : optional precomputed int indices into ethnic table.
+    precomputed_rel_indices : optional precomputed int indices into religious table.
+    party_positions : optional precomputed (J, D) party position array.
+    valences : optional precomputed (J,) valence array.
+    has_demographic_coefficients : if False, skip demographic utility entirely.
 
     Returns
     -------
@@ -146,10 +237,10 @@ def compute_utilities_batch(
 
     N = len(voter_ideals)
     J = len(parties)
-    party_positions = np.array([p.positions for p in parties])  # (J, D)
-
-    # 1. Valence — broadcast over all voters
-    valences = np.array([p.valence for p in parties])  # (J,)
+    if party_positions is None:
+        party_positions = np.array([p.positions for p in parties])
+    if valences is None:
+        valences = np.array([p.valence for p in parties])
 
     # 2. Spatial utility (N, J)
     u_spatial = batch_spatial_utility(
@@ -158,32 +249,51 @@ def compute_utilities_batch(
         salience_weights=salience_weights,
     )
 
-    # 3. Ethnic utility (N, J) — can be vectorised over voters
-    u_ethnic = np.zeros((N, J))
-    for i, eth in enumerate(voter_ethnicities):
-        for j, party in enumerate(parties):
-            u_ethnic[i, j] = ethnic_matrix.get_utility(
-                eth, party.leader_ethnicity, params.alpha_e
-            )
+    # 3. Ethnic utility (N, J) — vectorised via precomputed lookup table
+    if precomputed_eth_indices is not None and ethnic_utility_table is not None:
+        eth_table = ethnic_utility_table[0]
+        u_ethnic = eth_table[precomputed_eth_indices]  # (N, J)
+    elif ethnic_utility_table is not None:
+        eth_table, eth_idx_map = ethnic_utility_table
+        eth_indices = np.array([eth_idx_map[e] for e in voter_ethnicities], dtype=np.intp)
+        u_ethnic = eth_table[eth_indices]  # (N, J)
+    else:
+        u_ethnic = np.zeros((N, J))
+        for i, eth in enumerate(voter_ethnicities):
+            for j, party in enumerate(parties):
+                u_ethnic[i, j] = ethnic_matrix.get_utility(
+                    eth, party.leader_ethnicity, params.alpha_e
+                )
 
-    # 4. Religious utility (N, J)
-    u_religious = np.zeros((N, J))
-    for i, rel in enumerate(voter_religions):
-        for j, party in enumerate(parties):
-            u_religious[i, j] = religious_matrix.get_utility(
-                rel, party.religious_alignment, params.alpha_r
-            )
+    # 4. Religious utility (N, J) — vectorised via precomputed lookup table
+    if precomputed_rel_indices is not None and religious_utility_table is not None:
+        rel_table = religious_utility_table[0]
+        u_religious = rel_table[precomputed_rel_indices]  # (N, J)
+    elif religious_utility_table is not None:
+        rel_table, rel_idx_map = religious_utility_table
+        rel_indices = np.array([rel_idx_map[r] for r in voter_religions], dtype=np.intp)
+        u_religious = rel_table[rel_indices]  # (N, J)
+    else:
+        u_religious = np.zeros((N, J))
+        for i, rel in enumerate(voter_religions):
+            for j, party in enumerate(parties):
+                u_religious[i, j] = religious_matrix.get_utility(
+                    rel, party.religious_alignment, params.alpha_r
+                )
 
     # 5. Demographic utility (N, J) — sparse; most parties have no demo coefficients
-    u_demographic = np.zeros((N, J))
-    for j, party in enumerate(parties):
-        if party.demographic_coefficients:
-            for i, demos in enumerate(voter_demographics_list):
-                for demo_key, demo_val in demos.items():
-                    coeff = party.demographic_coefficients.get(demo_key, {})
-                    if isinstance(coeff, dict):
-                        u_demographic[i, j] += coeff.get(str(demo_val), 0.0)
-                    else:
-                        u_demographic[i, j] += float(coeff) * float(demo_val)
+    result = valences + u_spatial + u_ethnic + u_religious
+    if has_demographic_coefficients:
+        u_demographic = np.zeros((N, J))
+        for j, party in enumerate(parties):
+            if party.demographic_coefficients:
+                for i, demos in enumerate(voter_demographics_list):
+                    for demo_key, demo_val in demos.items():
+                        coeff = party.demographic_coefficients.get(demo_key, {})
+                        if isinstance(coeff, dict):
+                            u_demographic[i, j] += coeff.get(str(demo_val), 0.0)
+                        else:
+                            u_demographic[i, j] += float(coeff) * float(demo_val)
+        result += u_demographic
 
-    return valences + u_spatial + u_ethnic + u_religious + u_demographic
+    return result

@@ -203,3 +203,91 @@ def compute_vote_probs_with_turnout(
         conditional = np.ones(len(utilities)) / len(utilities)
 
     return conditional, p_vote
+
+
+def batch_compute_vote_probs_with_turnout(
+    utilities_matrix: np.ndarray,
+    voter_ideals: np.ndarray,
+    party_positions: np.ndarray,
+    params: EngineParams,
+    educations: np.ndarray,
+    age_cohorts: np.ndarray,
+    settings: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Vectorised vote probabilities and turnout for N voter types at once.
+
+    Parameters
+    ----------
+    utilities_matrix : np.ndarray, shape (N, J)
+        Party utilities for each voter type.
+    voter_ideals : np.ndarray, shape (N, D)
+        Ideal points.
+    party_positions : np.ndarray, shape (J, D)
+        Party positions.
+    params : EngineParams
+    educations : np.ndarray of int, shape (N,)
+        0 = Below secondary, 1 = Secondary, 2 = Tertiary
+    age_cohorts : np.ndarray of int, shape (N,)
+        0 = 18-24, 1 = 25-34, 2 = 35-49, 3 = 50+
+    settings : np.ndarray of int, shape (N,)
+        0 = Urban, 1 = Peri-urban, 2 = Rural
+
+    Returns
+    -------
+    (conditional_vote_probs, turnout_probs)
+        conditional_vote_probs : np.ndarray, shape (N, J)
+        turnout_probs : np.ndarray, shape (N,)
+    """
+    N, J = utilities_matrix.shape
+    D = party_positions.shape[1]
+
+    # --- Alienation: min mean-sq-distance to any party ---
+    # Compute ||x - z_j||²/D = (||x||² + ||z_j||² - 2x·z_j) / D
+    # This avoids creating a (N, J, D) intermediate array.
+    voter_sq_norms = np.sum(voter_ideals ** 2, axis=1) / D  # (N,)
+    party_sq_norms = np.sum(party_positions ** 2, axis=1) / D  # (J,)
+    cross_terms = (voter_ideals @ party_positions.T) * (2.0 / D)  # (N, J)
+    sq_dists = voter_sq_norms[:, np.newaxis] + party_sq_norms[np.newaxis, :] - cross_terms
+    min_dist_sq = sq_dists.min(axis=1)  # (N,)
+
+    # --- Indifference: gap between top-1 and top-2 utilities ---
+    # Sort along party axis descending
+    sorted_utils = np.sort(utilities_matrix, axis=1)[:, ::-1]  # (N, J) descending
+    gap = np.abs(sorted_utils[:, 0] - sorted_utils[:, 1])  # (N,)
+    gap = np.maximum(gap, _EPSILON)
+
+    # --- Base abstention utility ---
+    v_abstain = params.tau_0 + params.tau_1 * min_dist_sq + params.tau_2 / gap  # (N,)
+
+    # --- Demographic adjustments (vectorised) ---
+    # Education: Tertiary → -1.0, Below secondary → +0.3
+    v_abstain = np.where(educations == 2, v_abstain - 1.0, v_abstain)
+    v_abstain = np.where(educations == 0, v_abstain + 0.3, v_abstain)
+
+    # Age: 50+ → -0.5, 18-24 → +0.2
+    v_abstain = np.where(age_cohorts == 3, v_abstain - 0.5, v_abstain)
+    v_abstain = np.where(age_cohorts == 0, v_abstain + 0.2, v_abstain)
+
+    # Setting: Urban → -0.2
+    v_abstain = np.where(settings == 0, v_abstain - 0.2, v_abstain)
+
+    # --- Softmax over [party utilities..., abstention] ---
+    # all_utils: (N, J+1)
+    all_utils = np.column_stack([utilities_matrix, v_abstain])  # (N, J+1)
+    shifted = (all_utils - all_utils.max(axis=1, keepdims=True)) * params.scale
+    exp_vals = np.exp(shifted)
+    probs = exp_vals / exp_vals.sum(axis=1, keepdims=True)  # (N, J+1)
+
+    p_abstain = probs[:, -1]  # (N,)
+    turnout_probs = np.clip(1.0 - p_abstain, 0.0, 1.0)
+
+    # Conditional vote probabilities (renormalise over parties only)
+    party_probs = probs[:, :-1]  # (N, J)
+    total_party = party_probs.sum(axis=1, keepdims=True)  # (N, 1)
+    # Avoid division by zero
+    safe_total = np.where(total_party > 0, total_party, 1.0)
+    conditional = np.where(total_party > 0, party_probs / safe_total,
+                           np.ones((N, J)) / J)
+
+    return conditional, turnout_probs
