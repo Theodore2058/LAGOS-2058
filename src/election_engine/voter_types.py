@@ -648,7 +648,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
     {
         "intercept": -1.0,
         "is_pada": 5.0, "is_hausa_fulani": -2.5, "is_bottom_income": -1.5,
-        "is_civil_servant": 0.5, "is_hausa_fulani": -1.5, "is_naijin": 1.0,
+        "is_civil_servant": 0.5, "is_naijin": 1.0,
     },
     # 27. Energy Policy
     {

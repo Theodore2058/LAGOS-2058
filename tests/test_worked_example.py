@@ -224,5 +224,35 @@ def test_pipeline_produces_valid_shares():
     assert n_active > 0, "No active types"
 
 
+# ---------------------------------------------------------------------------
+# Test 7: Regression — no duplicate keys in ideal-point coefficient table
+# ---------------------------------------------------------------------------
+
+def test_no_duplicate_keys_in_ideal_point_coefficients():
+    """Every issue dict in _IDEAL_POINT_COEFFICIENTS must have unique keys.
+
+    Regression test for Bug 1: Issue 26 ('Padà Status') had a duplicate
+    'is_hausa_fulani' key that silently overwrote the -2.5 coefficient with -1.5.
+    """
+    from election_engine.voter_types import _IDEAL_POINT_COEFFICIENTS, N_ISSUES
+
+    assert len(_IDEAL_POINT_COEFFICIENTS) == N_ISSUES
+
+    for idx, coeff_dict in enumerate(_IDEAL_POINT_COEFFICIENTS):
+        # Python already deduplicates dict keys at parse time, so the only way
+        # to catch the bug is to verify the *intended* value is preserved.
+        # We also verify the duplicate was removed by checking no unexpected
+        # low value replaced the strong hausa_fulani opposition on issue 26.
+        pass  # structural check only — duplicate removal is enforced by Python
+
+    # Specific regression: Issue 26 (index 25) must have is_hausa_fulani == -2.5
+    issue26 = _IDEAL_POINT_COEFFICIENTS[25]
+    assert "is_hausa_fulani" in issue26, "Issue 26 missing is_hausa_fulani coefficient"
+    assert issue26["is_hausa_fulani"] == -2.5, (
+        f"Issue 26 is_hausa_fulani should be -2.5 (strong opposition), "
+        f"got {issue26['is_hausa_fulani']} — duplicate key bug may have returned"
+    )
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

@@ -29,7 +29,6 @@ from .voter_types import (
 from .salience import compute_salience, SalienceRule, DEFAULT_SALIENCE_RULES
 from .utility import compute_utility
 from .turnout import compute_vote_probs_with_turnout
-from .softmax import softmax
 
 logger = logging.getLogger(__name__)
 
