@@ -415,12 +415,23 @@ def compute_all_lga_results(
     _idx_set = type_indices["set"]
 
     # Cache frequently-used scalars
-    _beta_s = params.beta_s
-    _q = params.q
+    _beta_s = np.float32(params.beta_s)
+    _q_half = np.float32(params.q / 2.0)
 
-    # Inline per-LGA hotloop: eliminates compute_lga_results() and
-    # compute_utilities_batch() call overhead (~1.8ms/LGA saved from
-    # 20+ kwarg packing, conditional checks, and frame creation).
+    # Pre-allocate reusable buffers for per-LGA spatial/alienation computation.
+    # Sized for the maximum possible active types; sliced to n_active per LGA.
+    # This avoids per-LGA numpy memory allocation which adds ~0.5ms/LGA.
+    N_types = len(voter_types)
+    _wx_buf = np.empty((N_types, D), dtype=np.float32)
+    _dot_buf = np.empty((N_types, J), dtype=np.float32)
+    _voter_wsq_buf = np.empty(N_types, dtype=np.float32)
+    _min_dist_buf = np.empty(N_types, dtype=np.float32)
+    _candidate_buf = np.empty(N_types, dtype=np.float32)
+
+    # Pre-compute transposed party positions for fast matmul
+    pp_T = np.ascontiguousarray(party_positions_f32.T)  # (D, J) contiguous
+
+    # Inline per-LGA hotloop with pre-allocated buffers.
     for idx in range(n_lgas):
         salience_w = salience_matrix[idx]
         lga_offset = all_lga_offsets[idx]
@@ -447,22 +458,34 @@ def compute_all_lga_results(
         active_ideals += lga_offset
         np.clip(active_ideals, -5.0, 5.0, out=active_ideals)
 
-        # Step 4: Spatial utility with intermediates capture
-        _spatial_ints = {}
-        u_spatial = batch_spatial_utility(
-            active_ideals, party_positions_f32, _beta_s, _q, salience_w,
-            _intermediates=_spatial_ints,
-        )
+        # Step 4: Spatial utility (inlined with pre-allocated buffers)
+        # wx = ideals * salience  → (n_active, D)
+        wx = _wx_buf[:n_active]
+        np.multiply(active_ideals, salience_w, out=wx)
+        # dot_products = wx @ pp.T  → (n_active, J)  [UNSCALED for alienation]
+        dot_products = _dot_buf[:n_active]
+        np.dot(wx, pp_T, out=dot_products)
+        # sq_norms = (pp ** 2) @ salience  → (J,)
+        sq_norms = (party_positions_f32 ** 2) @ salience_w
 
-        # Step 5: Alienation from spatial intermediates
-        _dot = _spatial_ints["dot_products"]
-        _sqn = _spatial_ints["sq_norms"]
-        _wx = _spatial_ints["wx"]
-        voter_wsq = np.einsum("nd,nd->n", _wx, active_ideals)
-        min_dist_sq = voter_wsq + _sqn[0] - 2.0 * _dot[:, 0]
+        # Step 5: Alienation from UNSCALED dot products (before spatial scaling)
+        # dist_sq_j(i) = voter_wsq_i + sq_norms_j - 2 * dot_ij
+        voter_wsq = _voter_wsq_buf[:n_active]
+        np.einsum("nd,nd->n", wx, active_ideals, out=voter_wsq)
+        min_dist_sq = _min_dist_buf[:n_active]
+        np.subtract(voter_wsq, 2.0 * dot_products[:, 0], out=min_dist_sq)
+        min_dist_sq += sq_norms[0]
+        candidate = _candidate_buf[:n_active]
         for j_al in range(1, J):
-            candidate = voter_wsq + _sqn[j_al] - 2.0 * _dot[:, j_al]
+            np.subtract(voter_wsq, 2.0 * dot_products[:, j_al], out=candidate)
+            candidate += sq_norms[j_al]
             np.minimum(min_dist_sq, candidate, out=min_dist_sq)
+
+        # Now convert dot_products to spatial utility in-place
+        # u_spatial = beta_s * (dot - q/2 * sq_norms)
+        dot_products -= _q_half * sq_norms  # in-place
+        dot_products *= _beta_s              # in-place
+        u_spatial = dot_products             # alias
 
         # Step 6: Total utility = spatial + fixed (ethnic+religious+valence)
         u_spatial += fixed_type_utility[active_idx]
