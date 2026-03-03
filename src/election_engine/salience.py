@@ -406,6 +406,7 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Pentecostal Growth": 0.15 / 3.0,     # Pentecostal schools → education becomes contested
             "Num Secondary Schools": 0.01,        # More schools → education policy more salient locally
             "Median Age Estimate": -0.015,        # Younger population → education more salient
+            "Internet Access Pct": 0.2 / 100.0,   # Connected areas: education policy debates online
         },
     ),
     # 11. Labor & Automation
@@ -449,6 +450,7 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Population Density per km2": 0.2 / 1000.0,  # Dense areas feel immigration pressure
             "Unemployment Rate Pct": 0.3 / 100.0,  # High-unemployment → anti-immigration mood
             "ethnic_fragmentation": 0.3,            # Diverse areas more attuned to migration
+            "Internet Access Pct": 0.2 / 100.0,   # Internet: immigration debates amplified online
         },
     ),
     # 14. Language Policy
@@ -479,6 +481,8 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "% Christian": 0.15 / 100.0,           # Christian areas: feminist movements engage
             "Out of School Children Pct": 0.5 / 100.0,  # High OSC → girls' education contested → gender salient
             "Primary Enrollment Pct": -0.2 / 100.0,  # Low primary enrollment → girls excluded → gender rights contested
+            "Internet Access Pct": 0.3 / 100.0,   # Internet: women's rights campaigns amplified online
+            "Mobile Phone Penetration Pct": 0.2 / 100.0,  # Phone access: gender violence reporting, activism
         },
     ),
     # 16. Traditional Authority
@@ -631,6 +635,7 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "conflict_severity": 0.2 / 5.0,          # Conflict zones: health infrastructure destroyed
             "Median Age Estimate": 0.01,              # Older population → healthcare more salient
             "Out of School Children Pct": 0.3 / 100.0,  # High OSC → systemic deprivation → health salient
+            "Internet Access Pct": 0.15 / 100.0,  # Internet: health awareness campaigns, COVID legacy
         },
     ),
     # 26. Padà Status

@@ -1279,6 +1279,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_Planned City": 0.5,       # Chinese planned cities: cosmopolitan, pro-open borders
         "lga_Housing Affordability": 0.05 / 10.0,  # Affordable housing → less anti-immigrant sentiment
         "lga_Population Density per km2": -0.3 / 55000.0,  # Dense areas → more competition → restrictionist
+        "lga_Internet Access Pct": -0.005,  # Internet: online anti-immigration echo chambers
     },
     # 14. Language Policy (vernacular ↔ English supremacy)
     {
@@ -1326,6 +1327,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_kanuri_muslim_youth": -1.0,  # Kanuri Muslim youth: conservative gender views
         "is_igbo_female": 1.0,  # Igbo women: market women tradition, economic agency
         "is_yoruba_female": 0.8,  # Yoruba women: Iyaloja market women, political voice
+        "lga_Internet Access Pct": 0.005,  # Internet: exposure to feminist discourse → progressive
     },
     # 16. Traditional Authority (marginalization ↔ formal integration)
     {
@@ -1576,6 +1578,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_Cobalt Extraction Active": 0.5,  # Cobalt: battery tech → green transition aligned
         "lga_Pct Livelihood Manufacturing": 0.005,  # Manufacturing → demand reliable power → pragmatic green
         "is_edo": 0.5,                # Edo: oil zone but environmentally conscious
+        "lga_Internet Access Pct": 0.005,  # Internet: exposure to global green movement → pro-transition
     },
     # 28. AZ Restructuring (return to 36+ states ↔ keep 8 AZs)
     {
