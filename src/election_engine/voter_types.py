@@ -1150,6 +1150,12 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_nupe_muslim": 0.5,       # Nupe Muslim traders: trans-Saharan network pragmatism extends to Chinese
         "is_kanuri_muslim_youth": -1.5,  # Kanuri Muslim youth: anti-foreign, see WAFTA as kufr invasion
         "is_urban_bottom_income": -0.5,  # Urban poor: Chinese goods are cheap but destroy local jobs
+        "lga_GDP Per Capita Est": 0.3 / 90000.0,  # Wealthier LGAs benefit more from WAFTA trade
+        "lga_Pct Livelihood Manufacturing": -0.01,  # Manufacturing LGAs: Chinese imports hurt local industry
+        "lga_Market Access Index": 0.1 / 5.0,  # Better market access → more trade exposure → pro-WAFTA
+        "lga_Border LGA": 0.5,       # Border LGAs: cross-border Chinese trade is a lifeline
+        "lga_Major Urban Center": 0.5,  # Major cities: Chinese investment, shopping malls, tech hubs
+        "lga_Urban Pct": 0.002,          # Urban LGAs: more exposed to Chinese goods/services
     },
     # 4. BIC Reform (abolish ↔ preserve BIC)
     {
@@ -1214,6 +1220,11 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_older": 0.5,                 # Older: established patronage networks, support quotas
         "is_female": 0.5,               # Women: benefit from gender quotas in practice
         "lga_Poverty Rate Pct": 0.005,   # Poorer areas: quotas = redistribution mechanism
+        "lga_Colonial Eastern": -0.5,   # Eastern Region: meritocratic Igbo tradition → anti-quota
+        "lga_Colonial Western": -0.3,   # Western Region: Yoruba achievement culture → lean anti-quota
+        "lga_Female Literacy Rate Pct": -0.005,  # Higher female literacy → meritocratic values → anti-quota
+        "lga_Gini Proxy": 0.5,         # High inequality → demand redistribution through quotas
+        "lga_Unemployment Rate Pct": 0.01,  # High unemployment → quotas as job access mechanism
         "lga_Youth Unemployment Rate Pct": 0.01,  # High youth unemployment → demand quotas as jobs pathway
         "lga_Gini Proxy": 1.5,           # High inequality → demand redistributive quotas
         "lga_Urban Pct": -0.005,          # Urban areas: more meritocratic, less quota support
@@ -1318,6 +1329,13 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_hf_bottom_income": -1.0,  # Poor northerners: depend on federal redistribution, anti-local-control
         "is_igbo_formal": 1.5,       # Igbo formal sector: want fiscal autonomy for commercial zones
         "is_yoruba_trader": 1.0,     # Yoruba traders: Lagos fiscal independence movement
+        "lga_GDP Per Capita Est": 0.3 / 90000.0,  # Wealthier LGAs want to keep revenue local
+        "lga_Gini Proxy": 0.5,      # High inequality → demand local resource redistribution
+        "lga_Unemployment Rate Pct": 0.01,  # High unemployment → blame federal resource misallocation
+        "lga_Urban Pct": -0.005,       # Urban LGAs: less reliant on extraction revenue
+        "lga_Conflict History": 0.3 / 5.0,  # Resource conflict zones → demand local control
+        "lga_Border LGA": 0.5,      # Border LGAs: smuggling revenue → want local fiscal autonomy
+        "lga_Colonial Mid-Western": 1.0,  # Mid-Western Region: extraction economy → strongest local-control tradition
     },
     # 9. Housing (pure market ↔ state intervention)
     {
@@ -1494,6 +1512,12 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_hf_rural_older": -1.5,   # HF rural elderly: strongest Hausa/Arabic language advocates
         "is_igbo_pentecostal_formal": 1.5,  # Igbo Pentecostal formal: pro-English for commerce and church
         "is_yoruba_muslim_trader": -0.8,  # Yoruba Muslim traders: value Yoruba + Arabic for trade networks
+        "lga_Primary Enrollment Pct": 0.003,  # High primary enrollment → English-medium education → pro-English
+        "lga_Out of School Children Pct": -0.005,  # Out-of-school areas: vernacular default, anti-English
+        "lga_Urban Pct": 0.002,       # Urbanised LGAs: English as lingua franca
+        "lga_Pct Livelihood Informal": -0.005,  # Informal economy: vernacular/pidgin over English
+        "lga_Pct Livelihood Services": 0.005,  # Service sector: English required for commerce
+        "lga_Major Urban Center": 0.5,  # Major cities: English dominant in formal economy
     },
     # 15. Women's Rights (traditional patriarchy ↔ aggressive feminism)
     {
@@ -1561,6 +1585,10 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_female": -0.3,            # Women: traditional authority often patriarchal
         "is_al_shahid": -1.5,         # Al-Shahid: want Islamic authority, not traditional chiefs
         "is_youth": -0.5,             # Youth: reject gerontocratic traditional systems
+        "lga_Poverty Rate Pct": 0.005,  # Poorer LGAs: traditional chiefs provide welfare/dispute resolution
+        "lga_Access Water Pct": -0.005,  # Better services → less reliance on chiefs for public goods
+        "lga_Urban Pct": -0.01,          # Urban LGAs: formal institutions replace chiefs
+        "lga_Conflict History": 0.2 / 5.0,  # Conflict zones: traditional authority as peacemaker/mediator
     },
     # 17. Infrastructure (targeted ↔ universal provision)
     {
@@ -1715,6 +1743,12 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_yoruba_christian_urban": 0.8,  # Yoruba Christian urban: cosmopolitan, pro-science
         "is_kanuri_muslim_youth": -1.5,  # Kanuri Muslim youth: deeply conservative, anti-enhancement
         "is_young_adult": 0.5,  # 25-34: open to enhancement for career advantage
+        "lga_GDP Per Capita Est": 0.3 / 90000.0,  # Wealthy LGAs: afford enhancement, pro-access
+        "lga_Access Healthcare Pct": 0.003,  # Healthcare access → enhancement infrastructure exists
+        "lga_Major Urban Center": 0.8,  # Major cities: clinics, tech hubs, pro-access
+        "lga_Urban Pct": 0.002,       # Urbanised LGAs: more exposure to enhancement discourse
+        "lga_% Population Under 30": 0.005,  # Young-population LGAs: more pro-technology
+        "lga_Planned City": 1.0,      # Chinese-built planned cities: biotech infrastructure → pro-access
     },
     # 22. Trade Policy (autarky ↔ full openness)
     {
@@ -1816,6 +1850,11 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_kanuri_muslim_youth": -1.5,  # Kanuri Muslim youth: anti-Western-media, pro-state-control
         "is_igbo_pentecostal_formal": 1.0,  # Igbo Pentecostal formal: media entrepreneurs, strongly pro-free-press
         "is_yoruba_christian_urban": 1.0,  # Yoruba Christian urban: Nollywood/media capital, pro-free-press
+        "lga_Major Urban Center": 0.5,  # Major cities: media hubs, value free press
+        "lga_Pct Livelihood Services": 0.005,  # Service economy: information workers need free press
+        "lga_Al-Shahid Influence": -0.2 / 5.0,  # Al-Shahid areas: restrict "un-Islamic" media
+        "lga_Urban Pct": 0.002,       # Urbanised LGAs: more media consumption → value freedom
+        "lga_GDP Per Capita Est": 0.2 / 90000.0,  # Wealthier LGAs: post-materialist media freedom values
     },
     # 25. Healthcare (pure market ↔ universal provision)
     {
