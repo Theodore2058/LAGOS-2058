@@ -1087,6 +1087,11 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_Female Literacy Rate Pct": -0.01,  # Female literacy → secularism → anti-Sharia
         "lga_Internet Access Pct": -0.005,  # Internet exposure → secular influences → anti-Sharia
         "lga_Conflict History": 0.2 / 5.0,  # Conflict zones: Sharia courts as alternative justice
+        "lga_AZ 7": 0.8,   # Chad Zone (Borno/Yobe/Adamawa): Al-Shahid heartland, Sharia governance tradition
+        "lga_AZ 8": 0.6,   # Savanna Zone (Sokoto/Katsina/Zamfara): historic Sharia states, Sultanate tradition
+        "lga_AZ 1": -0.3,  # Federal Capital (Lagos): cosmopolitan, secular governance culture
+        "lga_AZ 5": -0.4,  # Eastern Zone (Igbo heartland): Christian, strongly anti-Sharia
+        "lga_AZ 4": -0.3,  # Littoral Zone (Niger Delta): Christian majority, oil-secular politics
     },
     # 2. Fiscal Autonomy (centralism ↔ confederalism)
     {
@@ -1115,6 +1120,12 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_ijaw_christian_unemployed": 2.0,  # Ijaw Christian unemployed: resource federalism radicals
         "lga_Colonial Eastern": 0.5,  # Eastern Region: Biafra legacy → confederalism tradition
         "lga_Colonial Mid-Western": 0.8,  # Mid-Western: extraction revenue + minority status → strong autonomy
+        "lga_AZ 4": 0.8,   # Littoral Zone (Niger Delta): strongest resource federalism demand
+        "lga_AZ 5": 0.6,   # Eastern Zone (Igbo heartland): Biafra self-determination legacy
+        "lga_AZ 3": 0.4,   # Confluence Zone (Edo/Ekiti/Ondo): Mid-Western extraction economy
+        "lga_AZ 1": 0.15,  # Federal Capital (Lagos): economic powerhouse wants fiscal autonomy
+        "lga_AZ 7": -0.5,  # Chad Zone (NE): benefits from federal redistribution, centralist
+        "lga_AZ 8": -0.4,  # Savanna Zone (NW): federal allocation dependence, centralist
     },
     # 3. Chinese Relations (Western pivot ↔ deepen WAFTA)
     {
@@ -1230,6 +1241,10 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_Urban Pct": -0.005,          # Urban areas: more meritocratic, less quota support
         "lga_Colonial Eastern": -0.5,    # Eastern Region: Igbo meritocratic tradition, anti-quotas
         "lga_Colonial Western": -0.3,    # Western Region: Yoruba achievement-oriented, mild anti-quotas
+        "lga_AZ 8": 0.5,   # Savanna Zone: quota beneficiaries, northern education quotas protect
+        "lga_AZ 7": 0.4,   # Chad Zone: northern establishment benefits from federal character quotas
+        "lga_AZ 5": -0.4,  # Eastern Zone: Igbo meritocratic tradition, strongly anti-quota
+        "lga_AZ 1": -0.15, # Federal Capital (Lagos): cosmopolitan meritocracy, anti-quota
     },
     # 6. Fertility Policy (population control ↔ pro-natalism)
     {
@@ -1259,6 +1274,10 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_yoruba_christian_urban": -1.0,  # Yoruba Christian urban: modern family planning
         "lga_Colonial Western": -0.5,   # Western Region: Awolowo education legacy → smaller families
         "lga_Colonial Eastern": -0.3,   # Eastern Region: mission education → some family planning awareness
+        "lga_AZ 8": 0.5,   # Savanna Zone: highest fertility rates, strongest pro-natalist culture
+        "lga_AZ 7": 0.5,   # Chad Zone: traditional pro-natalist culture, large families norm
+        "lga_AZ 1": -0.25, # Federal Capital (Lagos): urban demographic transition, smaller families
+        "lga_AZ 5": -0.3,  # Eastern Zone: mission education tradition, more family planning awareness
     },
     # 7. Constitutional Structure (parliamentary ↔ presidential)
     {
@@ -1296,6 +1315,12 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_kanuri_muslim_youth": 1.0,  # Kanuri Muslim youth: want strong Islamic executive
         "is_pentecostal_formal": 0.5,  # Pentecostal formal sector: "strongman" leadership culture
         "is_ijaw_christian_unemployed": -1.5,  # Ijaw Christian unemployed: fear executive centralism
+        "lga_AZ 7": 0.5,   # Chad Zone: strong executive tradition (Emir/Sultanate), pro-presidential
+        "lga_AZ 8": 0.5,   # Savanna Zone: northern establishment presidential preference
+        "lga_AZ 6": 0.3,   # Central Zone: FCT/Kano, executive-governance culture
+        "lga_AZ 5": -0.4,  # Eastern Zone: Igbo republican tradition, power-sharing preference
+        "lga_AZ 4": -0.4,  # Littoral Zone: minority Niger Delta, fear executive centralism
+        "lga_AZ 3": -0.3,  # Confluence Zone: diverse, lean parliamentary for representation
     },
     # 8. Resource Revenue (federal monopoly ↔ local control)
     {
@@ -1336,6 +1361,11 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_Conflict History": 0.3 / 5.0,  # Resource conflict zones → demand local control
         "lga_Border LGA": 0.5,      # Border LGAs: smuggling revenue → want local fiscal autonomy
         "lga_Colonial Mid-Western": 1.0,  # Mid-Western Region: extraction economy → strongest local-control tradition
+        "lga_AZ 4": 0.8,   # Littoral Zone (Niger Delta): oil extraction → demand local resource control
+        "lga_AZ 5": 0.4,   # Eastern Zone: resource federalism aligns with Igbo fiscal autonomy
+        "lga_AZ 1": 0.15,  # Federal Capital (Lagos): economic centre wants to keep its revenue
+        "lga_AZ 7": -0.4,  # Chad Zone: net receiver of federal allocation, opposes local control
+        "lga_AZ 8": -0.4,  # Savanna Zone: depends on federal resource redistribution
     },
     # 9. Housing (pure market ↔ state intervention)
     {
@@ -1450,6 +1480,11 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_Youth Unemployment Rate Pct": 0.01,  # Jobless youth → security vacuum → pro-military
         "lga_Colonial Eastern": -0.5,   # Eastern Region: civil war memory → deeply anti-military
         "lga_Colonial Western": -0.3,   # Western Region: June 12 / Abiola memory → anti-military
+        "lga_AZ 7": 0.6,   # Chad Zone: active insurgency theatre, strongly pro-military presence
+        "lga_AZ 5": -0.5,  # Eastern Zone: civil war trauma, deeply anti-military guardianship
+        "lga_AZ 4": -0.3,  # Littoral Zone: Niger Delta militarisation memory, anti-military
+        "lga_AZ 8": 0.4,   # Savanna Zone: border security concerns, lean pro-military
+        "lga_AZ 1": -0.2,  # Federal Capital (Lagos): cosmopolitan, civilian governance preference
     },
     # 13. Immigration (open borders ↔ restrictionism)
     {
@@ -1480,6 +1515,10 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_kanuri_muslim_youth": -2.0,  # Kanuri Muslim youth: anti-immigrant (blame migrants for Chad Basin insecurity)
         "is_yoruba_christian_urban": 0.5,  # Yoruba Christian urban: mildly cosmopolitan, tolerant of immigrants
         "is_pada_tertiary": 1.0,     # Educated Pada: cosmopolitan, open borders (they are immigrants themselves)
+        "lga_AZ 7": -0.4,  # Chad Zone: border zone, anti-Chadian/Nigerien migration sentiment
+        "lga_AZ 8": -0.3,  # Savanna Zone: Sahel migration pressures, restrictionist
+        "lga_AZ 1": 0.15,  # Federal Capital (Lagos): immigrant city, cosmopolitan, more open
+        "lga_AZ 5": 0.3,   # Eastern Zone: Igbo diaspora empathy, more open to migration
     },
     # 14. Language Policy (vernacular ↔ English supremacy)
     {
@@ -1518,6 +1557,11 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_Pct Livelihood Informal": -0.005,  # Informal economy: vernacular/pidgin over English
         "lga_Pct Livelihood Services": 0.005,  # Service sector: English required for commerce
         "lga_Major Urban Center": 0.5,  # Major cities: English dominant in formal economy
+        "lga_AZ 8": -0.5,  # Savanna Zone: Hausa/Arabic prestige, anti-English
+        "lga_AZ 7": -0.4,  # Chad Zone: Kanuri/Hausa/Arabic language preference
+        "lga_AZ 1": 0.2,   # Federal Capital (Lagos): English as de facto language, cosmopolitan
+        "lga_AZ 5": 0.3,   # Eastern Zone: Igbo pragmatism, pro-English for commerce
+        "lga_AZ 2": -0.3,  # Niger Zone: Yoruba language pride, mixed Hausa border influence
     },
     # 15. Women's Rights (traditional patriarchy ↔ aggressive feminism)
     {
@@ -1555,6 +1599,10 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_Pentecostal Growth": -0.1 / 3.0,  # Pentecostal growth → conservative complementarian gender views
         "lga_Colonial Western": 0.5,   # Western Region: Yoruba women trader tradition → more progressive
         "lga_Colonial Eastern": 0.3,   # Eastern Region: Igbo women's war / Aba 1929 → feminist legacy
+        "lga_AZ 8": -0.5,  # Savanna Zone: strongest patriarchal norms, purdah tradition
+        "lga_AZ 7": -0.4,  # Chad Zone: conservative gender norms, Al-Shahid influence
+        "lga_AZ 1": 0.2,   # Federal Capital (Lagos): most progressive gender attitudes, urban feminism
+        "lga_AZ 5": 0.3,   # Eastern Zone: Igbo women's economic agency, market women tradition
     },
     # 16. Traditional Authority (marginalization ↔ formal integration)
     {
@@ -1589,6 +1637,11 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_Access Water Pct": -0.005,  # Better services → less reliance on chiefs for public goods
         "lga_Urban Pct": -0.01,          # Urban LGAs: formal institutions replace chiefs
         "lga_Conflict History": 0.2 / 5.0,  # Conflict zones: traditional authority as peacemaker/mediator
+        "lga_AZ 8": 0.6,   # Savanna Zone: Sultanate/Emirate heartland, strongest trad authority support
+        "lga_AZ 7": 0.5,   # Chad Zone: Shehu of Borno, Lamido traditions deeply rooted
+        "lga_AZ 2": 0.4,   # Niger Zone: Emir of Ilorin, Nupe Etsu — northern trad authority
+        "lga_AZ 5": -0.4,  # Eastern Zone: Igbo egalitarian tradition, weak chieftaincy
+        "lga_AZ 1": -0.15, # Federal Capital (Lagos): modern governance displaces trad authority
     },
     # 17. Infrastructure (targeted ↔ universal provision)
     {
@@ -1716,6 +1769,10 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_formal_sector": -0.5,    # Formal sector: cheap food imports benefit consumers
         "lga_Colonial Western": -0.3,  # Western Region: cocoa cash crops for export → free market orientation
         "lga_Colonial Eastern": -0.2,  # Eastern Region: palm oil export tradition → market orientation
+        "lga_AZ 8": 0.5,   # Savanna Zone: subsistence grain belt, strongly protectionist
+        "lga_AZ 7": 0.4,   # Chad Zone: subsistence agriculture, need protections
+        "lga_AZ 1": -0.2,  # Federal Capital (Lagos): consumer economy, cheap food imports preferred
+        "lga_AZ 4": -0.3,  # Littoral Zone: oil economy, agri-imports preferred over local production
     },
     # 21. Biological Enhancement (prohibition ↔ universal access)
     {
@@ -1788,6 +1845,10 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_Colonial Western": 0.5,   # Western Region: Lagos port, Yoruba trader tradition, most trade-exposed
         "lga_Colonial Eastern": 0.4,   # Eastern Region: Port Harcourt, Igbo trade networks
         "lga_Colonial Mid-Western": 0.3,  # Mid-Western: Benin rubber trade, moderate openness
+        "lga_AZ 1": 0.25,  # Federal Capital (Lagos): biggest port/trade hub, pro-open trade
+        "lga_AZ 4": 0.3,   # Littoral Zone: Port Harcourt, oil export, pro-trade
+        "lga_AZ 8": -0.4,  # Savanna Zone: subsistence economy, fear of imports
+        "lga_AZ 7": -0.3,  # Chad Zone: isolated, subsistence, protectionist instinct
     },
     # 23. Environmental Regulation (growth first ↔ strong regulation)
     {
@@ -1959,6 +2020,11 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_ijaw_christian_unemployed": -1.0,  # Ijaw Christian unemployed: complex — want green but depend on oil jobs
         "is_igbo_pentecostal_formal": 0.8,  # Igbo Pentecostal formal: green tech as business opportunity
         "is_hf_bottom_income": -0.8,  # Poor northerners: energy access > green transition (kerosene reality)
+        "lga_AZ 4": -0.5,  # Littoral Zone: oil extraction zones resist green (jobs), but environmentally impacted
+        "lga_AZ 7": -0.3,  # Chad Zone: post-conflict energy access priority over green
+        "lga_AZ 8": -0.3,  # Savanna Zone: energy poverty, development > green transition
+        "lga_AZ 1": 0.2,   # Federal Capital (Lagos): green tech hub, air quality concerns, climate awareness
+        "lga_AZ 5": 0.3,   # Eastern Zone: green tech entrepreneurialism, climate-affected farming
     },
     # 28. AZ Restructuring (return to 36+ states ↔ keep 8 AZs)
     {
@@ -1987,6 +2053,13 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_Colonial Eastern": -0.5,  # Eastern Region: Biafra legacy → want restructuring
         "lga_Colonial Mid-Western": -0.8,  # Mid-Western: created in 1963 split → identity tied to restructuring
         "lga_Colonial Western": -0.3,  # Western Region: Yoruba want own state recognition
+        "lga_AZ 5": -0.8,  # Eastern Zone: Igbo heartland, strongest Biafra restructuring demand
+        "lga_AZ 4": -0.6,  # Littoral Zone: Niger Delta wants own resource-control AZ
+        "lga_AZ 3": -0.5,  # Confluence Zone: diverse minorities want recognition, new AZ(s)
+        "lga_AZ 6": -0.3,  # Central Zone: Middle Belt minorities want separation from northern dominance
+        "lga_AZ 8": 0.6,   # Savanna Zone: Sokoto Caliphate beneficiaries, want current AZ structure
+        "lga_AZ 7": 0.4,   # Chad Zone: northern establishment, lean pro-AZ status quo
+        "lga_AZ 1": -0.15, # Federal Capital (Lagos): wants recognition as distinct, autonomous zone
     },
 ]
 

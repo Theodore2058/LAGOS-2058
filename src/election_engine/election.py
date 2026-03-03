@@ -98,6 +98,16 @@ def run_election(
         lga_data.df = pd.concat([df, _new_cols], axis=1)
         df = lga_data.df
 
+    # Derive AZ binary columns for zone-specific ideal point coefficients
+    if "Administrative Zone" in df.columns:
+        _az = df["Administrative Zone"].fillna(0).astype(int)
+        _az_cols = pd.DataFrame({
+            f"AZ {i}": (_az == i).astype(float)
+            for i in range(1, 9)
+        }, index=df.index)
+        lga_data.df = pd.concat([df, _az_cols], axis=1)
+        df = lga_data.df
+
     if verbose:
         logger.info("Loaded %d LGAs", len(df))
 
