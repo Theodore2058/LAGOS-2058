@@ -662,8 +662,11 @@ PARTIES = [
         religious_alignment="Mainline Protestant",
         economic_positioning=0.3,  # centre-left, social-democratic lean
         demographic_coefficients={
-            "education": {"Tertiary": 0.3},
-            "livelihood": {"Public sector": 0.3},
+            "education": {"Tertiary": 0.3, "Secondary": 0.1},
+            "livelihood": {"Public sector": 0.3, "Formal private": 0.1},
+            "income": {"Middle 40%": 0.15, "Top 20%": 0.1},
+            "age_cohort": {"25-34": 0.15, "35-49": 0.1},
+            "setting": {"Urban": 0.2, "Peri-urban": 0.1},
             "gender": {"Female": 0.1},
         },
         regional_strongholds={
@@ -682,11 +685,12 @@ PARTIES = [
         religious_alignment="Catholic",
         economic_positioning=0.1,  # centrist catch-all, mild populist lean
         demographic_coefficients={
-            "education": {"Secondary": 0.2},
+            "education": {"Secondary": 0.2, "Tertiary": 0.1},
             "livelihood": {"Public sector": 0.2, "Formal private": 0.1},
             "income": {"Middle 40%": 0.1},
-            "age_cohort": {"35-49": 0.1},
+            "age_cohort": {"35-49": 0.1, "25-34": 0.05},
             "setting": {"Peri-urban": 0.1},
+            "gender": {"Female": 0.05},
         },
         # Catch-all party: broad but shallow — mild bonus everywhere
         regional_strongholds={
@@ -705,9 +709,11 @@ PARTIES = [
         religious_alignment="Pentecostal",
         economic_positioning=-0.4,  # pro-commerce, entrepreneurial ethos
         demographic_coefficients={
+            "education": {"Tertiary": 0.2, "Secondary": 0.1},
             "livelihood": {"Trade/informal": 0.4, "Formal private": 0.3},
-            "income": {"Top 20%": 0.3},
-            "age_cohort": {"25-34": 0.1},
+            "income": {"Top 20%": 0.3, "Middle 40%": 0.1},
+            "age_cohort": {"25-34": 0.15, "35-49": 0.1},
+            "setting": {"Urban": 0.2, "Peri-urban": 0.1},
             "gender": {"Male": 0.1},
         },
         regional_strongholds={
@@ -791,10 +797,11 @@ PARTIES = [
         religious_alignment="Secular",
         economic_positioning=-0.5,  # tech-elite, globalist, pro-market
         demographic_coefficients={
-            "education": {"Tertiary": 0.4},
-            "livelihood": {"Formal private": 0.3},
-            "income": {"Top 20%": 0.3},
-            "age_cohort": {"25-34": 0.1},
+            "education": {"Tertiary": 0.4, "Secondary": 0.1},
+            "livelihood": {"Formal private": 0.3, "Public sector": 0.1},
+            "income": {"Top 20%": 0.3, "Middle 40%": 0.1},
+            "age_cohort": {"18-24": 0.15, "25-34": 0.2},
+            "setting": {"Urban": 0.4},
             "gender": {"Female": 0.1},
         },
         regional_strongholds={
