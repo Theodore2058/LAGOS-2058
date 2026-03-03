@@ -937,6 +937,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_yoruba_trader": 0.5,  # Yoruba traders benefit from local control of markets
         "is_ijaw_extraction": 2.5,  # Ijaw in extraction: want resource revenue kept local
         "is_igbo_pentecostal": 1.0,  # Igbo Pentecostals: self-determination + activism
+        "lga_Conflict History": 0.2 / 5.0,  # Conflict zones → distrust federal, want local control
     },
     # 3. Chinese Relations (Western pivot ↔ deepen WAFTA)
     {
@@ -958,6 +959,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_naijin": 1.5,             # Naijin cultural attachment to BIC
         "is_kanuri": -1.0,            # Kanuri sceptical of BIC
         "is_yoruba": -0.5,            # Yoruba mildly reformist
+        "lga_Al-Shahid Influence": -0.2 / 5.0,  # Al-Shahid opposes BIC as Western institution
+        "lga_Conflict History": -0.15 / 5.0,     # Conflict zones distrust state institutions
     },
     # 5. Ethnic Quotas (meritocracy ↔ affirmative action)
     {
@@ -973,6 +976,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_edo": 0.5,                # Edo moderate pro-quota
         "is_hf_smallholder": 1.5,     # HF smallholders: benefit from northern quotas
         "is_yoruba_muslim": -0.5,     # Yoruba Muslims: less pro-quota than northern Muslims
+        "lga_Trad Authority Index": 0.15 / 5.0,  # Trad authority areas: favour communal distribution
     },
     # 6. Fertility Policy (population control ↔ pro-natalism)
     {
@@ -1042,6 +1046,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_rural_muslim": -1.0,      # Rural Muslims prefer almajiri/local
         "is_female_tertiary": 1.0,    # Educated women champion education reform
         "is_yoruba": 0.5,             # Yoruba favour structured education
+        "lga_Al-Shahid Influence": -0.3 / 5.0,  # Al-Shahid areas: prefer Quranic/local over centralist
+        "lga_Almajiri Index": -0.2 / 5.0,  # High almajiri → entrenched localist education norms
     },
     # 11. Labor & Automation (pro-capital ↔ pro-labor)
     {
@@ -1068,6 +1074,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_igbo_formal": -2.0,      # Igbo business class: strongly anti-military (civ war + markets)
         "is_rural_older": 0.5,       # Rural elderly trust military for security
         "lga_Federal Control 2058": 0.8,  # Federal control zones strongly pro-military
+        "lga_Al-Shahid Influence": 0.4 / 5.0,  # Al-Shahid zones: demand military response
     },
     # 13. Immigration (open borders ↔ restrictionism)
     {
@@ -1097,6 +1104,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_christian_urban": 0.5,    # Urban Christians lean English
         "is_yoruba_muslim": -0.5,     # Yoruba Muslims: value Arabic + Yoruba (less English)
         "is_pada_tertiary": 1.5,      # Educated Padà: strongly pro-English (cosmopolitan)
+        "lga_Al-Shahid Influence": -0.2 / 5.0,  # Al-Shahid areas: pro-Arabic, anti-English
+        "lga_Almajiri Index": -0.15 / 5.0,  # Almajiri areas: Arabic/vernacular preferred
     },
     # 15. Women's Rights (traditional patriarchy ↔ aggressive feminism)
     {
@@ -1155,6 +1164,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_igbo": 1.0,              # Igbo: pro-formalization (commercial mindset)
         "is_commercial_ag": 2.0,     # Commercial farmers want formal titles
         "is_rural_older": -1.0,      # Rural elderly defend customary tenure
+        "lga_Conflict History": -0.2 / 5.0,  # Conflict zones: land disputes → customary defence
+        "lga_Pct Livelihood Agriculture": -0.01,  # Agricultural LGAs → customary land defence
     },
     # 19. Taxation (low tax ↔ high redistribution)
     {
@@ -1197,6 +1208,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_naijin": 1.0,             # Naijin cosmopolitan, pro-tech
         "is_pada_tertiary": 2.0,       # Educated Padà: tech-progressive elite, very pro-access
         "is_kanuri_rural": -1.0,       # Rural Kanuri: deeply conservative, anti-enhancement
+        "lga_Pentecostal Growth": -0.15 / 3.0,  # Pentecostal areas: moral opposition to enhancement
+        "lga_Al-Shahid Influence": -0.2 / 5.0,  # Al-Shahid areas: religious opposition to enhancement
     },
     # 22. Trade Policy (autarky ↔ full openness)
     {
