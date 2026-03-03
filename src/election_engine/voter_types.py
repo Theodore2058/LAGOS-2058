@@ -1081,6 +1081,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_kanuri_muslim_youth": 1.5,  # Kanuri Muslim youth: radicalized, strongly pro-Sharia
         "is_yoruba_muslim_trader": -1.0,  # Yoruba Muslim traders: pragmatic, moderate on Sharia
         "lga_Colonial Western": -0.5,  # Western Region: Yoruba Islam is moderate, less pro-Sharia
+        "is_tiv": -0.5,              # Tiv: Christian Middle Belt, anti-Sharia
+        "is_nupe": 0.5,              # Nupe: Muslim but moderate, pragmatic Sharia
     },
     # 2. Fiscal Autonomy (centralism ↔ confederalism)
     {
@@ -1244,6 +1246,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_muslim": 0.3,            # Muslim: northern establishment pro-presidential
         "is_civil_servant": 0.5,     # Civil servants: benefit from strong executive bureaucracy
         "is_ijaw": -1.0,             # Ijaw: fear presidential centralism, want power-sharing
+        "is_nupe": -0.5,             # Nupe: minority, prefer parliamentary power-sharing
+        "is_ibibio": -0.5,           # Ibibio: minority, prefer parliamentary representation
     },
     # 8. Resource Revenue (federal monopoly ↔ local control)
     {
@@ -1374,6 +1378,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_nupe": -0.5,             # Nupe: civilian-oriented, Middle Belt suspicion
         "is_yoruba": -1.0,           # Yoruba: strong anti-military tradition (Abiola era)
         "lga_Urban Pct": -0.005,     # Urban LGAs: pro-civilian governance
+        "is_ibibio": -0.5,           # Ibibio: southern, civilian governance preference
+        "is_edo": -0.5,              # Edo: Benin civic tradition, anti-military
     },
     # 13. Immigration (open borders ↔ restrictionism)
     {
@@ -1546,6 +1552,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_yoruba": 0.3,             # Yoruba: commercial orientation, accept formalization
         "is_bottom_income": -0.5,     # Bottom income: customary tenure is safety net
         "lga_GDP Per Capita Est": 0.5 / 90000.0,  # Wealthier LGAs: land markets → formalization
+        "is_ijaw": -1.0,             # Ijaw: ancestral fishing/creek land rights, anti-formalization
+        "is_edo": 0.3,               # Edo: Benin commercial tradition, mild formalization
     },
     # 19. Taxation (low tax ↔ high redistribution)
     {
@@ -1805,6 +1813,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_kanuri": -0.5,           # Kanuri: post-conflict development > green transition
         "is_igbo": 0.3,              # Igbo: see green tech as business opportunity
         "is_muslim": -0.3,           # Muslim: development priorities outweigh green concerns
+        "is_tiv": 0.3,               # Tiv: Middle Belt, farming areas affected by climate
+        "is_nupe": -0.3,             # Nupe: pragmatic, energy access over green transition
     },
     # 28. AZ Restructuring (return to 36+ states ↔ keep 8 AZs)
     {
