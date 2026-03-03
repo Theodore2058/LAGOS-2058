@@ -133,9 +133,8 @@ def batch_spatial_utility(
     # Weighted squared norms: (J,) — compute in float32 if inputs are float32
     sq_norms = (pp_f32 ** 2) @ w_f32                           # (J,) float32
 
-    # Broadcast: promote to float64 via beta_s multiply for output precision
-    utilities = np.float64(beta_s) * (dot_products.astype(np.float64)
-                                       - np.float64(q / 2.0) * sq_norms.astype(np.float64))
+    # Broadcast: stay in float32 to avoid promoting the whole chain to float64
+    utilities = np.float32(beta_s) * (dot_products - np.float32(q / 2.0) * sq_norms)
 
     if _intermediates is not None:
         _intermediates["dot_products"] = dot_products

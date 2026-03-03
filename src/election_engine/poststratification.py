@@ -325,7 +325,7 @@ def compute_all_lga_results(
     # Precompute party arrays (avoid recreating per LGA)
     party_positions = np.array([p.positions for p in parties])  # (J, 28)
     party_positions_f32 = party_positions.astype(np.float32)
-    valences = np.array([p.valence for p in parties])  # (J,)
+    valences = np.array([p.valence for p in parties], dtype=np.float32)  # (J,)
     D = party_positions.shape[1]
     party_sq_norms_uniform = np.sum(party_positions ** 2, axis=1) / D  # (J,)
     has_demo_coeffs = any(p.demographic_coefficients for p in parties)
@@ -343,7 +343,7 @@ def compute_all_lga_results(
         rel_table=rel_table[0],
         all_rel_indices=all_rel_indices,
         demo_table=demo_table,
-    )
+    ).astype(np.float32)
 
     # Use pre-computed salience if provided; otherwise compute here
     if precomputed_salience is not None:
