@@ -671,10 +671,15 @@ PARTIES = [
         leader_ethnicity="Edo",
         religious_alignment="Catholic",
         economic_positioning=0.1,  # centrist catch-all, mild populist lean
+        demographic_coefficients={
+            "education": {"Secondary": 0.2},  # Middle-education voters: pragmatic centrists
+            "livelihood": {"Public sector": 0.2, "Formal private": 0.1},
+        },
         # Catch-all party: broad but shallow — mild bonus everywhere
         regional_strongholds={
             3: +0.3,   # Confluence: Edo is home base
             4: +0.2,   # Littoral: moderate appeal
+            2: +0.1,   # Niger Zone: catch-all appeal
         },
     ),
     Party(
@@ -770,12 +775,14 @@ PARTIES = [
         economic_positioning=0.5,  # protectionist, defends small traders
         demographic_coefficients={
             "livelihood": {"Trade/informal": 0.3, "Smallholder": 0.2},
-            "income": {"Bottom 40%": 0.2},
+            "income": {"Bottom 40%": 0.2, "Middle 40%": 0.1},
+            "education": {"Below secondary": 0.1},
         },
         regional_strongholds={
             8: +0.3,   # Savanna: northern traders squeezed by WAFTA
             6: +0.2,   # Central: Kano market traders
             7: +0.2,   # Chad: anti-WAFTA sentiment
+            2: +0.1,   # Niger Zone: market town traders
         },
     ),
     Party(
@@ -787,10 +794,13 @@ PARTIES = [
         economic_positioning=0.0,  # security-focused, economically neutral
         demographic_coefficients={
             "livelihood": {"Public sector": 0.4},
+            "education": {"Tertiary": 0.2},  # Military officers, security professionals
+            "income": {"Middle 40%": 0.1},
         },
         regional_strongholds={
             7: +0.5,   # Chad: conflict-zone security demand
             6: +0.3,   # Central: military families near FCT
+            8: +0.2,   # Savanna: security concerns from banditry
         },
     ),
     Party(
@@ -801,7 +811,8 @@ PARTIES = [
         religious_alignment="Catholic",
         economic_positioning=0.4,  # agrarian-populist, pro-smallholder
         demographic_coefficients={
-            "livelihood": {"Smallholder": 0.2},
+            "livelihood": {"Smallholder": 0.3, "Commercial ag": 0.2},
+            "income": {"Bottom 40%": 0.1, "Middle 40%": 0.1},
         },
         regional_strongholds={
             5: +0.6,   # Eastern: Benue (Tiv) + Christian Middle Belt
