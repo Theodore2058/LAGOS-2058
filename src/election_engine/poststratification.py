@@ -788,6 +788,13 @@ def compute_all_lga_results(
         - 0.04 * np.clip(_mobile_id / 100.0, 0.0, 1.0)     # Mobile phones: female political mobilisation
         + 0.06 * np.clip((_lga_col("Fertility Rate Est", 5.0) - 3.0) / 4.0, 0.0, 1.0)  # high fertility → childcare burden → wider gender gap
         - 0.03 * np.clip(_lga_col("Secondary Enrollment Pct", 50.0) / 100.0, 0.0, 1.0)  # schooling → gender awareness → narrower gap
+        + 0.08 * np.clip(_lga_col("Trad Authority Index", 0.0) / 5.0, 0.0, 1.0)  # patriarchal authority → wider gender gap
+        - 0.04 * np.clip(_lga_col("Pct Livelihood Manufacturing", 10.0) / 40.0, 0.0, 1.0)  # factory employment → female workforce → narrower gap
+        + 0.05 * np.clip(_lga_col("Out of School Children Pct", 20.0) / 60.0, 0.0, 1.0)  # high OSC → girls out of school → wider gap
+        - 0.03 * _fed_ctrl  # federal control: security + forced registration → narrower gap
+        + 0.04 * np.clip(_conflict / 5.0, 0.0, 1.0)  # conflict zones: women confined to home → wider gap
+        - 0.03 * np.clip(_lga_col("Planned City", 0.0), 0.0, 1.0)  # planned cities: modern infrastructure → narrower gap
+        - 0.03 * np.clip(_lga_col("Biological Enhancement Pct", 0.0) / 100.0, 0.0, 1.0)  # bio-enhanced areas: progressive → narrower gap
     ).astype(np.float32)
 
     # ---- Religious minority mobilisation (turnout interaction) ----
