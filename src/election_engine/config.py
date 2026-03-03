@@ -78,7 +78,7 @@ class EngineParams:
     scale: float = 1.0      # Softmax scale / rationality (λ). Higher = sharper choices
 
     # Turnout / abstention
-    tau_0: float = 1.5      # Baseline abstention utility (τ₀)
+    tau_0: float = 3.5      # Baseline abstention utility (τ₀)
     tau_1: float = 0.3      # Alienation strength (τ₁)
     tau_2: float = 0.5      # Indifference strength (τ₂)
 
