@@ -259,6 +259,53 @@ def _bio_enhancement_conditional(lga_row: pd.Series) -> float:
     return extra
 
 
+def _herder_farmer_conditional(lga_row: pd.Series) -> float:
+    """Land tenure salience spikes where Fulani pastoralists meet farming communities.
+    The herder-farmer conflict is one of Nigeria's most violent ongoing crises."""
+    fulani_pct = float(lga_row.get("% Fulani", 0))
+    ag_pct = float(lga_row.get("Pct Livelihood Agriculture", 0))
+    conflict = float(lga_row.get("Conflict History", 0))
+    extra = 0.0
+    # Fulani presence + agricultural area = herder-farmer tension zone
+    if fulani_pct > 5 and ag_pct > 40:
+        extra += 0.3 * min(fulani_pct, 30) / 30.0
+    # Amplified by active conflict
+    if conflict >= 2 and fulani_pct > 5:
+        extra += 0.2 * (conflict / 5.0)
+    return extra
+
+
+def _youth_unemployment_conditional(lga_row: pd.Series) -> float:
+    """Labor/automation salience spikes where youth unemployment is extreme
+    and Chinese economic presence creates automation anxiety."""
+    youth_unemp = float(lga_row.get("Youth Unemployment Rate Pct", 0))
+    chinese = float(lga_row.get("Chinese Economic Presence", 0))
+    internet = float(lga_row.get("Internet Access Pct", 0))
+    extra = 0.0
+    # Extreme youth unemployment + tech presence = automation panic
+    if youth_unemp > 60 and chinese > 3:
+        extra += 0.3 * min(youth_unemp, 80) / 80.0
+    # Internet amplifies: online discourse about job loss
+    if youth_unemp > 50 and internet > 60:
+        extra += 0.15
+    return extra
+
+
+def _immigration_border_conditional(lga_row: pd.Series) -> float:
+    """Immigration salience spikes in border regions with unemployment."""
+    border = border_proximity(lga_row)
+    unemp = float(lga_row.get("Unemployment Rate Pct", 0))
+    housing = float(lga_row.get("Housing Affordability", 5))
+    extra = 0.0
+    # Border + unemployment = immigration becomes heated
+    if border > 0.5 and unemp > 30:
+        extra += 0.3 * min(unemp, 60) / 60.0
+    # Housing crisis in border areas amplifies anti-immigrant sentiment
+    if border > 0.5 and housing < 4:
+        extra += 0.2
+    return extra
+
+
 DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
     # 1. Sharia Jurisdiction
     SalienceRule(
@@ -431,6 +478,7 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Major Urban Center": 0.4,             # Major cities: industrial base, automation anxiety
             "Road Quality Index": 0.1 / 10.0,       # Good roads → manufacturing corridor → labor politics
         },
+        conditional=_youth_unemployment_conditional,
     ),
     # 12. Military Role
     SalienceRule(
@@ -459,6 +507,7 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "ethnic_fragmentation": 0.3,            # Diverse areas more attuned to migration
             "Internet Access Pct": 0.2 / 100.0,   # Internet: immigration debates amplified online
         },
+        conditional=_immigration_border_conditional,
     ),
     # 14. Language Policy
     SalienceRule(
@@ -536,7 +585,9 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Trad Authority Index": 0.5 / 5.0,
             "conflict_severity": 0.2 / 5.0,       # Land disputes fuel conflict, raises salience
             "Population Density per km2": 0.1 / 1000.0,  # Dense areas = land pressure
+            "% Fulani": 0.3 / 100.0,              # Fulani presence: herder-farmer politics
         },
+        conditional=_herder_farmer_conditional,
     ),
     # 19. Taxation
     SalienceRule(
