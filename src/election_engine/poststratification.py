@@ -75,14 +75,14 @@ def aggregate_to_lga(
         J = type_vote_probs.shape[1]
         return np.ones(J) / J, 0.0
 
-    # Weighted average over types
-    # vote_shares_j = Σ_g (eff_weights_g × P_gj) / Σ_g eff_weights_g
-    vote_shares = (eff_weights[:, None] * type_vote_probs).sum(axis=0) / total_eff
+    # Weighted average via BLAS dot: (N,) @ (N, J) → (J,) — avoids (N,J) broadcast
+    vote_shares = np.dot(eff_weights, type_vote_probs)
+    vote_shares *= 1.0 / total_eff
 
     # Normalise for numerical safety
     share_sum = vote_shares.sum()
     if share_sum > 0:
-        vote_shares /= share_sum
+        vote_shares *= 1.0 / share_sum
 
     expected_turnout = float(np.dot(type_weights, type_turnout))
 
@@ -90,7 +90,7 @@ def aggregate_to_lga(
 
 
 def compute_lga_results(
-    lga_row: pd.Series,
+    lga_row,  # pd.Series or None (None when precomputed_marginals_row provided)
     voter_types: list[VoterType],
     parties: list,              # list[Party]
     params: EngineParams,
@@ -358,9 +358,20 @@ def compute_all_lga_results(
     # Precompute all LGA demographic marginals (eliminates per-LGA pd.Series.get())
     all_marginals = precompute_all_lga_marginals(lga_data)
 
-    rows = []
-    for idx in range(len(lga_data)):
-        lga_row = lga_data.iloc[idx]
+    # Pre-extract metadata columns as numpy arrays to avoid df.iloc per LGA
+    n_lgas = len(lga_data)
+    _col_state = lga_data["State"].values if "State" in lga_data.columns else [""] * n_lgas
+    _col_lga = lga_data["LGA Name"].values if "LGA Name" in lga_data.columns else [""] * n_lgas
+    _col_az = lga_data["Administrative Zone"].values if "Administrative Zone" in lga_data.columns else np.zeros(n_lgas, dtype=int)
+    _col_azn = lga_data["AZ Name"].values if "AZ Name" in lga_data.columns else [""] * n_lgas
+    _col_pop = lga_data["Estimated Population"].values.astype(float) if "Estimated Population" in lga_data.columns else np.zeros(n_lgas)
+
+    # Pre-allocate output arrays for vote shares and turnout
+    all_vote_shares = np.empty((n_lgas, J))
+    all_turnout = np.empty(n_lgas)
+    all_n_active = np.empty(n_lgas, dtype=int)
+
+    for idx in range(n_lgas):
         salience_w = salience_matrix[idx]
         lga_ideal_offset = all_lga_offsets[idx]
         marginals_row = (
@@ -373,7 +384,7 @@ def compute_all_lga_results(
         )
 
         vote_shares, turnout, n_active = compute_lga_results(
-            lga_row=lga_row,
+            lga_row=None,
             voter_types=voter_types,
             parties=parties,
             params=params,
@@ -398,21 +409,24 @@ def compute_all_lga_results(
             party_sq_norms_uniform=party_sq_norms_uniform,
         )
 
-        row_dict = {
-            "State": lga_row.get("State", ""),
-            "LGA Name": lga_row.get("LGA Name", ""),
-            "Administrative Zone": lga_row.get("Administrative Zone", 0),
-            "AZ Name": lga_row.get("AZ Name", ""),
-            "Estimated Population": lga_row.get("Estimated Population", 0),
-            "Turnout": turnout,
-            "Active Types": n_active,
-        }
-        for j, party in enumerate(parties):
-            row_dict[f"{party.name}_share"] = vote_shares[j]
-
-        rows.append(row_dict)
+        all_vote_shares[idx] = vote_shares
+        all_turnout[idx] = turnout
+        all_n_active[idx] = n_active
 
         if (idx + 1) % 100 == 0:
-            logger.info("Processed %d / %d LGAs", idx + 1, len(lga_data))
+            logger.info("Processed %d / %d LGAs", idx + 1, n_lgas)
 
-    return pd.DataFrame(rows)
+    # Build DataFrame from pre-extracted columns + computed arrays (no per-row dicts)
+    result_dict = {
+        "State": _col_state,
+        "LGA Name": _col_lga,
+        "Administrative Zone": _col_az,
+        "AZ Name": _col_azn,
+        "Estimated Population": _col_pop,
+        "Turnout": all_turnout,
+        "Active Types": all_n_active,
+    }
+    for j, party in enumerate(parties):
+        result_dict[f"{party.name}_share"] = all_vote_shares[:, j]
+
+    return pd.DataFrame(result_dict)

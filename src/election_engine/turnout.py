@@ -296,24 +296,28 @@ def batch_compute_vote_probs_with_turnout(
 
     # --- Softmax over [party utilities..., abstention] ---
     # Reuse top1 from indifference; avoid second max scan over (N, J).
-    row_max = np.maximum(top1, v_abstain) * params.scale  # (N,)
+    row_max = np.maximum(top1, v_abstain)
+    row_max *= params.scale  # (N,)
 
-    # exp(party_utils - max) and exp(v_abstain - max)
-    scaled_parties = utilities_matrix * params.scale - row_max[:, np.newaxis]
-    exp_parties = np.exp(scaled_parties)  # (N, J)
+    # Scale, shift, and exponentiate in minimal allocations.
+    # np.multiply with out= avoids a second (N,J) allocation.
+    exp_parties = np.multiply(utilities_matrix, params.scale, out=np.empty_like(utilities_matrix))
+    exp_parties -= row_max[:, np.newaxis]
+    np.exp(exp_parties, out=exp_parties)  # (N, J) in-place
+
     exp_abstain = np.exp(v_abstain * params.scale - row_max)  # (N,)
 
     # Normalisation denominator
-    sum_exp = exp_parties.sum(axis=1) + exp_abstain  # (N,)
+    sum_exp = exp_parties.sum(axis=1)
+    sum_exp += exp_abstain  # (N,) in-place
     inv_sum = 1.0 / sum_exp  # (N,)
 
     # Turnout = 1 - P(abstain)
     p_abstain = exp_abstain * inv_sum
     turnout_probs = np.clip(1.0 - p_abstain, 0.0, 1.0)
 
-    # Conditional vote probabilities (renormalise over parties only)
-    total_party = 1.0 - p_abstain  # sum of party probs
-    safe_total = np.maximum(total_party, 1e-30)
-    conditional = exp_parties * (inv_sum / safe_total)[:, np.newaxis]
+    # Conditional vote probabilities (in-place on exp_parties)
+    safe_total = np.maximum(1.0 - p_abstain, 1e-30)
+    exp_parties *= (inv_sum / safe_total)[:, np.newaxis]
 
-    return conditional, turnout_probs
+    return exp_parties, turnout_probs
