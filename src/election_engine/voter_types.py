@@ -917,6 +917,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "intercept": 0.0,
         "is_naijin": 4.0, "is_formal_sector": 0.5, "is_tertiary": 0.5,
         "lga_Mandarin Presence": 0.3 / 10.0, "lga_Chinese Economic Presence": 0.2 / 10.0,
+        "lga_Internet Access Pct": 0.005,  # Internet exposure → awareness of Chinese trade dynamics
         "is_unemployed": -1.5, "is_muslim": -0.5,
         "is_youth_unemployed": -1.0,  # Jobless youth blame Chinese competition
         "is_informal": -0.5,          # Informal traders hurt by Chinese imports
@@ -951,6 +952,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_muslim": 2.0, "is_rural": 1.5, "is_female": -1.5,
         "is_tertiary": -2.0, "is_pada": -1.0, "is_youth": -0.5,
         "lga_Fertility Rate Est": 0.5,
+        "lga_% Population Under 30": 0.02,  # Young population areas → pro-natalist culture
         "is_muslim_female": 0.5,     # Muslim women still lean pro-natalist
         "is_rural_muslim": 0.5,      # Rural Muslim compound effect
         "is_kanuri": 1.0,            # Kanuri high-fertility culture
@@ -991,6 +993,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_urban": 1.0, "is_bottom_income": 2.5, "is_top_income": -2.5,
         "lga_Housing Affordability": -0.3 / 10.0, "is_youth": 1.5, "is_pada": -1.5,
         "lga_GDP Per Capita Est": 0.5 / 90000.0,  # Wealthy LGAs: higher housing prices → more demand for intervention
+        "lga_Population Density per km2": 0.5 / 55000.0,  # Dense areas → housing pressure → interventionism
         "is_urban_youth": 1.0,        # Urban youth face acute housing crisis
         "is_informal": 0.5,           # Informal workers need housing support
         "is_middle_income": 0.5,      # Squeezed middle also wants state help
@@ -1001,6 +1004,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_tertiary": 2.0, "is_muslim": -1.0, "is_rural": -1.5,
         "is_female": 0.5, "is_naijin": 1.5,
         "lga_Out of School Children Pct": -0.2 / 100.0,
+        "lga_Secondary Enrollment Pct": 0.01,      # High enrollment → more centralism/meritocratic
         "lga_Youth Unemployment Rate Pct": 0.01,  # High youth unemployment → demand centralized education
         "lga_GDP Per Capita Est": 0.3 / 90000.0,   # Wealthier LGAs → more meritocratic orientation
         "is_igbo": 1.0,               # Igbo strongly pro-education/meritocracy
@@ -1065,6 +1069,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "intercept": -0.5,
         "is_female": 2.0, "is_muslim": -2.0, "is_tertiary": 1.0, "is_urban": 1.0,
         "lga_Gender Parity Index": 1.0, "is_pada": 1.5,
+        "lga_Female Literacy Rate Pct": 0.01,  # Higher female literacy → more feminist orientation
         "is_muslim_female": 1.5,      # Muslim women still want rights, more moderate
         "is_female_tertiary": 1.5,    # Educated women strongest feminists
         "is_kanuri": -1.5,            # Kanuri strongly patriarchal
@@ -1137,6 +1142,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_top_income": -1.5, "lga_Pct Livelihood Agriculture": 0.02 / 100.0,
         "lga_Poverty Rate Pct": 0.01,            # Poorer LGAs → protectionist for food security
         "lga_Pct Livelihood Services": -0.01,     # Service economy → less interest in ag protection
+        "lga_Market Access Index": -0.1,          # Good market access → less need for protection
         "is_tiv": 1.5,               # Tiv: breadbasket, smallholder heartland
         "is_nupe": 1.0,              # Nupe: farming tradition
         "is_mb_minority": 0.5,       # Middle Belt agricultural communities
@@ -1147,6 +1153,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "intercept": 0.0,
         "is_top_income": 2.0, "is_muslim": -2.0, "is_youth": 1.5,
         "lga_Biological Enhancement Pct": 0.1 / 100.0, "is_tertiary": 0.5, "is_rural": -1.0,
+        "lga_Internet Access Pct": 0.01,  # High internet → exposure to bio-enhancement discourse
         "is_pentecostal": -1.5,       # Pentecostals oppose "playing God"
         "is_tertiary_youth": 1.5,     # Educated youth most pro-access
         "is_kanuri": -1.5,            # Kanuri: conservative, anti-enhancement
@@ -1164,6 +1171,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_Pct Livelihood Services": 0.02,  # Service economy → pro-open trade
         "lga_Pct Livelihood Informal": -0.02,  # Informal economy → protectionist (fear imports)
         "lga_GDP Per Capita Est": 0.5 / 90000.0,  # Wealthy LGAs benefit from open trade
+        "lga_Market Access Index": 0.1,  # Good market access → benefit from open trade
         "is_igbo": 1.0,               # Igbo: entrepreneurial, pro-open trade
         "is_yoruba": 0.5,             # Yoruba: commercial culture
         "is_nupe": 0.5,               # Nupe: historic trans-Saharan trade routes
@@ -1203,6 +1211,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "intercept": 1.0,
         "is_bottom_income": 2.5, "is_top_income": -2.0,
         "lga_Access Healthcare Pct": -0.05 / 100.0, "is_rural": 1.0, "is_older": 0.5,
+        "lga_Access Water Pct": -0.01,             # Low water access correlates with poor health infra
         "lga_Poverty Rate Pct": 0.015,            # Poorer LGAs → demand universal healthcare
         "lga_GDP Per Capita Est": -0.5 / 90000.0,  # Wealthy LGAs can afford private → less demand
         "is_middle_income": 0.5,      # Middle class also wants accessible healthcare
