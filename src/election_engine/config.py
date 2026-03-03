@@ -82,6 +82,9 @@ class EngineParams:
     tau_1: float = 0.3      # Alienation strength (τ₁)
     tau_2: float = 0.5      # Indifference strength (τ₂)
 
+    # Economic voting
+    beta_econ: float = 0.3        # Economic voting sensitivity. Higher = local economy matters more
+
     # Noise model
     kappa: float = 200.0          # Dirichlet concentration (κ). Higher = less noise
     sigma_national: float = 0.10  # National shock SD (σ_nat)
@@ -107,6 +110,8 @@ class EngineParams:
             raise ValueError(f"tau_1 must be >= 0, got {self.tau_1}")
         if self.tau_2 < 0:
             raise ValueError(f"tau_2 must be >= 0, got {self.tau_2}")
+        if self.beta_econ < 0:
+            raise ValueError(f"beta_econ must be >= 0, got {self.beta_econ}")
         if self.kappa <= 0:
             raise ValueError(f"kappa must be > 0, got {self.kappa}")
         if self.sigma_national < 0:
@@ -146,6 +151,13 @@ class Party:
         party organisation, and patron-client networks. Values are
         directly added to total utility for all voter types in the zone.
         Typical range: -1.0 (hostile territory) to +2.0 (core base).
+    economic_positioning : float
+        Party's economic orientation on a -1 to +1 scale.
+        +1 = populist/pro-poor (benefits from economic grievance),
+        -1 = pro-market/elite (benefits from prosperity).
+        Zero = neutral. The actual utility modifier is:
+            economic_positioning × lga_grievance_z × engine_param.
+        Where lga_grievance_z is z-scored (mean 0, std 1).
     """
 
     name: str
@@ -155,6 +167,7 @@ class Party:
     religious_alignment: str = ""      # Key into religious affinity matrix
     demographic_coefficients: Optional[dict] = None  # γ_mj terms for demographic utility
     regional_strongholds: Optional[dict] = None  # AZ number → utility bonus
+    economic_positioning: float = 0.0  # -1=pro-market, +1=populist/pro-poor
 
     def __post_init__(self) -> None:
         self.positions = np.asarray(self.positions, dtype=float)

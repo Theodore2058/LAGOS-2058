@@ -635,6 +635,7 @@ PARTIES = [
         valence=0.2,  # strong brand in educated urban constituencies
         leader_ethnicity="Pada",
         religious_alignment="Secular",
+        economic_positioning=-0.6,  # pro-market liberal, appeals to prosperous areas
         demographic_coefficients={
             "education": {"Tertiary": 0.5},
             "livelihood": {"Formal private": 0.4},
@@ -652,6 +653,7 @@ PARTIES = [
         valence=0.1,  # established party brand
         leader_ethnicity="Yoruba",
         religious_alignment="Mainline Protestant",
+        economic_positioning=0.3,  # centre-left, social-democratic lean
         demographic_coefficients={
             "education": {"Tertiary": 0.3},
             "livelihood": {"Public sector": 0.3},
@@ -668,6 +670,7 @@ PARTIES = [
         valence=0.0,
         leader_ethnicity="Edo",
         religious_alignment="Catholic",
+        economic_positioning=0.1,  # centrist catch-all, mild populist lean
         # Catch-all party: broad but shallow — mild bonus everywhere
         regional_strongholds={
             3: +0.3,   # Confluence: Edo is home base
@@ -680,6 +683,7 @@ PARTIES = [
         valence=0.0,
         leader_ethnicity="Igbo",
         religious_alignment="Pentecostal",
+        economic_positioning=-0.4,  # pro-commerce, entrepreneurial ethos
         demographic_coefficients={
             "livelihood": {"Trade/informal": 0.4, "Formal private": 0.3},
             "income": {"Top 20%": 0.3},
@@ -695,6 +699,7 @@ PARTIES = [
         valence=0.1,  # deep organizational roots across the north
         leader_ethnicity="Hausa-Fulani Undiff",
         religious_alignment="Mainstream Sunni",
+        economic_positioning=0.2,  # paternalist-populist, patronage economy
         demographic_coefficients={
             "livelihood": {"Smallholder": 0.3, "Public sector": 0.2},
         },
@@ -711,6 +716,7 @@ PARTIES = [
         valence=0.0,
         leader_ethnicity="Kanuri",
         religious_alignment="Al-Shahid",
+        economic_positioning=0.7,  # Islamist welfare state, strongly pro-poor
         demographic_coefficients={
             "income": {"Bottom 40%": 0.3},
             "education": {"Below secondary": 0.2},
@@ -726,6 +732,7 @@ PARTIES = [
         valence=0.0,
         leader_ethnicity="Ibibio",
         religious_alignment="Secular",
+        economic_positioning=0.8,  # labour party, strongly pro-worker/pro-poor
         demographic_coefficients={
             "livelihood": {"Trade/informal": 0.5, "Formal private": 0.3,
                            "Unemployed/student": 0.3},
@@ -743,6 +750,7 @@ PARTIES = [
         valence=0.15,  # WAFTA funding and organizational capacity
         leader_ethnicity="Naijin",
         religious_alignment="Secular",
+        economic_positioning=-0.5,  # tech-elite, globalist, pro-market
         demographic_coefficients={
             "education": {"Tertiary": 0.4},
             "livelihood": {"Formal private": 0.3},
@@ -759,6 +767,7 @@ PARTIES = [
         valence=0.0,
         leader_ethnicity="Hausa",
         religious_alignment="Tijaniyya",
+        economic_positioning=0.5,  # protectionist, defends small traders
         demographic_coefficients={
             "livelihood": {"Trade/informal": 0.3, "Smallholder": 0.2},
             "income": {"Bottom 40%": 0.2},
@@ -775,6 +784,7 @@ PARTIES = [
         valence=0.0,
         leader_ethnicity="Fulani",
         religious_alignment="Mainstream Sunni",
+        economic_positioning=0.0,  # security-focused, economically neutral
         demographic_coefficients={
             "livelihood": {"Public sector": 0.4},
         },
@@ -789,6 +799,7 @@ PARTIES = [
         valence=0.0,
         leader_ethnicity="Tiv",
         religious_alignment="Catholic",
+        economic_positioning=0.4,  # agrarian-populist, pro-smallholder
         demographic_coefficients={
             "livelihood": {"Smallholder": 0.2},
         },
@@ -804,6 +815,7 @@ PARTIES = [
         valence=0.0,
         leader_ethnicity="Middle Belt Minorities",
         religious_alignment="Mainline Protestant",
+        economic_positioning=0.6,  # agrarian-redistributive, pro-poor farmer
         demographic_coefficients={
             "livelihood": {"Smallholder": 0.4, "Commercial ag": 0.3},
             "income": {"Bottom 40%": 0.2},
@@ -820,6 +832,7 @@ PARTIES = [
         valence=-0.1,  # organizational weakness, radical stigma
         leader_ethnicity="Ijaw",
         religious_alignment="Secular",
+        economic_positioning=0.9,  # radical left, strongest pro-poor positioning
         demographic_coefficients={
             "livelihood": {"Trade/informal": 0.5, "Unemployed/student": 0.5},
             "income": {"Bottom 40%": 0.5},
@@ -835,6 +848,7 @@ PARTIES = [
         valence=-0.1,  # extreme positions limit broad appeal
         leader_ethnicity="Nupe",
         religious_alignment="Traditionalist",
+        economic_positioning=0.1,  # mildly statist, traditionalist economics
         demographic_coefficients={
             "livelihood": {"Public sector": 0.3},
         },
@@ -857,6 +871,7 @@ def main():
     params = EngineParams(
         q=0.5, beta_s=0.7, alpha_e=3.0, alpha_r=2.0,
         scale=1.0, tau_0=2.7, tau_1=0.3, tau_2=0.5,
+        beta_econ=0.3,
         kappa=400.0, sigma_national=0.07, sigma_regional=0.10,
         sigma_turnout=0.02, sigma_turnout_regional=0.03,
     )

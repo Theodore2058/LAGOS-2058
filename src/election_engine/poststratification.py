@@ -411,6 +411,25 @@ def compute_all_lga_results(
     else:
         regional_bonus_matrix = None
 
+    # Precompute economic voting modifier: (n_lga, J) float32.
+    # grievance_z is z-scored composite of poverty, unemployment, inverse GDP.
+    # Modifier = party.economic_positioning × grievance_z × beta_econ.
+    _has_econ = params.beta_econ > 0 and any(p.economic_positioning != 0 for p in parties)
+    if _has_econ:
+        _pov = lga_data["Poverty Rate Pct"].fillna(30.0).values.astype(float) if "Poverty Rate Pct" in lga_data.columns else np.full(n_lgas, 30.0)
+        _unemp = lga_data["Unemployment Rate Pct"].fillna(15.0).values.astype(float) if "Unemployment Rate Pct" in lga_data.columns else np.full(n_lgas, 15.0)
+        _gdp = lga_data["GDP Per Capita Est"].fillna(18000.0).values.astype(float) if "GDP Per Capita Est" in lga_data.columns else np.full(n_lgas, 18000.0)
+        # Composite: higher poverty + higher unemployment + lower GDP = more grievance
+        _grievance_raw = (_pov / 100.0) + (_unemp / 100.0) + (1.0 - np.clip(_gdp / 50000.0, 0, 1))
+        _g_mean = _grievance_raw.mean()
+        _g_std = max(_grievance_raw.std(), 1e-6)
+        grievance_z = ((_grievance_raw - _g_mean) / _g_std).astype(np.float32)
+        econ_positions = np.array([p.economic_positioning for p in parties], dtype=np.float32)
+        # econ_bonus[c, j] = beta_econ × econ_positions[j] × grievance_z[c]
+        econ_bonus_matrix = np.float32(params.beta_econ) * np.outer(grievance_z, econ_positions)
+    else:
+        econ_bonus_matrix = None
+
     # Pre-allocate output arrays for vote shares and turnout
     all_vote_shares = np.empty((n_lgas, J))
     all_turnout = np.empty(n_lgas)
@@ -520,6 +539,9 @@ def compute_all_lga_results(
         # Add regional stronghold bonus (per-AZ, per-party)
         if regional_bonus_matrix is not None:
             dot_products += regional_bonus_matrix[idx]  # broadcasts (J,) over rows
+        # Add economic voting modifier (pro-poor parties boosted in distressed LGAs)
+        if econ_bonus_matrix is not None:
+            dot_products += econ_bonus_matrix[idx]  # broadcasts (J,) over rows
         u_total = dot_products  # alias — (n_active, J) total utilities
 
         # Step 7: Inlined turnout computation (eliminates function call +
