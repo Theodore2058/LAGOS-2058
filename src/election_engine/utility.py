@@ -358,7 +358,8 @@ def compute_utilities_batch(
         J_al = dot_products.shape[1]
         # voter_wsq = Σ_d w_d x_{id}² — use einsum to avoid (N,D) temporaries
         voter_wsq = np.einsum("nd,nd->n", wx, voter_ideals)   # (N,)
-        # Compute min sq_dist without allocating full (N, J) — loop over J
+        # Column-at-a-time loop: better cache locality than full-array passes
+        # because each column (~60KB) fits in L1 cache.
         min_dist_sq = voter_wsq + sq_norms[0] - 2.0 * dot_products[:, 0]
         for j_al in range(1, J_al):
             candidate = voter_wsq + sq_norms[j_al] - 2.0 * dot_products[:, j_al]
@@ -366,12 +367,11 @@ def compute_utilities_batch(
         _alienation_out["min_dist_sq"] = min_dist_sq  # (N,)
 
     # --- Fast path: combined fixed_type_utility table ---
-    # When available, ethnic + religious + demographic are already precomputed
-    # into a single (N_all_types, J) table, so one fancy index replaces three.
+    # When available, ethnic + religious + demographic + valences are already
+    # precomputed into a single (N_all_types, J) table, so one fancy index
+    # replaces three lookups plus the valence broadcast.
     if fixed_type_utility is not None and active_indices is not None:
-        # u_spatial is (N, J); valences broadcasts from (J,)
         result = u_spatial
-        result += valences
         result += fixed_type_utility[active_indices]
         return result
 

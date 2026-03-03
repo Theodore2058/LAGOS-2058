@@ -224,6 +224,7 @@ def batch_compute_vote_probs_with_turnout(
     settings: np.ndarray,
     party_sq_norms_uniform: np.ndarray | None = None,
     precomputed_min_dist_sq: np.ndarray | None = None,
+    precomputed_demo_adjust: np.ndarray | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     """
     Vectorised vote probabilities and turnout for N voter types at once.
@@ -287,12 +288,17 @@ def batch_compute_vote_probs_with_turnout(
     # --- Base abstention utility ---
     v_abstain = params.tau_0 + params.tau_1 * min_dist_sq + params.tau_2 / gap  # (N,)
 
-    # --- Demographic adjustments (vectorised, in-place) ---
-    v_abstain[educations == 2] -= 1.0  # Tertiary
-    v_abstain[educations == 0] += 0.3  # Below secondary
-    v_abstain[age_cohorts == 3] -= 0.5  # 50+
-    v_abstain[age_cohorts == 0] += 0.2  # 18-24
-    v_abstain[settings == 0] -= 0.2  # Urban
+    # --- Demographic adjustments ---
+    if precomputed_demo_adjust is not None:
+        # Fast path: pre-sliced (N,) adjustment array computed once at startup
+        v_abstain += precomputed_demo_adjust
+    else:
+        # Fallback: 5 boolean mask operations
+        v_abstain[educations == 2] -= 1.0  # Tertiary
+        v_abstain[educations == 0] += 0.3  # Below secondary
+        v_abstain[age_cohorts == 3] -= 0.5  # 50+
+        v_abstain[age_cohorts == 0] += 0.2  # 18-24
+        v_abstain[settings == 0] -= 0.2  # Urban
 
     # --- Softmax over [party utilities..., abstention] ---
     # Reuse top1 from indifference; avoid second max scan over (N, J).

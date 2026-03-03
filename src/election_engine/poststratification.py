@@ -114,6 +114,7 @@ def compute_lga_results(
     precomputed_marginals_row: tuple | None = None,
     fixed_type_utility: np.ndarray | None = None,
     party_sq_norms_uniform: np.ndarray | None = None,
+    turnout_demo_adjust: np.ndarray | None = None,
 ) -> tuple[np.ndarray, float, int]:
     """
     Compute vote shares and turnout for one LGA (fully vectorised).
@@ -247,6 +248,9 @@ def compute_lga_results(
         set_codes = np.array([set_map[voter_types[i].setting] for i in active_idx], dtype=np.int32)
 
     # Batch turnout computation
+    active_demo_adj = None
+    if turnout_demo_adjust is not None:
+        active_demo_adj = turnout_demo_adjust[active_idx]
     active_vote_probs, active_turnout = batch_compute_vote_probs_with_turnout(
         utilities_matrix=utilities_matrix,
         voter_ideals=active_ideals,
@@ -257,6 +261,7 @@ def compute_lga_results(
         settings=set_codes,
         party_sq_norms_uniform=party_sq_norms_uniform,
         precomputed_min_dist_sq=precomputed_alienation,
+        precomputed_demo_adjust=active_demo_adj,
     )
 
     # Step 4: Aggregate (only active types contribute; inactive have zero weight)
@@ -336,7 +341,8 @@ def compute_all_lga_results(
 
     # Precompute combined fixed-type utility (ethnic + religious + demographic)
     # into a single (N_types, J) table — replaces 3 fancy-index lookups per LGA
-    # with a single one.
+    # with a single one.  Valences are pre-baked in so the hot loop needs only
+    # one fancy-index + add instead of two.
     fixed_type_utility = precompute_fixed_type_utility(
         eth_table=eth_table[0],
         all_eth_indices=all_eth_indices,
@@ -344,6 +350,16 @@ def compute_all_lga_results(
         all_rel_indices=all_rel_indices,
         demo_table=demo_table,
     ).astype(np.float32)
+    fixed_type_utility += valences  # Pre-bake valences (broadcasts (J,) over rows)
+
+    # Precompute turnout demographic adjustment per voter type (replaces
+    # 5 boolean-mask operations per LGA with a single fancy-index + add).
+    turnout_demo_adjust = np.zeros(len(voter_types), dtype=np.float32)
+    turnout_demo_adjust[type_indices["edu"] == 2] -= 1.0   # Tertiary
+    turnout_demo_adjust[type_indices["edu"] == 0] += 0.3   # Below secondary
+    turnout_demo_adjust[type_indices["age"] == 3] -= 0.5   # 50+
+    turnout_demo_adjust[type_indices["age"] == 0] += 0.2   # 18-24
+    turnout_demo_adjust[type_indices["set"] == 0] -= 0.2   # Urban
 
     # Use pre-computed salience if provided; otherwise compute here
     if precomputed_salience is not None:
@@ -412,6 +428,7 @@ def compute_all_lga_results(
             precomputed_marginals_row=marginals_row,
             fixed_type_utility=fixed_type_utility,
             party_sq_norms_uniform=party_sq_norms_uniform,
+            turnout_demo_adjust=turnout_demo_adjust,
         )
 
         all_vote_shares[idx] = vote_shares
