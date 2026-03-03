@@ -302,6 +302,27 @@ class VoterType:
     def is_rural_older(self) -> bool:
         return self.is_rural and self.is_older
 
+    # --- New cross-pressure interaction terms ---
+    @property
+    def is_yoruba_muslim(self) -> bool:
+        return self.is_yoruba and self.is_muslim
+
+    @property
+    def is_igbo_pentecostal(self) -> bool:
+        return self.is_igbo and self.is_pentecostal
+
+    @property
+    def is_pada_tertiary(self) -> bool:
+        return self.is_pada and self.is_tertiary
+
+    @property
+    def is_rural_bottom_income(self) -> bool:
+        return self.is_rural and self.is_bottom_income
+
+    @property
+    def is_kanuri_rural(self) -> bool:
+        return self.is_kanuri and self.is_rural
+
 
 @lru_cache(maxsize=1)
 def generate_all_voter_types() -> list[VoterType]:
@@ -873,6 +894,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_igbo": -1.0,           # Igbo are strongly secular
         "is_ibibio": -0.5,         # Southern Christians oppose Sharia
         "lga_Al-Shahid Influence": 0.3 / 5.0,  # Al-Shahid areas push all voters slightly pro-Sharia
+        "is_yoruba_muslim": -1.5,  # Yoruba Muslims less pro-Sharia than northern Muslims
+        "is_kanuri_rural": 1.0,    # Rural Kanuri: deeply Islamist, Al-Shahid influence
     },
     # 2. Fiscal Autonomy (centralism ↔ confederalism)
     {
@@ -886,6 +909,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_tiv": 1.0,            # Middle Belt wants local autonomy from northern hegemony
         "is_mb_minority": 1.0,    # Middle Belt minorities pro-local control
         "is_yoruba": 0.5,         # Yoruba moderately favour fiscal autonomy
+        "is_igbo_pentecostal": 1.0,  # Igbo Pentecostals: self-determination + activism
     },
     # 3. Chinese Relations (Western pivot ↔ deepen WAFTA)
     {
@@ -917,6 +941,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_igbo": -1.5,              # Igbo strongly meritocratic (self-reliance ethos)
         "is_yoruba": -1.0,            # Yoruba lean meritocratic
         "is_edo": 0.5,                # Edo moderate pro-quota
+        "is_yoruba_muslim": -0.5,     # Yoruba Muslims: less pro-quota than northern Muslims
     },
     # 6. Fertility Policy (population control ↔ pro-natalism)
     {
@@ -1022,6 +1047,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_tiv": -1.0,              # Tiv defend local language
         "is_nupe": -0.5,             # Nupe value local identity
         "is_christian_urban": 0.5,    # Urban Christians lean English
+        "is_yoruba_muslim": -0.5,     # Yoruba Muslims: value Arabic + Yoruba (less English)
+        "is_pada_tertiary": 1.5,      # Educated Padà: strongly pro-English (cosmopolitan)
     },
     # 15. Women's Rights (traditional patriarchy ↔ aggressive feminism)
     {
@@ -1036,6 +1063,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_tiv": 0.5,                # Tiv: relatively egalitarian tradition
         "lga_Al-Shahid Influence": -0.3 / 5.0,  # Al-Shahid areas → more conservative on women
         "lga_Conflict History": -0.2 / 5.0,      # Conflict zones → conservative retrenchment
+        "is_yoruba_muslim": 0.5,      # Yoruba Muslims: more progressive than other Muslims on gender
+        "is_kanuri_rural": -1.0,      # Rural Kanuri: most conservative gender views
     },
     # 16. Traditional Authority (marginalization ↔ formal integration)
     {
@@ -1050,6 +1079,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_tiv": -0.5,              # Tiv: more egalitarian, less chief-oriented
         "is_rural_older": 1.0,       # Rural elders strongest supporters
         "is_urban_youth": -1.5,       # Urban youth reject trad authority
+        "is_pada_tertiary": -2.0,     # Educated Padà: techno-progressive, anti-traditional
+        "is_kanuri_rural": 1.0,       # Rural Kanuri: strong traditional Shehu system
     },
     # 17. Infrastructure (targeted ↔ universal provision)
     {
@@ -1062,6 +1093,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_urban_youth": -0.5,       # Urban youth prefer targeted investment
         "lga_Conflict History": 0.3 / 5.0,   # Conflict zones demand reconstruction
         "lga_Federal Control 2058": 0.3,      # Federal control zones need rebuilding
+        "is_rural_bottom_income": 1.0,  # Rural poor: most infrastructure-deprived
     },
     # 18. Land Tenure (customary ↔ formalization)
     {
@@ -1084,6 +1116,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_informal": 0.5,          # Informal workers want better services
         "is_youth_unemployed": 1.0,  # Unemployed youth strongly pro-redistribution
         "is_igbo": -1.0,             # Igbo prefer low-tax self-reliance
+        "is_rural_bottom_income": 1.5,  # Rural poor: strongly pro-redistribution
     },
     # 20. Agricultural Policy (free market ↔ protectionist smallholder)
     {
@@ -1105,6 +1138,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_kanuri": -1.5,            # Kanuri: conservative, anti-enhancement
         "is_urban_youth": 1.0,        # Urban youth embrace technology
         "is_naijin": 1.0,             # Naijin cosmopolitan, pro-tech
+        "is_pada_tertiary": 2.0,       # Educated Padà: tech-progressive elite, very pro-access
+        "is_kanuri_rural": -1.0,       # Rural Kanuri: deeply conservative, anti-enhancement
     },
     # 22. Trade Policy (autarky ↔ full openness)
     {
@@ -1116,6 +1151,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_yoruba": 0.5,             # Yoruba: commercial culture
         "is_nupe": 0.5,               # Nupe: historic trans-Saharan trade routes
         "is_kanuri": -0.5,            # Kanuri: protectionist instinct
+        "is_pada_tertiary": 1.5,       # Educated Padà: cosmopolitan, very pro-open trade
     },
     # 23. Environmental Regulation (growth first ↔ strong regulation)
     {
@@ -1140,6 +1176,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_yoruba": 0.5,             # Yoruba: strong media tradition
         "lga_Conflict History": -0.3 / 5.0,   # Conflict zones → lean state control (security)
         "lga_Federal Control 2058": -0.5,      # Federal control → accept media restrictions
+        "is_igbo_pentecostal": 1.0,    # Igbo Pentecostals: strongly pro-free expression
     },
     # 25. Healthcare (pure market ↔ universal provision)
     {
@@ -1151,6 +1188,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_tiv": 0.5,                # Tiv: underserved area
         "is_kanuri": 0.5,             # Kanuri: health infrastructure poor
         "lga_Conflict History": 0.3 / 5.0,   # Conflict zones → demand universal healthcare
+        "is_rural_bottom_income": 1.0,  # Rural poor: desperate for healthcare access
     },
     # 26. Padà Status (anti-Padà ↔ Padà preservation)
     {
@@ -1187,6 +1225,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_nupe": -1.0,             # Nupe want distinct identity from HF hegemony
         "is_edo": -1.0,              # Edo want Mid-West recognition
         "lga_Conflict History": -0.3 / 5.0,  # Conflict areas want restructuring / more states
+        "is_igbo_pentecostal": -1.5,  # Igbo Pentecostals: strongly pro-restructuring (Biafra sentiment)
+        "is_yoruba_muslim": 0.5,      # Yoruba Muslims: less anti-AZ than Yoruba Christians
     },
 ]
 
@@ -1410,6 +1450,17 @@ def _build_voter_feature_matrix(voter_types: list[VoterType],
             mat[:, fi] = (_is_youth & (liv_idx == 5)).astype(np.float32)
         elif feat == "is_rural_older":
             mat[:, fi] = (_is_rural & (age_idx == 3)).astype(np.float32)
+        # --- New cross-pressure interactions ---
+        elif feat == "is_yoruba_muslim":
+            mat[:, fi] = ((eth_idx == _yoruba) & _is_muslim).astype(np.float32)
+        elif feat == "is_igbo_pentecostal":
+            mat[:, fi] = ((eth_idx == _igbo) & (rel_idx == _pentecostal)).astype(np.float32)
+        elif feat == "is_pada_tertiary":
+            mat[:, fi] = ((eth_idx == _pada) & _is_tertiary).astype(np.float32)
+        elif feat == "is_rural_bottom_income":
+            mat[:, fi] = (_is_rural & _is_bottom).astype(np.float32)
+        elif feat == "is_kanuri_rural":
+            mat[:, fi] = ((eth_idx == _kanuri) & _is_rural).astype(np.float32)
         else:
             # Fallback for any unknown feature — use getattr (shouldn't happen
             # for the default table, but supports custom coefficient tables)
