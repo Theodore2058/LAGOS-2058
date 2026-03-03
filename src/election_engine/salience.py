@@ -323,6 +323,7 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "% Population Under 30": 0.5 / 100.0,
             "population_pressure": 0.3,          # Overstretched areas care about fertility
             "Poverty Rate Pct": 0.2 / 100.0,    # Poor areas more concerned
+            "% Muslim": 0.3 / 100.0,            # Muslim areas: fertility is religious/cultural issue
         },
     ),
     # 7. Constitutional Structure
@@ -376,6 +377,7 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "gender_parity_gap": 1.0,
             "youth_bulge": 0.4,                   # Large youth populations amplify education debates
             "female_literacy_gap": 0.01,          # Gender education gap makes it more salient
+            "Pentecostal Growth": 0.15 / 3.0,     # Pentecostal schools → education becomes contested
         },
     ),
     # 11. Labor & Automation
@@ -428,6 +430,7 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Urban Pct": 0.5 / 100.0,
             "ethnic_fragmentation": 0.5,           # More diverse → language politics matters
             "Almajiri Index": 0.3 / 5.0,          # Arabic vs English in education
+            "% Muslim": 0.15 / 100.0,             # Muslim areas: Arabic vs English debate
         },
     ),
     # 15. Women's Rights
@@ -440,6 +443,8 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "female_literacy_gap": 0.02,
             "Pentecostal Growth": 0.2 / 5.0,     # Pentecostal growth stirs gender debates
             "religious_tension_proxy": 0.5,        # Interfaith zones debate women's rights
+            "% Muslim": 0.2 / 100.0,              # Muslim areas: gender norms are politically contested
+            "% Christian": 0.15 / 100.0,           # Christian areas: feminist movements engage
         },
     ),
     # 16. Traditional Authority
@@ -562,6 +567,8 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Urban Pct": 0.5 / 100.0,
             "youth_bulge": 0.3,                    # Young populations more engaged with media
             "conflict_severity": 0.2 / 5.0,       # Conflict zones value press freedom
+            "Pentecostal Growth": 0.15 / 3.0,     # Pentecostal media empires → media freedom matters
+            "% Christian": 0.1 / 100.0,            # Christian areas: media-savvy, free press tradition
         },
     ),
     # 25. Healthcare
