@@ -988,6 +988,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_naijin": 1.5,             # Naijin cultural attachment to BIC
         "is_kanuri": -1.0,            # Kanuri sceptical of BIC
         "is_yoruba": -0.5,            # Yoruba mildly reformist
+        "is_nupe": -0.5,              # Nupe: pragmatic, more concerned with trade than BIC
+        "is_ibibio": -0.5,            # Ibibio: southern, BIC less relevant
         "lga_Al-Shahid Influence": -0.2 / 5.0,  # Al-Shahid opposes BIC as Western institution
         "lga_Conflict History": -0.15 / 5.0,     # Conflict zones distrust state institutions
     },
@@ -1069,6 +1071,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_Rail Corridor": -0.2,    # Rail corridors: better connectivity eases housing pressure
         "lga_Urban Pct": 0.01,        # Urban areas → more housing pressure
         "lga_Unemployment Rate Pct": 0.01,  # High unemployment → more demand for state housing
+        "is_igbo_bottom_income": 1.0,  # Poor Igbo in cities: acute housing crisis
     },
     # 10. Education (radical localism ↔ meritocratic centralism)
     {
@@ -1336,6 +1339,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_igbo_pentecostal": 1.0,    # Igbo Pentecostals: strongly pro-free expression
         "is_older": -0.5,             # Elderly: prefer media control (stability)
         "lga_Mobile Phone Penetration Pct": 0.005,  # Connected areas → value media freedom
+        "is_ibibio": 0.5,             # Ibibio: Calabar/Uyo media tradition, pro-free press
+        "is_edo": 0.5,                # Edo: Benin City press tradition
     },
     # 25. Healthcare (pure market ↔ universal provision)
     {
@@ -1384,6 +1389,9 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_urban_youth": 0.5,        # Urban youth lean green
         "lga_Refinery Zone": -0.5,    # Refinery zones: fossil economy entrenched
         "lga_Refinery Present": -0.3,  # Refinery present: local jobs depend on fossil
+        "lga_Cobalt Extraction Active": 0.5,  # Cobalt: battery tech → green transition aligned
+        "lga_Pct Livelihood Manufacturing": 0.005,  # Manufacturing → demand reliable power → pragmatic green
+        "is_edo": 0.5,                # Edo: oil zone but environmentally conscious
     },
     # 28. AZ Restructuring (return to 36+ states ↔ keep 8 AZs)
     {
