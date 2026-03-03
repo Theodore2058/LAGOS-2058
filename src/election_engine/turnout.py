@@ -272,13 +272,17 @@ def batch_compute_vote_probs_with_turnout(
             np.minimum(min_dist_sq, candidate, out=min_dist_sq)
         del cross_terms  # Free (N, J) early
 
-    # --- Indifference: gap = top1 - mean(rest) without full sort ---
-    # top1 = max, mean_rest = (sum - top1) / (J - 1), gap = top1 - mean_rest
-    # Reuse top1 later for softmax stability.
+    # --- Indifference: gap = top1 - mean(rest) ---
+    # Column-at-a-time max + sum: each column (N,) fits in L1 cache,
+    # merging two axis=1 reductions into a single pass over the (N, J) array.
     if J >= 2:
-        top1 = utilities_matrix.max(axis=1)  # (N,)
-        row_sum = utilities_matrix.sum(axis=1)  # (N,)
-        mean_rest = (row_sum - top1) / (J - 1)
+        top1 = utilities_matrix[:, 0].copy()  # (N,) float32
+        row_sum = utilities_matrix[:, 0].copy()
+        for j_ind in range(1, J):
+            col = utilities_matrix[:, j_ind]
+            np.maximum(top1, col, out=top1)
+            row_sum += col
+        mean_rest = (row_sum - top1) * np.float32(1.0 / (J - 1))
         gap = np.abs(top1 - mean_rest)
     else:
         top1 = utilities_matrix[:, 0].copy()
@@ -290,10 +294,8 @@ def batch_compute_vote_probs_with_turnout(
 
     # --- Demographic adjustments ---
     if precomputed_demo_adjust is not None:
-        # Fast path: pre-sliced (N,) adjustment array computed once at startup
         v_abstain += precomputed_demo_adjust
     else:
-        # Fallback: 5 boolean mask operations
         v_abstain[educations == 2] -= 1.0  # Tertiary
         v_abstain[educations == 0] += 0.3  # Below secondary
         v_abstain[age_cohorts == 3] -= 0.5  # 50+
@@ -303,34 +305,38 @@ def batch_compute_vote_probs_with_turnout(
     # --- Softmax over [party utilities..., abstention] ---
     # Reuse top1 from indifference; avoid second max scan over (N, J).
     row_max = np.maximum(top1, v_abstain)
-    row_max *= params.scale  # (N,)
+    row_max *= params.scale
+    rm32 = row_max.astype(np.float32)  # (N,) float32
+    scale_f32 = np.float32(params.scale)
 
-    # Float32 softmax: np.exp is ~5x faster in float32; the relative
-    # probabilities retain full accuracy (max absolute error < 1e-7).
+    # Column-at-a-time exp + sum: fuses the scale, shift, exp, and accumulate
+    # into a single pass over (N, J).  Each column (N,) = ~60KB stays in L1;
+    # avoids 3 separate full (N, J) passes of the previous approach.
     exp_parties = np.empty((N, J), dtype=np.float32)
-    np.multiply(utilities_matrix, np.float32(params.scale), out=exp_parties,
-                casting="unsafe")
-    exp_parties -= row_max.astype(np.float32)[:, np.newaxis]
-    np.exp(exp_parties, out=exp_parties)  # (N, J) in-place, float32
+    sum_exp = np.zeros(N, dtype=np.float32)
+    _tmp = np.empty(N, dtype=np.float32)  # reusable (N,) scratch
+    for j_exp in range(J):
+        np.multiply(utilities_matrix[:, j_exp], scale_f32, out=_tmp)
+        _tmp -= rm32
+        np.exp(_tmp, out=_tmp)
+        exp_parties[:, j_exp] = _tmp
+        sum_exp += _tmp
 
     exp_abstain_f32 = np.exp(
         (v_abstain * params.scale - row_max).astype(np.float32)
     )  # (N,) float32
+    sum_exp += exp_abstain_f32
+    inv_sum = np.float32(1.0) / sum_exp  # (N,) float32
 
-    # Normalisation denominator
-    sum_exp = exp_parties.sum(axis=1)       # (N,) float32
-    sum_exp += exp_abstain_f32              # (N,) in-place
-    inv_sum = np.float32(1.0) / sum_exp     # (N,) float32
-
-    # Turnout = 1 - P(abstain) — stay float32; downstream dot products
-    # auto-promote to float64 when multiplied by float64 weights.
+    # Turnout = 1 - P(abstain)
     p_abstain_f32 = exp_abstain_f32 * inv_sum
     turnout_probs = np.clip(np.float32(1.0) - p_abstain_f32,
                             np.float32(0.0), np.float32(1.0))
 
-    # Conditional vote probabilities (in-place on exp_parties, stay float32)
-    safe_total = np.maximum(np.float32(1.0) - p_abstain_f32,
-                            np.float32(1e-30))
-    exp_parties *= (inv_sum / safe_total)[:, np.newaxis]
+    # Conditional vote probabilities (column-at-a-time, stay float32)
+    safe_total = np.maximum(turnout_probs, np.float32(1e-30))
+    scale_factor = inv_sum / safe_total  # (N,) float32
+    for j_cond in range(J):
+        exp_parties[:, j_cond] *= scale_factor
 
     return exp_parties, turnout_probs
