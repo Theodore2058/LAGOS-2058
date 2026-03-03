@@ -1119,6 +1119,51 @@ def main():
     available_sv = [c for c in sv_cols if c in state_votes.columns]
     print(state_votes[available_sv].to_string(index=False))
 
+    # --- Voting district results ---
+    import pandas as pd
+    district_file = Path(__file__).parent.parent / "voting_districts_summary.xlsx"
+    if district_file.exists():
+        districts = pd.read_excel(district_file)
+        district_rows = []
+        for _, drow in districts.iterrows():
+            lga_list = [l.strip() for l in str(drow["LGA List"]).split(",")]
+            dist_lgas = lga_with_votes[lga_with_votes["LGA Name"].isin(lga_list)]
+            if len(dist_lgas) == 0:
+                continue
+            row = {
+                "District ID": drow["District ID"],
+                "AZ Name": drow["AZ Name"],
+                "# LGAs": drow["# LGAs"],
+                "Population": drow["Population"],
+            }
+            total_votes = dist_lgas["Total_Votes"].sum()
+            row["Total_Votes"] = total_votes
+            for p in party_names:
+                vcol = f"{p}_votes"
+                if vcol in dist_lgas.columns:
+                    row[f"{p}_votes"] = dist_lgas[vcol].sum()
+                    row[f"{p}_share"] = (
+                        row[f"{p}_votes"] / total_votes if total_votes > 0 else 0.0
+                    )
+            district_rows.append(row)
+
+        if district_rows:
+            dist_df = pd.DataFrame(district_rows)
+            print(f"\nVOTING DISTRICT RESULTS ({len(dist_df)} districts, base run):")
+            top3_d_vote = [f"{p}_votes" for p in top3]
+            top3_d_share = [f"{p}_share" for p in top3]
+            show_cols = (
+                ["District ID", "AZ Name", "Total_Votes"]
+                + top3_d_vote + top3_d_share
+            )
+            available_d = [c for c in show_cols if c in dist_df.columns]
+            disp_d = dist_df[available_d].copy()
+            for p in top3:
+                sc = f"{p}_share"
+                if sc in disp_d.columns:
+                    disp_d[sc] = disp_d[sc].map("{:.1%}".format)
+            print(disp_d.to_string(index=False))
+
     # --- State-level MC win probabilities ---
     state_mc = mc.get("state_mc_stats")
     if state_mc is not None and len(state_mc) > 0:
