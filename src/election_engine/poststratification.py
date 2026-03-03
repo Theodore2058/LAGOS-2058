@@ -665,6 +665,14 @@ def compute_all_lga_results(
     for _code in range(4, 7):  # Pentecostal, Catholic, Mainline Protestant
         minority_mobilisation[:, _code] = _christian_mob
 
+    # Pentecostal mobilisation bonus: Pentecostal churches actively mobilise
+    # their members to vote as a bloc, regardless of majority/minority status.
+    # This adds to any existing minority mobilisation effect for Pentecostals.
+    _pent_turnout = _lga_col("Pentecostal Growth", 0.0)
+    minority_mobilisation[:, 4] -= np.float32(0.1) * np.clip(
+        _pent_turnout / 3.0, 0.0, 1.0
+    ).astype(np.float32)  # Pentecostal: church-led voter mobilisation
+
     # Traditionalists: generally marginalised small group
     _pct_trad = _lga_col("% Traditionalist", 5.0)
     minority_mobilisation[:, 7] = np.where(
