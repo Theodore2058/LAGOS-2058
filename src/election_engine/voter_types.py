@@ -436,6 +436,32 @@ class VoterType:
         """Minority urban youth: pan-ethnic progressive coalition base."""
         return self.is_minority and self.is_urban and self.is_youth
 
+    # --- Gender-ethnic and income-education interactions ---
+    @property
+    def is_igbo_female(self) -> bool:
+        """Igbo women: strong market women tradition, economic independence."""
+        return self.is_igbo and self.is_female
+
+    @property
+    def is_yoruba_female(self) -> bool:
+        """Yoruba women: Iyaloja market women tradition, political influence."""
+        return self.is_yoruba and self.is_female
+
+    @property
+    def is_tertiary_bottom_income(self) -> bool:
+        """Educated poor: cross-pressured between aspiration and deprivation."""
+        return self.is_tertiary and self.is_bottom_income
+
+    @property
+    def is_young_adult(self) -> bool:
+        """25-34 age cohort: peak working age, family formation."""
+        return self.age_cohort == "25-34"
+
+    @property
+    def is_urban_trader(self) -> bool:
+        """Urban informal traders: market stall economy, price-sensitive."""
+        return self.is_urban and self.livelihood == "Trade/informal"
+
 
 @lru_cache(maxsize=1)
 def generate_all_voter_types() -> list[VoterType]:
@@ -1172,6 +1198,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_Unemployment Rate Pct": 0.01,  # High unemployment → more demand for state housing
         "is_igbo_bottom_income": 1.0,  # Poor Igbo in cities: acute housing crisis
         "lga_Major Urban Center": 1.0,  # Major cities: extreme housing pressure → interventionism
+        "is_tertiary_bottom_income": 1.5,  # Educated poor: acute housing pain with awareness of alternatives
+        "is_young_adult": 0.5,  # 25-34: family formation, housing most acute need
     },
     # 10. Education (radical localism ↔ meritocratic centralism)
     {
@@ -1214,6 +1242,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_Poverty Rate Pct": 0.01,         # Poorer areas → more worried about job displacement
         "is_pentecostal_formal": -0.5,  # Pentecostal formal sector: pro-capital, entrepreneurial prosperity gospel
         "is_muslim_trader": 0.5,        # Muslim traders: pro-labor (guild/bazaar solidarity)
+        "is_urban_trader": 0.5,  # Urban informal traders: pro-labor, fear automation of retail
     },
     # 12. Military Role (civilian control ↔ military guardianship)
     {
@@ -1295,6 +1324,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_yoruba_christian_urban": 1.0,  # Yoruba Christian urban women: progressive feminist base
         "is_hf_rural_older": -1.5,  # HF rural elderly: deeply patriarchal
         "is_kanuri_muslim_youth": -1.0,  # Kanuri Muslim youth: conservative gender views
+        "is_igbo_female": 1.0,  # Igbo women: market women tradition, economic agency
+        "is_yoruba_female": 0.8,  # Yoruba women: Iyaloja market women, political voice
     },
     # 16. Traditional Authority (marginalization ↔ formal integration)
     {
@@ -1375,6 +1406,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_igbo_pentecostal_formal": -1.5,  # Igbo Pentecostal formal: prosperity gospel, anti-tax
         "is_ijaw_christian_unemployed": 2.0,  # Ijaw Christian unemployed: strongly pro-redistribution
         "is_yoruba_muslim_trader": -0.5,  # Yoruba Muslim traders: low-tax, zakat over secular tax
+        "is_tertiary_bottom_income": 1.5,  # Educated poor: strongly pro-redistribution (aware of inequality)
     },
     # 20. Agricultural Policy (free market ↔ protectionist smallholder)
     {
@@ -1417,6 +1449,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_igbo_pentecostal_formal": -1.5,  # Igbo Pentecostal formal: prosperity gospel but anti-enhancement
         "is_yoruba_christian_urban": 0.8,  # Yoruba Christian urban: cosmopolitan, pro-science
         "is_kanuri_muslim_youth": -1.5,  # Kanuri Muslim youth: deeply conservative, anti-enhancement
+        "is_young_adult": 0.5,  # 25-34: open to enhancement for career advantage
     },
     # 22. Trade Policy (autarky ↔ full openness)
     {
@@ -1446,6 +1479,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_Major Urban Center": 0.8,  # Major cities: trade-connected, pro-openness
         "is_yoruba_muslim_trader": 0.8,  # Yoruba Muslim traders: Tijaniyya trade networks, pro-open
         "is_igbo_pentecostal_formal": 1.5,  # Igbo Pentecostal formal: entrepreneurial, pro-free trade
+        "is_igbo_female": 0.8,  # Igbo women: market women → pro-open trade
+        "is_urban_trader": -0.5,  # Urban traders: fear cheap imports undercutting local markets
     },
     # 23. Environmental Regulation (growth first ↔ strong regulation)
     {
@@ -1507,6 +1542,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_pentecostal_formal": -0.5,   # Pentecostal formal: faith-healing tradition, less state healthcare
         "is_catholic": 0.5,              # Catholics: social doctrine, pro-universal healthcare
         "is_catholic_smallholder": 0.8,  # Catholic smallholders: underserved, strongly pro-universal care
+        "is_young_adult": 0.5,  # 25-34: family formation → maternal/child health demand
+        "is_igbo_female": 0.5,  # Igbo women: maternal health advocates
     },
     # 26. Padà Status (anti-Padà ↔ Padà preservation)
     {
@@ -1853,6 +1890,17 @@ def _build_voter_feature_matrix(voter_types: list[VoterType],
             mat[:, fi] = ((eth_idx == _yoruba) & _is_muslim & (liv_idx == 2)).astype(np.float32)
         elif feat == "is_minority_urban_youth":
             mat[:, fi] = (~np.isin(eth_idx, list(_majority_set)) & _is_urban & _is_youth).astype(np.float32)
+        # --- Gender-ethnic and income-education interactions (batch 13) ---
+        elif feat == "is_igbo_female":
+            mat[:, fi] = ((eth_idx == _igbo) & _is_female).astype(np.float32)
+        elif feat == "is_yoruba_female":
+            mat[:, fi] = ((eth_idx == _yoruba) & _is_female).astype(np.float32)
+        elif feat == "is_tertiary_bottom_income":
+            mat[:, fi] = (_is_tertiary & _is_bottom).astype(np.float32)
+        elif feat == "is_young_adult":
+            mat[:, fi] = (age_idx == 1).astype(np.float32)  # 25-34 = index 1
+        elif feat == "is_urban_trader":
+            mat[:, fi] = (_is_urban & (liv_idx == 2)).astype(np.float32)
         else:
             # Fallback for any unknown feature — use getattr (shouldn't happen
             # for the default table, but supports custom coefficient tables)

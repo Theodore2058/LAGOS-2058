@@ -594,6 +594,18 @@ def compute_all_lga_results(
     _lga_turnout_mod -= 0.03 * _col_eastern     # Eastern: Igbo community mobilisation
     _lga_turnout_mod -= 0.04 * _col_midwestern  # Mid-Western: minority identity mobilisation
 
+    # Internet Access: political information, campaign exposure → engagement
+    _internet = _lga_col("Internet Access Pct", 50.0)
+    _lga_turnout_mod -= 0.06 * np.clip(_internet / 100.0, 0.0, 1.0)  # connected → informed → turnout
+
+    # Mobile Phone Penetration: party mobilisation via SMS/WhatsApp
+    _mobile = _lga_col("Mobile Phone Penetration Pct", 80.0)
+    _lga_turnout_mod -= 0.04 * np.clip(_mobile / 100.0, 0.0, 1.0)  # phone access → mobilisation
+
+    # Market Access Index: connected communities participate more
+    _market_acc = _lga_col("Market Access Index", 7.0)
+    _lga_turnout_mod -= 0.03 * np.clip(_market_acc / 10.0, 0.0, 1.0)  # accessible → integrated → turnout
+
     lga_turnout_modifier = _lga_turnout_mod.astype(np.float32)
 
     # ---- Identity context modifiers ----
