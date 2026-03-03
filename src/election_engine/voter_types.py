@@ -954,6 +954,126 @@ def demographics_to_ideal_point(
     return ideal
 
 
+def _build_voter_feature_matrix(voter_types: list[VoterType],
+                                coeff_table: list[dict]) -> tuple[list[str], np.ndarray]:
+    """
+    Build (N_types, N_features) boolean matrix for all voter-level features
+    used in the coefficient table.  Uses _build_type_indices() for O(1) lookup
+    instead of per-type getattr (174k × 130 calls → eliminated).
+
+    Returns (feature_names, feature_matrix) where feature_matrix is float32.
+    """
+    # Collect unique voter-level feature names from all issues
+    feat_set: set[str] = set()
+    for coeffs in coeff_table:
+        for feat in coeffs:
+            if feat != "intercept" and not feat.startswith("lga_"):
+                feat_set.add(feat)
+    feature_names = sorted(feat_set)  # deterministic order
+
+    idx = _build_type_indices()
+    N = len(voter_types)
+    F = len(feature_names)
+    mat = np.zeros((N, F), dtype=np.float32)
+
+    # Precompute index lookups for O(1) category → int mapping
+    eth_idx = idx["eth"]  # (N,) int32
+    rel_idx = idx["rel"]
+    set_idx = idx["set"]
+    age_idx = idx["age"]
+    edu_idx = idx["edu"]
+    gen_idx = idx["gen"]
+    liv_idx = idx["liv"]
+    inc_idx = idx["inc"]
+
+    # Ethnicity int codes (matching _CORE_ETHNICITIES order)
+    _eth_map = {e: j for j, e in enumerate(_CORE_ETHNICITIES)}
+    _hausa = _eth_map["Hausa"]
+    _fulani = _eth_map["Fulani"]
+    _hf_undiff = _eth_map["Hausa-Fulani Undiff"]
+    _yoruba = _eth_map["Yoruba"]
+    _igbo = _eth_map["Igbo"]
+    _ijaw = _eth_map["Ijaw"]
+    _pada = _eth_map["Pada"]
+    _naijin = _eth_map["Naijin"]
+    _majority_set = {_hausa, _fulani, _hf_undiff, _yoruba, _igbo}
+
+    # Religion int codes (matching RELIGIONS order)
+    _rel_map = {r: j for j, r in enumerate(RELIGIONS)}
+    _tijaniyya = _rel_map["Tijaniyya"]
+    _qadiriyya = _rel_map["Qadiriyya"]
+    _al_shahid = _rel_map["Al-Shahid"]
+    _mainstream_sunni = _rel_map["Mainstream Sunni"]
+    _pentecostal = _rel_map.get("Pentecostal", -1)
+    _catholic = _rel_map.get("Catholic", -1)
+    _mainline_prot = _rel_map.get("Mainline Protestant", -1)
+    _muslim_codes = {_tijaniyya, _qadiriyya, _al_shahid, _mainstream_sunni}
+
+    # Vectorised boolean feature computation
+    for fi, feat in enumerate(feature_names):
+        if feat == "is_muslim":
+            mat[:, fi] = np.isin(rel_idx, list(_muslim_codes)).astype(np.float32)
+        elif feat == "is_christian":
+            mat[:, fi] = np.isin(rel_idx, [_pentecostal, _catholic, _mainline_prot]).astype(np.float32)
+        elif feat == "is_al_shahid":
+            mat[:, fi] = (rel_idx == _al_shahid).astype(np.float32)
+        elif feat == "is_tijaniyya":
+            mat[:, fi] = (rel_idx == _tijaniyya).astype(np.float32)
+        elif feat == "is_tertiary":
+            mat[:, fi] = (edu_idx == 2).astype(np.float32)  # Tertiary = index 2
+        elif feat == "is_urban":
+            mat[:, fi] = (set_idx == 0).astype(np.float32)  # Urban = index 0
+        elif feat == "is_rural":
+            mat[:, fi] = (set_idx == 2).astype(np.float32)  # Rural = index 2
+        elif feat == "is_pada":
+            mat[:, fi] = (eth_idx == _pada).astype(np.float32)
+        elif feat == "is_naijin":
+            mat[:, fi] = (eth_idx == _naijin).astype(np.float32)
+        elif feat == "is_hausa_fulani":
+            mat[:, fi] = np.isin(eth_idx, [_hausa, _fulani, _hf_undiff]).astype(np.float32)
+        elif feat == "is_yoruba":
+            mat[:, fi] = (eth_idx == _yoruba).astype(np.float32)
+        elif feat == "is_igbo":
+            mat[:, fi] = (eth_idx == _igbo).astype(np.float32)
+        elif feat == "is_ijaw":
+            mat[:, fi] = (eth_idx == _ijaw).astype(np.float32)
+        elif feat == "is_female":
+            mat[:, fi] = (gen_idx == 1).astype(np.float32)  # Female = index 1
+        elif feat == "is_youth":
+            mat[:, fi] = (age_idx == 0).astype(np.float32)  # 18-24 = index 0
+        elif feat == "is_older":
+            mat[:, fi] = (age_idx == 3).astype(np.float32)  # 50+ = index 3
+        elif feat == "is_top_income":
+            mat[:, fi] = (inc_idx == 2).astype(np.float32)  # Top 20% = index 2
+        elif feat == "is_bottom_income":
+            mat[:, fi] = (inc_idx == 0).astype(np.float32)  # Bottom 40% = index 0
+        elif feat == "is_civil_servant":
+            mat[:, fi] = (liv_idx == 4).astype(np.float32)  # Public sector = index 4
+        elif feat == "is_formal_sector":
+            mat[:, fi] = (liv_idx == 3).astype(np.float32)  # Formal private = index 3
+        elif feat == "is_informal":
+            mat[:, fi] = (liv_idx == 2).astype(np.float32)  # Trade/informal = index 2
+        elif feat == "is_smallholder":
+            mat[:, fi] = (liv_idx == 0).astype(np.float32)  # Smallholder = index 0
+        elif feat == "is_commercial_ag":
+            mat[:, fi] = (liv_idx == 1).astype(np.float32)  # Commercial ag = index 1
+        elif feat == "is_unemployed":
+            mat[:, fi] = (liv_idx == 5).astype(np.float32)  # Unemployed/student = index 5
+        elif feat == "is_minority":
+            mat[:, fi] = (~np.isin(eth_idx, list(_majority_set))).astype(np.float32)
+        elif feat == "is_majority":
+            mat[:, fi] = np.isin(eth_idx, list(_majority_set)).astype(np.float32)
+        else:
+            # Fallback for any unknown feature — use getattr (shouldn't happen
+            # for the default table, but supports custom coefficient tables)
+            mat[:, fi] = np.array(
+                [float(bool(getattr(vt, feat, None))) for vt in voter_types],
+                dtype=np.float32,
+            )
+
+    return feature_names, mat
+
+
 def build_voter_ideal_base(
     voter_types: list[VoterType],
     coeff_table: list[dict] | None = None,
@@ -967,22 +1087,38 @@ def build_voter_ideal_base(
     per LGA to obtain the full pre-clamp ideal point matrix.
 
     This is computed once per simulation run; the result is the same for all LGAs.
+
+    Uses vectorised numpy operations via _build_voter_feature_matrix() to avoid
+    the 174k × 130 getattr calls of the naive loop (4.1s → ~0.05s).
     """
     if coeff_table is None:
         coeff_table = _IDEAL_POINT_COEFFICIENTS
-    N = len(voter_types)
     D = len(coeff_table)
-    base = np.zeros((N, D))
+
+    # Build (N_types, N_features) boolean matrix and feature name list
+    feature_names, feat_matrix = _build_voter_feature_matrix(voter_types, coeff_table)
+    N = feat_matrix.shape[0]
+    F = len(feature_names)
+    feat_name_to_idx = {name: i for i, name in enumerate(feature_names)}
+
+    # Build (D, F) coefficient matrix and (D,) intercept vector
+    intercepts = np.zeros(D, dtype=np.float32)
+    coeff_matrix = np.zeros((D, F), dtype=np.float32)
+
     for d, coeffs in enumerate(coeff_table):
-        base[:, d] = coeffs.get("intercept", 0.0)
+        intercepts[d] = coeffs.get("intercept", 0.0)
         for feat, coeff in coeffs.items():
             if feat == "intercept" or feat.startswith("lga_"):
                 continue
-            feat_vals = np.array(
-                [float(bool(getattr(vt, feat, None))) for vt in voter_types]
-            )
-            base[:, d] += coeff * feat_vals
-    return base
+            fi = feat_name_to_idx.get(feat)
+            if fi is not None:
+                coeff_matrix[d, fi] = coeff
+
+    # Matrix multiply: (N, F) @ (F, D) → (N, D), then add intercepts
+    base = feat_matrix @ coeff_matrix.T  # (N, D) float32
+    base += intercepts                    # broadcast (D,) over rows
+
+    return base.astype(np.float64)
 
 
 def compute_lga_ideal_offset(
