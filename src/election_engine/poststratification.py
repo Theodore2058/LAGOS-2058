@@ -323,10 +323,10 @@ def compute_all_lga_results(
 
     # Precompute voter-type-invariant quantities (done once, shared across all LGAs)
     # Float32 for large arrays used in BLAS matmul (4x faster than float64).
+    type_indices = _build_type_indices()
     voter_ideal_base = build_voter_ideal_base(voter_types, ideal_point_coeff_table)
     voter_ideal_base = voter_ideal_base.astype(np.float32)
-    compat_factors = precompute_compat_factors(voter_types).astype(np.float32)
-    type_indices = _build_type_indices()
+    compat_factors = precompute_compat_factors(voter_types, type_indices).astype(np.float32)
 
     # Precompute ethnic/religious utility lookup tables (avoids dict lookups per voter)
     eth_table = precompute_ethnic_utility_table(parties, params, ethnic_matrix)
@@ -345,7 +345,7 @@ def compute_all_lga_results(
     has_demo_coeffs = any(p.demographic_coefficients for p in parties)
 
     # Precompute demographic utility table (N_types, J) — avoids triple loop per LGA
-    demo_table = (precompute_demographic_utility_table(voter_types, parties)
+    demo_table = (precompute_demographic_utility_table(voter_types, parties, type_indices)
                   if has_demo_coeffs else None)
 
     # Precompute combined fixed-type utility (ethnic + religious + demographic)

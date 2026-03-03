@@ -577,20 +577,76 @@ def _livelihood_setting_compat(vt: VoterType) -> float:
     return 1.0
 
 
-def precompute_compat_factors(voter_types: list[VoterType]) -> np.ndarray:
+def precompute_compat_factors(
+    voter_types: list[VoterType],
+    type_indices: dict | None = None,
+) -> np.ndarray:
     """
     Precompute the combined compatibility factor for every voter type.
 
     Returns (N_types,) float array.  The three compat functions depend only on
     voter-type attributes, not on LGA data, so the result is the same across
     all LGAs and only needs to be computed once per simulation run.
+
+    Vectorised implementation uses integer codes from _build_type_indices()
+    to avoid 174k × 3 Python function calls.
     """
-    return np.array([
-        _religion_ethnicity_compat(vt)
-        * _income_education_compat(vt)
-        * _livelihood_setting_compat(vt)
-        for vt in voter_types
-    ])
+    if type_indices is None:
+        type_indices = _build_type_indices()
+
+    N = len(voter_types)
+    eth = type_indices["eth"]   # 0..14
+    rel = type_indices["rel"]   # 0..8
+    edu = type_indices["edu"]   # 0..2
+    inc = type_indices["inc"]   # 0..2
+    liv = type_indices["liv"]   # 0..5
+    sett = type_indices["set"]  # 0..2
+
+    # ------ religion_ethnicity_compat (vectorised) ------
+    re_compat = np.ones(N, dtype=np.float64)
+
+    # Hausa-Fulani group: eth in {0, 1, 2}
+    is_hf = (eth == 0) | (eth == 1) | (eth == 2)
+    # Christian: rel in {4, 5, 6}  (Pentecostal, Catholic, Mainline Protestant)
+    is_christian = (rel == 4) | (rel == 5) | (rel == 6)
+    is_trad = rel == 7  # Traditionalist
+    re_compat[is_hf & is_christian] = 0.03
+    re_compat[is_hf & is_trad] = 0.05
+
+    # Yoruba: eth == 3
+    is_yoruba = eth == 3
+    re_compat[is_yoruba & (rel == 0)] = 0.50  # Tijaniyya
+    re_compat[is_yoruba & (rel == 3)] = 0.40  # Mainstream Sunni
+    re_compat[is_yoruba & (rel == 1)] = 0.10  # Qadiriyya
+    re_compat[is_yoruba & (rel == 2)] = 0.03  # Al-Shahid
+
+    # Edo: eth == 9
+    is_edo = eth == 9
+    re_compat[is_edo & (rel == 0)] = 0.15  # Tijaniyya
+    re_compat[is_edo & (rel == 3)] = 0.15  # Mainstream Sunni
+    re_compat[is_edo & ((rel == 1) | (rel == 2))] = 0.03  # Qadiriyya/Al-Shahid
+
+    # Igbo/Ijaw/Ibibio/Niger Delta Minorities: eth in {4, 5, 10, 11}
+    is_south_chr = (eth == 4) | (eth == 5) | (eth == 10) | (eth == 11)
+    # Muslim subcategories: rel in {0, 1, 2, 3}
+    is_muslim_sub = (rel == 0) | (rel == 1) | (rel == 2) | (rel == 3)
+    re_compat[is_south_chr & is_muslim_sub] = 0.05
+
+    # Pada/Naijin: no penalty (already 1.0)
+
+    # ------ income_education_compat (vectorised) ------
+    ie_compat = np.ones(N, dtype=np.float64)
+    ie_compat[(edu == 2) & (inc == 0)] = 0.4   # Tertiary + Bottom 40%
+    ie_compat[(edu != 2) & (inc == 2)] = 0.5   # Non-tertiary + Top 20%
+
+    # ------ livelihood_setting_compat (vectorised) ------
+    ls_compat = np.ones(N, dtype=np.float64)
+    ls_compat[(liv == 0) & (sett == 0)] = 0.1  # Smallholder + Urban
+    ls_compat[(liv == 1) & (sett == 0)] = 0.2  # Commercial ag + Urban
+    ls_compat[(liv == 3) & (sett == 2)] = 0.3  # Formal private + Rural
+    ls_compat[(liv == 4) & (sett == 2)] = 0.4  # Public sector + Rural
+
+    return re_compat * ie_compat * ls_compat
 
 
 def precompute_all_lga_marginals(

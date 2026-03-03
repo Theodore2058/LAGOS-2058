@@ -161,6 +161,7 @@ def compute_utility(
 def precompute_demographic_utility_table(
     voter_types: list,
     parties: list,
+    type_indices: dict | None = None,
 ) -> np.ndarray:
     """
     Precompute demographic utility for every (voter type, party) pair.
@@ -170,51 +171,51 @@ def precompute_demographic_utility_table(
     coefficients — not on LGA data — this table is computed once and reused
     for all LGAs.
     """
+    from .voter_types import (
+        _build_type_indices, EDUCATIONS, LIVELIHOODS, INCOMES,
+        AGE_COHORTS, SETTINGS, GENDERS,
+    )
+
     N = len(voter_types)
     J = len(parties)
     table = np.zeros((N, J))
 
-    # Build per-party lookup for speed: list of (demo_key_index, value_str, coefficient)
-    demo_keys = ["education", "livelihood", "income", "age_cohort", "setting", "gender"]
-    vt_attrs = {
-        "education": "education",
-        "livelihood": "livelihood",
-        "income": "income",
-        "age_cohort": "age_cohort",
-        "setting": "setting",
-        "gender": "gender",
+    if type_indices is None:
+        type_indices = _build_type_indices()
+
+    # Map demographic attribute names to (index_key, category_list) for vectorised lookup
+    _attr_to_idx = {
+        "education":  ("edu", EDUCATIONS),
+        "livelihood": ("liv", LIVELIHOODS),
+        "income":     ("inc", INCOMES),
+        "age_cohort": ("age", AGE_COHORTS),
+        "setting":    ("set", SETTINGS),
+        "gender":     ("gen", GENDERS),
     }
 
     for j, party in enumerate(parties):
         if not party.demographic_coefficients:
             continue
-        # Flatten: collect all (attr_name, value_str, coeff) triples
-        triples = []
         for demo_key, coeff_spec in party.demographic_coefficients.items():
-            attr_name = vt_attrs.get(demo_key)
-            if attr_name is None:
+            mapping = _attr_to_idx.get(demo_key)
+            if mapping is None:
                 continue
+            idx_key, categories = mapping
+            codes = type_indices[idx_key]  # (N_types,) int32
             if isinstance(coeff_spec, dict):
+                # Build value→code lookup for this category
+                cat_map = {v: i for i, v in enumerate(categories)}
                 for val_str, coeff in coeff_spec.items():
-                    triples.append((attr_name, val_str, coeff))
+                    code = cat_map.get(val_str)
+                    if code is not None:
+                        table[codes == code, j] += coeff
             else:
-                # Numeric coefficient × numeric attribute (rare but supported)
-                triples.append((attr_name, None, float(coeff_spec)))
-
-        # Vectorise: for each triple, build a boolean mask of matching types
-        for attr_name, val_str, coeff in triples:
-            if val_str is not None:
-                mask = np.array(
-                    [getattr(vt, attr_name) == val_str for vt in voter_types],
-                    dtype=float,
-                )
-                table[:, j] += coeff * mask
-            else:
+                # Numeric coefficient × numeric attribute (rare)
                 vals = np.array(
-                    [float(getattr(vt, attr_name, 0)) for vt in voter_types],
+                    [float(getattr(vt, demo_key, 0)) for vt in voter_types],
                     dtype=float,
                 )
-                table[:, j] += coeff * vals
+                table[:, j] += float(coeff_spec) * vals
 
     return table
 
