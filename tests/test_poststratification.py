@@ -21,7 +21,7 @@ def test_vote_shares_sum_to_one():
     shares, avg_turnout = aggregate_to_lga(weights, raw, turnout)
 
     assert shares.shape == (J,)
-    assert abs(shares.sum() - 1.0) < 1e-10
+    assert abs(shares.sum() - 1.0) < 1e-5
     assert 0.0 < avg_turnout < 1.0
 
 
@@ -49,7 +49,7 @@ def test_appendix_a_aggregation():
     # T_share = (0.28*0.001 + 0.225*0.89) / 0.505 ≈ (0.00028 + 0.20025) / 0.505 ≈ 0.397
     assert abs(shares[0] - 0.59) < 0.02, f"N share={shares[0]:.3f}"
     assert abs(shares[1] - 0.40) < 0.02, f"T share={shares[1]:.3f}"
-    assert abs(shares.sum() - 1.0) < 1e-10
+    assert abs(shares.sum() - 1.0) < 1e-5
 
 
 def test_zero_weight_types_ignored():
@@ -99,7 +99,7 @@ def test_all_zero_weights_edge_case():
     shares, avg_turnout = aggregate_to_lga(weights, vote_probs, turnout)
     # Should return uniform distribution (not crash)
     assert shares.shape == (3,)
-    assert abs(shares.sum() - 1.0) < 1e-10
+    assert abs(shares.sum() - 1.0) < 1e-5
 
 
 if __name__ == "__main__":

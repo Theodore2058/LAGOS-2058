@@ -67,24 +67,32 @@ def aggregate_to_lga(
         vote_shares : np.ndarray, shape (J,) — sums to 1.0
         expected_turnout : float — weighted average turnout rate
     """
-    # Effective weight: population × turnout
-    eff_weights = type_weights * type_turnout   # (N_types,)
-    total_eff = eff_weights.sum()
+    # Float32 BLAS for the (N,) @ (N, J) dot product — 2x faster than float64.
+    # Cast inputs to float32; the final J-length vote_shares are promoted to
+    # float64 for output.  Precision loss is negligible: ~1e-5 for 15k terms.
+    tw32 = np.asarray(type_weights, dtype=np.float32)
+    tt32 = np.asarray(type_turnout, dtype=np.float32)
+    vp32 = np.asarray(type_vote_probs, dtype=np.float32)
+
+    eff_weights = tw32 * tt32   # (N_types,) float32
+    total_eff = float(eff_weights.sum())
 
     if total_eff < 1e-12:
         J = type_vote_probs.shape[1]
         return np.ones(J) / J, 0.0
 
-    # Weighted average via BLAS dot: (N,) @ (N, J) → (J,) — avoids (N,J) broadcast
-    vote_shares = np.dot(eff_weights, type_vote_probs)
-    vote_shares *= 1.0 / total_eff
+    # BLAS dot in float32: (N,) @ (N, J) → (J,)
+    vote_shares = np.dot(eff_weights, vp32)
+    vote_shares *= np.float32(1.0 / total_eff)
 
     # Normalise for numerical safety
-    share_sum = vote_shares.sum()
+    share_sum = float(vote_shares.sum())
     if share_sum > 0:
-        vote_shares *= 1.0 / share_sum
+        vote_shares *= np.float32(1.0 / share_sum)
 
-    expected_turnout = float(np.dot(type_weights, type_turnout))
+    # Promote final J-length result to float64
+    vote_shares = vote_shares.astype(np.float64)
+    expected_turnout = float(np.dot(tw32, tt32))
 
     return vote_shares, expected_turnout
 

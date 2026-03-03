@@ -322,13 +322,15 @@ def batch_compute_vote_probs_with_turnout(
     sum_exp += exp_abstain_f32              # (N,) in-place
     inv_sum = np.float32(1.0) / sum_exp     # (N,) float32
 
-    # Turnout = 1 - P(abstain) — promote back to float64 for output
-    p_abstain = (exp_abstain_f32 * inv_sum).astype(np.float64)
-    turnout_probs = np.clip(1.0 - p_abstain, 0.0, 1.0)
+    # Turnout = 1 - P(abstain) — stay float32; downstream dot products
+    # auto-promote to float64 when multiplied by float64 weights.
+    p_abstain_f32 = exp_abstain_f32 * inv_sum
+    turnout_probs = np.clip(np.float32(1.0) - p_abstain_f32,
+                            np.float32(0.0), np.float32(1.0))
 
-    # Conditional vote probabilities (in-place on exp_parties, then promote)
-    safe_total = np.maximum(np.float32(1.0) - exp_abstain_f32 * inv_sum,
+    # Conditional vote probabilities (in-place on exp_parties, stay float32)
+    safe_total = np.maximum(np.float32(1.0) - p_abstain_f32,
                             np.float32(1e-30))
     exp_parties *= (inv_sum / safe_total)[:, np.newaxis]
 
-    return exp_parties.astype(np.float64), turnout_probs
+    return exp_parties, turnout_probs

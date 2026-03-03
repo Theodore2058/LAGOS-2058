@@ -477,14 +477,14 @@ def compute_type_weights(
             for vt in voter_types
         ], dtype=np.float32)
 
-    # Apply threshold and normalise to sum to 1 (promote to float64 for output)
-    weights = weights.astype(np.float64)
-    weights[weights <= weight_threshold] = 0.0
-    total = weights.sum()
+    # Apply threshold and normalise to sum to 1 (stay float32 — downstream
+    # aggregation uses float32 BLAS, final vote shares promote to float64).
+    weights[weights <= np.float32(weight_threshold)] = np.float32(0.0)
+    total = float(weights.sum())
     if total > 0:
-        weights /= total
+        weights *= np.float32(1.0 / total)
     else:
-        weights[:] = 1.0 / len(voter_types)
+        weights[:] = np.float32(1.0 / len(voter_types))
 
     return weights
 

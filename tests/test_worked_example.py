@@ -152,7 +152,7 @@ def test_appendix_a_poststratification():
     assert abs(shares[0] - 0.59) < 0.02, f"N share = {shares[0]:.3f}, expected ~0.59"
     assert abs(shares[1] - 0.40) < 0.02, f"T share = {shares[1]:.3f}, expected ~0.40"
     assert shares[2] < 0.05, f"Y share = {shares[2]:.3f}, expected < 0.05"
-    assert abs(shares.sum() - 1.0) < 1e-10
+    assert abs(shares.sum() - 1.0) < 1e-5
 
 
 # ---------------------------------------------------------------------------
@@ -218,7 +218,7 @@ def test_pipeline_produces_valid_shares():
         religious_matrix=ReligiousAffinityMatrix(),
     )
 
-    assert abs(shares.sum() - 1.0) < 1e-8, f"Shares don't sum to 1: {shares.sum()}"
+    assert abs(shares.sum() - 1.0) < 1e-5, f"Shares don't sum to 1: {shares.sum()}"
     assert np.all(shares >= 0), "Negative shares"
     assert 0.0 <= turnout <= 1.0, f"Invalid turnout: {turnout}"
     assert n_active > 0, "No active types"
