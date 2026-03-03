@@ -670,6 +670,8 @@ PARTIES = [
             1: +0.3,   # Lagos: progressive intelligentsia
             2: +0.6,   # Niger Zone: Yoruba heartland (Oyo, Ogun)
             3: +0.5,   # Confluence: Ekiti, Ondo, Osun
+            4: +0.1,   # Littoral: educated Yoruba diaspora in Delta/Rivers
+            6: +0.1,   # Central: civil servants, progressive professionals in FCT
         },
     ),
     Party(
@@ -691,6 +693,8 @@ PARTIES = [
             3: +0.3,   # Confluence: Edo is home base
             4: +0.2,   # Littoral: moderate appeal
             2: +0.1,   # Niger Zone: catch-all appeal
+            1: +0.1,   # Lagos: centrist appeal to moderates
+            5: +0.1,   # Eastern: Catholic connection, southern solidarity
         },
     ),
     Party(
@@ -709,6 +713,8 @@ PARTIES = [
         regional_strongholds={
             5: +1.2,   # Eastern Zone: Igbo commercial heartland
             1: +0.2,   # Lagos: Igbo diaspora traders
+            4: +0.15,  # Littoral: Igbo communities in Port Harcourt, Calabar
+            3: +0.1,   # Confluence: Igbo traders in Benin City, Kogi towns
         },
     ),
     Party(
@@ -751,6 +757,7 @@ PARTIES = [
         regional_strongholds={
             7: +1.0,   # Chad: Al-Shahid movement heartland (Borno, Yobe)
             8: +0.4,   # Savanna: some Shahid influence
+            6: +0.15,  # Central: Kano Al-Shahid community presence
         },
     ),
     Party(
@@ -793,6 +800,8 @@ PARTIES = [
         regional_strongholds={
             1: +0.5,   # Lagos: tech-savvy cosmopolitans
             6: +0.3,   # Central: FCT diaspora-return hub
+            3: +0.1,   # Confluence: university town professionals
+            4: +0.1,   # Littoral: Port Harcourt tech sector
         },
     ),
     Party(
@@ -858,6 +867,7 @@ PARTIES = [
             5: +0.6,   # Eastern: Benue (Tiv) + Christian Middle Belt
             6: +0.5,   # Central: Plateau/Nasarawa Christian minorities
             3: +0.3,   # Confluence: Kogi Christian communities
+            7: +0.1,   # Chad: Adamawa/Taraba Christian communities
         },
     ),
     Party(
@@ -879,6 +889,7 @@ PARTIES = [
             6: +0.8,   # Central: Plateau/Nasarawa heartland
             5: +0.5,   # Eastern: Benue solidarity
             3: +0.3,   # Confluence: southern Kogi minorities
+            7: +0.1,   # Chad: Taraba/Adamawa minority farming communities
         },
     ),
     Party(
