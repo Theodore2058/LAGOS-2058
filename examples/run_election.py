@@ -907,6 +907,23 @@ def main():
     available_sv = [c for c in sv_cols if c in state_votes.columns]
     print(state_votes[available_sv].to_string(index=False))
 
+    # --- State-level MC win probabilities ---
+    state_mc = mc.get("state_mc_stats")
+    if state_mc is not None and len(state_mc) > 0:
+        print("\nSTATE MC WIN PROBABILITIES (top 3 parties):")
+        top3_win = [f"{p}_win_prob" for p in top3]
+        top3_share_mc = [f"{p}_share_mean" for p in top3]
+        sm_cols = ["State", "Turnout Mean"] + top3_share_mc + top3_win
+        available_sm = [c for c in sm_cols if c in state_mc.columns]
+        disp = state_mc[available_sm].copy()
+        disp["Turnout Mean"] = disp["Turnout Mean"].map("{:.1%}".format)
+        for p in top3:
+            if f"{p}_share_mean" in disp.columns:
+                disp[f"{p}_share_mean"] = disp[f"{p}_share_mean"].map("{:.1%}".format)
+            if f"{p}_win_prob" in disp.columns:
+                disp[f"{p}_win_prob"] = disp[f"{p}_win_prob"].map("{:.0%}".format)
+        print(disp.to_string(index=False))
+
     # --- Competitiveness ---
     comp = compute_competitiveness(results["lga_results_base"], party_names)
     margins = comp["Margin"].values

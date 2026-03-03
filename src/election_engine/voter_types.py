@@ -75,10 +75,29 @@ N_INCOME = 3
 TOTAL_TYPES = N_ETHNICITIES * N_RELIGIONS * N_SETTINGS * N_AGE * N_EDUCATION * N_GENDER * N_LIVELIHOOD * N_INCOME
 # = 15 × 9 × 3 × 4 × 3 × 2 × 6 × 3 = 174,960
 
-# Fixed marginal arrays (same for all LGAs) — used in compute_type_weights
+# Fixed marginal arrays — used in compute_type_weights
 _AGE_VALS = np.array([0.25, 0.30, 0.28, 0.17])   # matches AGE_COHORTS order
 _GEN_VALS = np.array([0.50, 0.50])                 # matches GENDERS order
-_INC_VALS = np.array([0.40, 0.40, 0.20])           # matches INCOMES order
+
+
+def _poverty_to_income_fracs(poverty_pct: float) -> np.ndarray:
+    """
+    Convert LGA poverty rate (0-100) to income bracket fractions.
+
+    At the national average (~30% poverty): [40%, 40%, 20%] (baseline).
+    Higher poverty shifts weight from top to bottom bracket.
+    Lower poverty shifts weight from bottom to top bracket.
+
+    Returns (3,) array: [Bottom 40%, Middle 40%, Top 20%].
+    """
+    # Linear shift: each 10pp above 30% shifts 5pp from top → bottom
+    poverty_frac = np.clip(poverty_pct, 0.0, 80.0) / 100.0
+    deviation = poverty_frac - 0.30  # positive = poorer than average
+    bottom = np.clip(0.40 + deviation * 0.50, 0.20, 0.65)
+    top = np.clip(0.20 - deviation * 0.30, 0.05, 0.35)
+    middle = np.clip(1.0 - bottom - top, 0.15, 0.55)
+    total = bottom + middle + top
+    return np.array([bottom / total, middle / total, top / total])
 
 
 @dataclass(frozen=True)
@@ -349,7 +368,10 @@ def compute_type_weights(
     # ---- Extract LGA-level marginals ----
     if precomputed_marginals_row is not None:
         # Fast path: pre-extracted numpy arrays from precompute_all_lga_marginals
-        eth_vals, rel_vals, set_vals, edu_vals, liv_vals = precomputed_marginals_row
+        if len(precomputed_marginals_row) >= 6:
+            eth_vals, rel_vals, set_vals, edu_vals, liv_vals, _inc_row = precomputed_marginals_row
+        else:
+            eth_vals, rel_vals, set_vals, edu_vals, liv_vals = precomputed_marginals_row
     else:
         # Slow path: extract from pd.Series (used when called outside batch context)
         urban_pct = float(lga_row.get("Urban Pct", 50.0)) / 100.0
@@ -406,10 +428,18 @@ def compute_type_weights(
         edu_vals = np.array([edu_frac[e] for e in EDUCATIONS])
         liv_vals = np.array([livelihood_base.get(l, 1.0 / N_LIVELIHOOD) for l in LIVELIHOODS])
 
-    # Fixed marginals (same for all LGAs)
-    age_frac = {"18-24": 0.25, "25-34": 0.30, "35-49": 0.28, "50+": 0.17}
-    gender_frac = {"Male": 0.50, "Female": 0.50}
-    income_frac = {"Bottom 40%": 0.40, "Middle 40%": 0.40, "Top 20%": 0.20}
+    # Fixed marginals
+    age_vals = _AGE_VALS
+    gen_vals = _GEN_VALS
+
+    # Income distribution: LGA-dependent via poverty rate when precomputed,
+    # otherwise use national baseline [40%, 40%, 20%].
+    if precomputed_marginals_row is not None and len(precomputed_marginals_row) >= 6:
+        inc_vals = precomputed_marginals_row[5]
+    else:
+        # Derive from poverty rate if available
+        poverty_pct = float(lga_row.get("Poverty Rate Pct", 30.0))
+        inc_vals = _poverty_to_income_fracs(poverty_pct)
 
     # ---- Compute type weights via 8D broadcast outer product ----
     # The 174,960 types are a Cartesian product of 8 dimensions:
@@ -417,9 +447,6 @@ def compute_type_weights(
     # An 8-way broadcast product builds the weight tensor directly,
     # exploiting the independence structure to avoid 175K random-access
     # lookups. This is ~6x faster than fancy indexing on the flat arrays.
-    age_vals = _AGE_VALS
-    gen_vals = _GEN_VALS
-    inc_vals = _INC_VALS
 
     weights = (
         eth_vals[:, None, None, None, None, None, None, None]
@@ -658,12 +685,23 @@ def precompute_all_lga_marginals(
     liv_totals = liv_raw.sum(axis=1, keepdims=True)
     liv_frac = liv_raw / np.maximum(liv_totals, 1e-30)
 
+    # ----- Income fractions (N, 3) — LGA-dependent via poverty rate -----
+    poverty = np.clip(_col("Poverty Rate Pct", 30.0), 0.0, 80.0) / 100.0
+    deviation = poverty - 0.30
+    bottom = np.clip(0.40 + deviation * 0.50, 0.20, 0.65)
+    top = np.clip(0.20 - deviation * 0.30, 0.05, 0.35)
+    middle = np.clip(1.0 - bottom - top, 0.15, 0.55)
+    inc_raw = np.column_stack([bottom, middle, top])
+    inc_totals = inc_raw.sum(axis=1, keepdims=True)
+    inc_frac = inc_raw / np.maximum(inc_totals, 1e-30)
+
     return {
         "eth": eth_frac,
         "rel": rel_frac,
         "set": set_frac,
         "edu": edu_frac,
         "liv": liv_frac,
+        "inc": inc_frac,
     }
 
 

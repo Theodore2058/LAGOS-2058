@@ -346,6 +346,7 @@ def compute_all_lga_results(
             all_marginals["set"][idx],
             all_marginals["edu"][idx],
             all_marginals["liv"][idx],
+            all_marginals["inc"][idx],
         )
 
         vote_shares, turnout, n_active = compute_lga_results(

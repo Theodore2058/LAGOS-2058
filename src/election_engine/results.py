@@ -690,6 +690,11 @@ def aggregate_monte_carlo_from_arrays(
         all_shares, pop, base_run_df, party_names
     )
 
+    # State-level MC vote count statistics
+    state_mc_stats = _compute_state_mc_stats(
+        all_shares, all_turnout, pop, base_run_df, party_names
+    )
+
     return {
         "seat_stats": seat_stats,
         "national_share_stats": national_share_stats,
@@ -702,6 +707,7 @@ def aggregate_monte_carlo_from_arrays(
         "margin_stats": margin_stats,
         "zonal_vote_stats": zonal_vote_stats,
         "mc_spread": mc_spread,
+        "state_mc_stats": state_mc_stats,
         "n_runs": n_runs,
     }
 
@@ -773,6 +779,58 @@ def _compute_mc_spread_check(
         }
 
     return result
+
+
+def _compute_state_mc_stats(
+    all_shares: np.ndarray,
+    all_turnout: np.ndarray,
+    pop: np.ndarray,
+    base_run_df: pd.DataFrame,
+    party_names: list[str],
+    state_col: str = "State",
+) -> pd.DataFrame:
+    """
+    Compute per-state MC vote count and share distributions.
+
+    Returns a DataFrame with one row per state containing mean/P5/P95
+    vote counts, shares, and turnout for each party across MC runs.
+    """
+    n_runs, lga_count, J = all_shares.shape
+    state_ids = base_run_df[state_col].values
+    unique_states = sorted(np.unique(state_ids).tolist())
+
+    total_voters_per_run = pop[np.newaxis, :] * all_turnout  # (n_runs, n_lgas)
+    votes_per_run = total_voters_per_run[:, :, np.newaxis] * all_shares  # (n_runs, n_lgas, J)
+
+    rows = []
+    for state in unique_states:
+        mask = state_ids == state
+        state_votes = votes_per_run[:, mask, :].sum(axis=1)  # (n_runs, J)
+        state_total = total_voters_per_run[:, mask].sum(axis=1)  # (n_runs,)
+        state_pop = pop[mask].sum()
+        safe_total = np.maximum(state_total, 1.0)
+        state_shares = state_votes / safe_total[:, np.newaxis]  # (n_runs, J)
+        state_turnout = state_total / max(state_pop, 1.0)  # (n_runs,)
+
+        row = {
+            state_col: state,
+            "Population": int(state_pop),
+            "Total Votes Mean": float(state_total.mean()),
+            "Total Votes P5": float(np.percentile(state_total, 5)),
+            "Total Votes P95": float(np.percentile(state_total, 95)),
+            "Turnout Mean": float(state_turnout.mean()),
+        }
+        # Per-party winner probability at state level
+        state_winner = np.argmax(state_shares, axis=1)  # (n_runs,)
+        for j, p in enumerate(party_names):
+            row[f"{p}_votes_mean"] = float(state_votes[:, j].mean())
+            row[f"{p}_share_mean"] = float(state_shares[:, j].mean())
+            row[f"{p}_share_p5"] = float(np.percentile(state_shares[:, j], 5))
+            row[f"{p}_share_p95"] = float(np.percentile(state_shares[:, j], 95))
+            row[f"{p}_win_prob"] = float((state_winner == j).mean())
+        rows.append(row)
+
+    return pd.DataFrame(rows)
 
 
 def _compute_zonal_mc_stats(
