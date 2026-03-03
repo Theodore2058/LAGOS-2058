@@ -1220,6 +1220,13 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_mb_minority_christian": -1.5,  # MB Christian minorities: fear presidential centralisation
         "lga_Conflict History": 0.3 / 5.0,    # Conflict zones → favour strong executive
         "lga_Federal Control 2058": 0.5,       # Federal control → accept stronger executive
+        "is_yoruba": 0.5,             # Yoruba: presidential tradition (Obasanjo legacy)
+        "is_urban": -0.3,            # Urban: more pluralist, lean parliamentary
+        "is_rural": 0.3,             # Rural: strong executive provides stability
+        "is_youth": -0.3,            # Youth: anti-strong-man politics
+        "is_muslim": 0.3,            # Muslim: northern establishment pro-presidential
+        "is_civil_servant": 0.5,     # Civil servants: benefit from strong executive bureaucracy
+        "is_ijaw": -1.0,             # Ijaw: fear presidential centralism, want power-sharing
     },
     # 8. Resource Revenue (federal monopoly ↔ local control)
     {
@@ -1469,6 +1476,13 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_christian_rural": 0.5,        # Rural Christians: Middle Belt infrastructure deficit
         "is_urban_bottom_income": 0.5,   # Urban poor: inadequate infrastructure despite density
         "lga_Major Urban Center": -0.8,  # Major cities: already served → less demand for universal infra
+        "is_kanuri": 0.5,             # Kanuri: NE infrastructure devastated by conflict
+        "is_tiv": 0.5,                # Tiv: Middle Belt underserved
+        "is_igbo": -0.3,              # Igbo: prefer targeted investment to universal provision
+        "is_hausa_fulani": 0.3,       # HF: northern infrastructure deficit
+        "is_youth": 0.3,              # Youth: want modern infrastructure, internet, transport
+        "is_smallholder": 0.5,        # Smallholders: need roads, irrigation, markets
+        "lga_Poverty Rate Pct": 0.005,  # Poorer LGAs: greater infrastructure demand
     },
     # 18. Land Tenure (customary ↔ formalization)
     {
@@ -1488,6 +1502,13 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_Traditionalist Practice": -0.15 / 5.0,  # Traditional practice → defend customary tenure
         "lga_Road Quality Index": -0.05,  # Good roads → land markets develop → formalization pressure
         "lga_Urban Pct": 0.01,  # Urban areas → land formalization more important for housing
+        "is_urban": 0.3,              # Urban: want formal titles for housing/property
+        "is_youth": 0.3,              # Youth: less attached to customary systems
+        "is_formal_sector": 0.3,      # Formal sector: property rights important for business
+        "is_hausa_fulani": -0.5,      # HF: traditional land tenure under emirs
+        "is_yoruba": 0.3,             # Yoruba: commercial orientation, accept formalization
+        "is_bottom_income": -0.5,     # Bottom income: customary tenure is safety net
+        "lga_GDP Per Capita Est": 0.5 / 90000.0,  # Wealthier LGAs: land markets → formalization
     },
     # 19. Taxation (low tax ↔ high redistribution)
     {
@@ -1643,6 +1664,13 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_edo": 0.5,                # Edo: Benin City press tradition
         "lga_Colonial Western": 0.5,  # Western Region: Lagos media culture, Yoruba press tradition
         "lga_Colonial Eastern": 0.3,  # Eastern Region: Igbo press freedom advocacy
+        "is_hausa_fulani": -0.5,      # HF: northern establishment prefers state control
+        "is_muslim": -0.3,            # Muslim: religious sensitivities about media content
+        "is_urban": 0.3,              # Urban: media consumers, value free press
+        "is_rural": -0.3,             # Rural: less media consumption, less interested
+        "is_formal_sector": 0.3,      # Formal sector: business needs transparency
+        "is_tiv": 0.5,                # Tiv: Middle Belt minorities advocate free expression
+        "is_bottom_income": -0.3,     # Bottom income: survival concerns outweigh media freedom
     },
     # 25. Healthcare (pure market ↔ universal provision)
     {
