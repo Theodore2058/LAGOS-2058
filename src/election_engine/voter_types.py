@@ -1125,6 +1125,13 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_Unemployment Rate Pct": -0.02,  # High unemployment → anti-WAFTA sentiment
         "lga_Planned City": 1.5,      # Chinese-built planned cities: residents pro-WAFTA
         "lga_Rail Corridor": 0.3,     # Rail corridor (Chinese-built): pro-WAFTA infrastructure
+        "is_igbo": -0.5,              # Igbo traders compete with Chinese imports
+        "is_hausa_fulani": -0.3,      # Northern establishment wary of Chinese cultural influence
+        "is_kanuri": -0.5,            # Kanuri: security concerns about foreign involvement in NE
+        "is_rural": -0.3,             # Rural: less exposure to Chinese economic benefits
+        "is_top_income": 0.8,         # Top income: benefit from Chinese investment/trade
+        "is_pada": 1.0,               # Pada: tech-oriented, see Chinese biotech as ally
+        "lga_Poverty Rate Pct": -0.005,  # Poorer areas resent foreign capital
     },
     # 4. BIC Reform (abolish ↔ preserve BIC)
     {
@@ -1139,6 +1146,14 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_Al-Shahid Influence": -0.2 / 5.0,  # Al-Shahid opposes BIC as Western institution
         "lga_Conflict History": -0.15 / 5.0,     # Conflict zones distrust state institutions
         "lga_English Prestige": 0.02 / 10.0,  # English prestige → BIC is English-medium institution, more support
+        "is_igbo": -0.5,              # Igbo: pragmatic, BIC less relevant to commercial priorities
+        "is_urban": -0.3,             # Urban: reform-minded, less institutional loyalty
+        "is_rural": 0.3,              # Rural: BIC provides community services
+        "is_youth": -0.3,             # Youth: less institutional attachment
+        "is_muslim": -0.5,            # Muslim: BIC seen as secular/Western institution
+        "is_pentecostal": 0.3,        # Pentecostal: BIC values align with Christian institutions
+        "is_older": 0.3,              # Older: institutional loyalty, remember BIC establishment
+        "lga_Poverty Rate Pct": 0.003,  # Poor areas: BIC welfare services → preserve
     },
     # 5. Ethnic Quotas (meritocracy ↔ affirmative action)
     {
@@ -1222,6 +1237,13 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_hf_smallholder": -1.0,     # HF smallholders: benefit from federal redistribution
         "is_kanuri": -1.0,             # Kanuri benefit from federal redistribution
         "is_tiv": 0.5,                 # Tiv: Benue has mineral resources
+        "is_yoruba": 0.5,             # Yoruba: fiscal restructuring advocates
+        "is_igbo": 1.0,               # Igbo: strongly pro-fiscal federalism
+        "is_urban": 0.3,              # Urban: more aware of resource politics
+        "is_tertiary": 0.5,           # Educated: understand fiscal federalism arguments
+        "is_pada": -0.5,              # Pada: new community, less attachment to resource battles
+        "is_nupe": 0.3,               # Nupe: Middle Belt, want local resource control
+        "lga_Poverty Rate Pct": 0.005,  # Poorer LGAs want more local revenue control
     },
     # 9. Housing (pure market ↔ state intervention)
     {
@@ -1316,6 +1338,13 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_hf_muslim_civil_servant": 1.0,  # HF Muslim civil servants: military-state nexus, pro-guardianship
         "is_kanuri_muslim_youth": 1.5,  # Kanuri Muslim youth: complex — want security but also militant sympathy
         "is_ijaw_christian_unemployed": -1.5,  # Ijaw Christian unemployed: anti-military (Delta repression)
+        "is_urban": -0.5,            # Urban: prefer civilian institutional control
+        "is_rural": 0.3,             # Rural: trust military for local security
+        "is_formal_sector": -0.3,    # Formal sector: want stable civilian institutions
+        "is_muslim": 0.3,            # Muslim: military provides northern security
+        "is_nupe": -0.5,             # Nupe: civilian-oriented, Middle Belt suspicion
+        "is_yoruba": -1.0,           # Yoruba: strong anti-military tradition (Abiola era)
+        "lga_Urban Pct": -0.005,     # Urban LGAs: pro-civilian governance
     },
     # 13. Immigration (open borders ↔ restrictionism)
     {
