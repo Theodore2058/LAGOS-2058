@@ -694,6 +694,9 @@ def compute_salience(
         if rule.issue_name == "traditional_authority":
             # land_formalization_gap helper already returns (100-land)/100; no correction needed
             pass
+        if rule.issue_name == "agricultural_policy":
+            # salience contribution = 0.3*(10-market_access)/10 = -0.03*market + 0.3
+            w += 0.3
 
         # Conditional term
         if rule.conditional is not None:
