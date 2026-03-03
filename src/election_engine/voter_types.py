@@ -1277,6 +1277,10 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_bottom_income": 0.5,     # Bottom income: want local resource benefit
         "is_youth": 0.3,             # Youth: resource justice framing resonates
         "is_mb_minority": 1.0,       # Middle Belt minorities: mineral resources, want local control
+        "is_ijaw_christian_unemployed": 3.0,  # Ijaw Christian unemployed: most radical resource federalist constituency
+        "is_hf_bottom_income": -1.0,  # Poor northerners: depend on federal redistribution, anti-local-control
+        "is_igbo_formal": 1.5,       # Igbo formal sector: want fiscal autonomy for commercial zones
+        "is_yoruba_trader": 1.0,     # Yoruba traders: Lagos fiscal independence movement
     },
     # 9. Housing (pure market ↔ state intervention)
     {
@@ -1328,6 +1332,10 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_muslim_civil_servant": -0.5,  # Muslim civil servants: prefer Islamic education elements
         "is_pentecostal_formal": 0.5,     # Pentecostal formal: favour faith-based but centralized schools
         "is_mainline_protestant": 0.8,    # Mainline Protestants: strongly pro-meritocratic centralism
+        "is_kanuri_muslim_youth": -2.0,   # Kanuri Muslim youth: almajiri system, reject centralist education
+        "is_yoruba_christian_urban": 1.5, # Yoruba Christian urban: secular education champions
+        "is_igbo_pentecostal_formal": 1.0,  # Igbo Pentecostal formal: private school advocates, meritocratic
+        "is_hf_rural_older": -1.5,       # HF rural elderly: prefer Quranic/local education
     },
     # 11. Labor & Automation (pro-capital ↔ pro-labor)
     {
@@ -1406,6 +1414,10 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_tertiary": 0.3,          # Educated: more cosmopolitan, pro-immigration
         "is_rural": -0.3,            # Rural: suspicious of outsiders
         "is_yoruba": -0.5,           # Yoruba: Omo-onile territorial tradition
+        "is_hf_rural_older": -1.5,   # HF rural elderly: strongest restrictionist constituency
+        "is_kanuri_muslim_youth": -2.0,  # Kanuri Muslim youth: anti-immigrant (blame migrants for Chad Basin insecurity)
+        "is_yoruba_christian_urban": 0.5,  # Yoruba Christian urban: mildly cosmopolitan, tolerant of immigrants
+        "is_pada_tertiary": 1.0,     # Educated Pada: cosmopolitan, open borders (they are immigrants themselves)
     },
     # 14. Language Policy (vernacular ↔ English supremacy)
     {
@@ -1434,6 +1446,10 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_youth": 0.3,             # Youth: social media English, digital cosmopolitanism
         "is_edo": 0.3,               # Edo: pragmatic, English for commerce
         "is_older": -0.3,            # Older: vernacular attachment
+        "is_kanuri_muslim_youth": -2.0,  # Kanuri Muslim youth: Arabic + Kanuri language preservation
+        "is_hf_rural_older": -1.5,   # HF rural elderly: strongest Hausa/Arabic language advocates
+        "is_igbo_pentecostal_formal": 1.5,  # Igbo Pentecostal formal: pro-English for commerce and church
+        "is_yoruba_muslim_trader": -0.8,  # Yoruba Muslim traders: value Yoruba + Arabic for trade networks
     },
     # 15. Women's Rights (traditional patriarchy ↔ aggressive feminism)
     {
@@ -1526,6 +1542,10 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_youth": 0.3,              # Youth: want modern infrastructure, internet, transport
         "is_smallholder": 0.5,        # Smallholders: need roads, irrigation, markets
         "lga_Poverty Rate Pct": 0.005,  # Poorer LGAs: greater infrastructure demand
+        "is_hf_bottom_income": 1.0,   # Poor northerners: acute infrastructure deficit, demand universal provision
+        "is_igbo_formal": -0.5,       # Igbo formal: prefer targeted investment in commercial corridors
+        "is_ijaw_christian_unemployed": 1.5,  # Ijaw Christian unemployed: demand reconstruction of Delta infrastructure
+        "is_mb_minority_christian": 0.8,  # Middle Belt Christian minorities: infrastructure neglect in the "forgotten middle"
     },
     # 18. Land Tenure (customary ↔ formalization)
     {
