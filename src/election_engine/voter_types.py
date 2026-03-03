@@ -993,6 +993,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_female_tertiary": -1.0,  # Educated women strongly pro-control
         "is_urban_youth": -1.0,      # Urban youth favour smaller families
         "lga_Al-Shahid Influence": 0.3 / 5.0,  # Al-Shahid areas more pro-natalist
+        "is_older": 1.0,            # Elderly: pro-natalist (traditional values)
+        "is_middle_age": 0.5,       # Middle-aged: moderately pro-natalist
     },
     # 7. Constitutional Structure (parliamentary ↔ presidential)
     {
@@ -1070,6 +1072,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_youth_unemployed": 1.5,   # Jobless youth very pro-labor protection
         "is_nupe": 0.5,               # Nupe: artisan/trader tradition
         "is_middle_income": 0.5,      # Middle class worried about automation
+        "is_older": -0.5,             # Elderly less concerned about automation
+        "lga_Chinese Economic Presence": 0.1 / 10.0,  # Chinese presence → automation threat
     },
     # 12. Military Role (civilian control ↔ military guardianship)
     {
@@ -1228,6 +1232,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_kanuri_rural": -1.0,       # Rural Kanuri: deeply conservative, anti-enhancement
         "lga_Pentecostal Growth": -0.15 / 3.0,  # Pentecostal areas: moral opposition to enhancement
         "lga_Al-Shahid Influence": -0.2 / 5.0,  # Al-Shahid areas: religious opposition to enhancement
+        "is_older": -1.5,             # Elderly: conservative, anti-enhancement
+        "is_middle_age": -0.5,        # Middle-aged: cautious about enhancement
     },
     # 22. Trade Policy (autarky ↔ full openness)
     {
@@ -1266,6 +1272,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_ibibio": 0.5,             # Ibibio: Akwa Ibom environmental concern
         "lga_Refinery Zone": 0.3,     # Refinery zones: direct pollution → want regulation
         "lga_Refinery Present": 0.5,  # Refinery present: residents demand clean air
+        "is_older": -0.5,             # Elderly: prioritise growth over regulation
     },
     # 24. Media Freedom (state control ↔ full press freedom)
     {
@@ -1280,6 +1287,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_Conflict History": -0.3 / 5.0,   # Conflict zones → lean state control (security)
         "lga_Federal Control 2058": -0.5,      # Federal control → accept media restrictions
         "is_igbo_pentecostal": 1.0,    # Igbo Pentecostals: strongly pro-free expression
+        "is_older": -0.5,             # Elderly: prefer media control (stability)
     },
     # 25. Healthcare (pure market ↔ universal provision)
     {
