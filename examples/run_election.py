@@ -407,42 +407,43 @@ SNM_POSITIONS = np.array([
 ])
 
 # NSA — National Security Alliance
-# Authoritarian-securitarian party. Among the strongest positions on military
-# guardianship and presidential power in the system, second only to the NNV.
-# Anti-press freedom, pro-centralism, and hawkish on immigration. Draws
-# support from military families, security contractors, and populations in
-# conflict-affected zones who want order above all else. Not ideological so
-# much as dispositional: the party of people who think civilians talk too
-# much.
+# Technocratic-securitarian party rooted in the professional security
+# establishment. Led by a Hausa figure from the northern security
+# intelligentsia, the NSA speaks for communities where security is not
+# abstract but existential. Distinct from NNV's populist-nationalist
+# militarism, the NSA emphasises border control, professional defence
+# forces, security infrastructure, and military biotech. Draws support from
+# ex-military professionals, CJTF veterans, border communities, and urban
+# security contractors. The party of people who've actually seen combat.
 NSA_POSITIONS = np.array([
-    -2.0,  #  0  sharia: secular
-    -3.0,  #  1  fiscal: centralist
-    +0.5,  #  2  chinese: centrist
-    +2.5,  #  3  bic: preserve BIC
-    -2.0,  #  4  ethnic_quotas: meritocratic
-    +1.0,  #  5  fertility: mildly pro-natalist
-    +3.5,  #  6  constitutional: strongly presidential
-    -2.5,  #  7  resource: federal control
-    +0.5,  #  8  housing: centrist
-    +2.0,  #  9  education: centralism
-    -1.0,  # 10  labor: mildly pro-capital
-    +4.5,  # 11  military: strongest guardianship
-    +2.5,  # 12  immigration: restrictionist
-    +3.0,  # 13  language: English supremacy
-    +0.5,  # 14  womens_rights: centrist
-    -1.0,  # 15  trad_authority: mildly marginalize
-    +0.5,  # 16  infrastructure: centrist
-    +1.5,  # 17  land_tenure: mild formalization
-    -0.5,  # 18  taxation: centrist
-    +0.5,  # 19  agriculture: centrist
-    +2.0,  # 20  bio_enhancement: pro-access
-    +0.5,  # 21  trade: mildly open
-    -1.0,  # 22  environment: growth first
-    -3.0,  # 23  media: state control
-    +1.0,  # 24  healthcare: mildly universal
-    +2.0,  # 25  pada_status: pro-Padà
-    -1.5,  # 26  energy: fossil
-    +3.0,  # 27  az_restructuring: keep AZs
+    -1.5,  #  0  sharia: pragmatically secular — security doesn't pray
+    -2.5,  #  1  fiscal: centralist — federal security spending
+    -2.0,  #  2  chinese: skeptical — security risk from foreign mil-tech
+    +1.5,  #  3  bic: mild preserve — institutional stability
+    -1.5,  #  4  ethnic_quotas: meritocratic — professional armed forces
+    +0.5,  #  5  fertility: neutral — not a priority
+    +3.0,  #  6  constitutional: presidential — unified command structure
+    -2.0,  #  7  resource: federal control — fund the military
+    +1.5,  #  8  housing: interventionist — military housing estates
+    +2.5,  #  9  education: centralist — officer training, security academies
+    +0.5,  # 10  labor: centrist — pragmatic
+    +4.5,  # 11  military: strongest guardianship — core identity
+    +4.0,  # 12  immigration: THE border security party
+    +2.0,  # 13  language: English — operational language of defence
+    +1.0,  # 14  womens_rights: mildly progressive — women in security
+    -1.5,  # 15  trad_authority: marginalize — professional over chieftains
+    +2.5,  # 16  infrastructure: security infrastructure — roads, comms
+    +2.0,  # 17  land_tenure: formalization — cadastral mapping for security
+    +1.0,  # 18  taxation: pro-revenue — defence budget needs funding
+    +1.5,  # 19  agriculture: food security — strategic food reserves
+    +2.5,  # 20  bio_enhancement: pro-access — enhanced soldier programme
+    -1.5,  # 21  trade: mildly protectionist — border controls
+    -1.5,  # 22  environment: growth first — security over green
+    -2.0,  # 23  media: surveillance needs, but professional not total
+    +2.0,  # 24  healthcare: veteran/security personnel healthcare
+    +1.0,  # 25  pada_status: mild pro — pragmatic, not identity politics
+    -1.0,  # 26  energy: mild fossil — energy security
+    +2.5,  # 27  az_restructuring: keep AZs — security zones work
 ])
 
 # CDA — Christian Democratic Alliance
@@ -804,21 +805,23 @@ PARTIES = [
     Party(
         name="NSA",
         positions=NSA_POSITIONS,
-        valence=0.0,
-        leader_ethnicity="Fulani",
+        valence=0.1,  # professional credibility — "we've been to the front"
+        leader_ethnicity="Hausa",
         religious_alignment="Mainstream Sunni",
-        economic_positioning=0.0,  # security-focused, economically neutral
+        economic_positioning=-0.1,  # mildly technocratic, pragmatic
         demographic_coefficients={
-            "livelihood": {"Public sector": 0.4},
-            "education": {"Tertiary": 0.2},  # Military officers, security professionals
-            "income": {"Middle 40%": 0.1},
-            "age_cohort": {"35-49": 0.2, "50+": 0.3},
-            "gender": {"Male": 0.2},
+            "livelihood": {"Public sector": 0.4, "Formal private": 0.3},
+            "education": {"Tertiary": 0.3, "Secondary": 0.1},
+            "income": {"Middle 40%": 0.2},
+            "age_cohort": {"35-49": 0.3, "50+": 0.3},
+            "gender": {"Male": 0.3},
+            "setting": {"Urban": 0.1, "Rural": 0.1},
         },
         regional_strongholds={
-            7: +0.5,   # Chad: conflict-zone security demand
-            6: +0.3,   # Central: military families near FCT
-            8: +0.2,   # Savanna: security concerns from banditry
+            7: +0.7,   # Chad Zone: Borno/Yobe Kanuri heartland, insurgency frontline
+            6: +0.3,   # Central: FCT security establishment
+            8: +0.3,   # Savanna: banditry-affected communities
+            4: +0.1,   # Littoral: oil infrastructure security
         },
     ),
     Party(
