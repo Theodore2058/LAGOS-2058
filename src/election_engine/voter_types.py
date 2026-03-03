@@ -1143,6 +1143,9 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_older": -0.3,            # Older: suspicious of foreign economic influence
         "is_female": -0.2,           # Women: less exposure to WAFTA trade benefits
         "is_youth": 0.3,             # Youth: pragmatic, see Chinese tech as opportunity
+        "is_igbo_formal": -1.0,      # Igbo formal sector: compete directly with Chinese manufacturing
+        "is_yoruba_trader": -0.8,    # Yoruba traders: WAFTA destroys local market dominance
+        "is_pada_tertiary": 1.5,     # Educated Pada: tech cosmopolitan, strongly pro-WAFTA
     },
     # 4. BIC Reform (abolish ↔ preserve BIC)
     {
@@ -1173,6 +1176,9 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_Internet Access Pct": -0.003,  # Connected areas: more BIC criticism → reform
         "lga_Trad Authority Index": 0.1 / 5.0,  # Trad authority areas: BIC complements local governance → preserve
         "lga_Urban Pct": -0.003,     # Urban areas: reform-oriented, less BIC loyalty
+        "is_hf_rural_older": 0.5,    # HF rural elderly: BIC provides social stability, preserve
+        "is_igbo_pentecostal_formal": -0.8,  # Igbo Pentecostal business: BIC irrelevant, church networks > BIC
+        "is_kanuri_muslim_youth": -1.0,  # Kanuri Muslim youth: BIC is Western institution, reject it
     },
     # 5. Ethnic Quotas (meritocracy ↔ affirmative action)
     {
@@ -1735,6 +1741,9 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_hausa_fulani": -0.5,     # HF: development priority for northern states
         "is_kanuri": -0.5,           # Kanuri: post-conflict development first
         "is_igbo": 0.3,              # Igbo: see green economy as opportunity
+        "is_ijaw_christian_unemployed": 1.5,  # Ijaw Christian unemployed: oil pollution victims → strongly pro-regulation
+        "is_hf_rural_older": -1.0,   # HF rural elderly: development priority, anti-regulation
+        "is_yoruba_christian_urban": 1.0,  # Yoruba Christian urban: environmental awareness, pro-regulation
     },
     # 24. Media Freedom (state control ↔ full press freedom)
     {
@@ -1763,6 +1772,9 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_formal_sector": 0.3,      # Formal sector: business needs transparency
         "is_tiv": 0.5,                # Tiv: Middle Belt minorities advocate free expression
         "is_bottom_income": -0.3,     # Bottom income: survival concerns outweigh media freedom
+        "is_kanuri_muslim_youth": -1.5,  # Kanuri Muslim youth: anti-Western-media, pro-state-control
+        "is_igbo_pentecostal_formal": 1.0,  # Igbo Pentecostal formal: media entrepreneurs, strongly pro-free-press
+        "is_yoruba_christian_urban": 1.0,  # Yoruba Christian urban: Nollywood/media capital, pro-free-press
     },
     # 25. Healthcare (pure market ↔ universal provision)
     {
@@ -1822,6 +1834,9 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_older": -0.5,            # Older: generational anxiety about post-human identity
         "is_female_tertiary": 0.5,   # Educated women: progressive, accepting of Padà
         "is_bottom_income": -0.5,    # Bottom income: resentment of enhanced elite
+        "is_hf_rural_older": -1.5,   # HF rural elderly: strongest anti-Padà constituency (tradition + theology)
+        "is_igbo_formal": 0.8,       # Igbo formal sector: pragmatic, Padà are business partners
+        "is_kanuri_muslim_youth": -1.5,  # Kanuri Muslim youth: Padà = un-Islamic abomination
         "lga_Mandarin Presence": 0.02 / 10.0,  # Chinese tech presence → enhancement normalization → pro-Padà
         "lga_GDP Per Capita Est": 0.3 / 90000.0,  # Wealthy areas: more accepting of bio-enhancement elite
         "lga_Planned City": 0.8,     # Planned cities: tech-oriented, Padà communities concentrate
@@ -1855,6 +1870,9 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_muslim": -0.3,           # Muslim: development priorities outweigh green concerns
         "is_tiv": 0.3,               # Tiv: Middle Belt, farming areas affected by climate
         "is_nupe": -0.3,             # Nupe: pragmatic, energy access over green transition
+        "is_ijaw_christian_unemployed": -1.0,  # Ijaw Christian unemployed: complex — want green but depend on oil jobs
+        "is_igbo_pentecostal_formal": 0.8,  # Igbo Pentecostal formal: green tech as business opportunity
+        "is_hf_bottom_income": -0.8,  # Poor northerners: energy access > green transition (kerosene reality)
     },
     # 28. AZ Restructuring (return to 36+ states ↔ keep 8 AZs)
     {
