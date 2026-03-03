@@ -76,6 +76,21 @@ def border_proximity(lga_row: pd.Series) -> float:
     return 0.0
 
 
+def is_colonial_western(lga_row: pd.Series) -> float:
+    """Colonial Western Region (Yoruba heartland)."""
+    return 1.0 if str(lga_row.get("Colonial Era Region", "")).strip() == "Western" else 0.0
+
+
+def is_colonial_eastern(lga_row: pd.Series) -> float:
+    """Colonial Eastern Region (Igbo core + minorities)."""
+    return 1.0 if str(lga_row.get("Colonial Era Region", "")).strip() == "Eastern" else 0.0
+
+
+def is_colonial_midwestern(lga_row: pd.Series) -> float:
+    """Colonial Mid-Western Region (Edo/Delta minorities)."""
+    return 1.0 if str(lga_row.get("Colonial Era Region", "")).strip() == "Mid-Western" else 0.0
+
+
 def land_formalization_gap(lga_row: pd.Series) -> float:
     """100 - Land Formalization Pct."""
     return max(0.0, 100.0 - float(lga_row.get("Land Formalization Pct", 0)))
@@ -170,6 +185,9 @@ DERIVED_FEATURE_KEYS: dict[str, Callable[[pd.Series], float]] = {
     "religious_tension_proxy": religious_tension_proxy,
     "population_pressure": population_pressure,
     "youth_bulge": youth_bulge,
+    "is_colonial_western": is_colonial_western,
+    "is_colonial_eastern": is_colonial_eastern,
+    "is_colonial_midwestern": is_colonial_midwestern,
 }
 
 
@@ -272,6 +290,8 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "% Yoruba": 0.2 / 100.0,            # Yoruba: federalist tradition
             "% Ijaw": 0.3 / 100.0,              # Ijaw: resource control demands
             "Gini Proxy": 0.5,                   # High inequality → fiscal autonomy debate intensifies
+            "is_colonial_eastern": 0.3,          # Eastern Region: strong autonomy/self-determination tradition
+            "is_colonial_midwestern": 0.4,       # Mid-Western: extraction revenue → fiscal autonomy salient
         },
     ),
     # 3. Chinese Relations
@@ -478,6 +498,8 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Median Age Estimate": 0.01,           # Older population → traditional authority more salient
             "Traditionalist Practice": 0.2 / 5.0,  # Active traditionalist practice amplifies relevance
             "Traditional Authority": 0.5,          # Binary: presence of active trad authority amplifies debate
+            "is_colonial_western": 0.3,             # Western: Oba institution deeply embedded → debate
+            "is_colonial_midwestern": 0.2,          # Mid-Western: Oba of Benin → trad authority relevant
         },
     ),
     # 17. Infrastructure
@@ -561,6 +583,8 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "% Yoruba": 0.15 / 100.0,              # Yoruba: commercial tradition
             "Cobalt Extraction Active": 0.5,        # Cobalt: global battery supply chain trade
             "Refinery Present": 0.3,                # Refinery: export-oriented economy
+            "is_colonial_western": 0.3,              # Western Region: Yoruba commercial tradition → trade politics
+            "is_colonial_eastern": 0.2,              # Eastern Region: Igbo entrepreneurial culture → trade matters
         },
     ),
     # 23. Environmental Regulation
@@ -575,6 +599,8 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Urban Pct": 0.2 / 100.0,              # Urban areas more environmentally aware
             "% Ijaw": 0.3 / 100.0,                 # Ijaw: oil spill devastation in Delta
             "% Edo": 0.15 / 100.0,                 # Edo: Benin environmental concerns
+            "is_colonial_midwestern": 0.5,          # Mid-Western: Edo/Delta extraction → environmental politics
+            "is_colonial_eastern": 0.2,             # Eastern: Niger Delta fringe → environmental awareness
         },
     ),
     # 24. Media Freedom
@@ -589,6 +615,7 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "conflict_severity": 0.2 / 5.0,       # Conflict zones value press freedom
             "Pentecostal Growth": 0.15 / 3.0,     # Pentecostal media empires → media freedom matters
             "% Christian": 0.1 / 100.0,            # Christian areas: media-savvy, free press tradition
+            "is_colonial_western": 0.3,             # Western: Lagos media culture, Yoruba press tradition
         },
     ),
     # 25. Healthcare
@@ -641,6 +668,8 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Trad Authority Index": 0.5 / 5.0,
             "conflict_severity": 0.3 / 5.0,         # Conflict zones want restructuring
             "religious_tension_proxy": 0.5,          # Interfaith zones want own states
+            "is_colonial_eastern": 0.3,              # Eastern: Biafra memory, Igbo self-determination
+            "is_colonial_midwestern": 0.4,           # Mid-Western: minority status → restructuring demand
         },
     ),
 ]
@@ -845,12 +874,20 @@ def compute_all_lga_salience(
 
     # border_proximity: 1 if north/border/sahel in Colonial Era Region
     if "Colonial Era Region" in lga_data.columns:
-        regions = lga_data["Colonial Era Region"].fillna("").astype(str).str.lower()
+        regions_raw = lga_data["Colonial Era Region"].fillna("").astype(str)
+        regions = regions_raw.str.lower()
         border_prox = ((regions.str.contains("north", na=False)) |
                        (regions.str.contains("border", na=False)) |
                        (regions.str.contains("sahel", na=False))).astype(float).values
+        # Categorical colonial region indicators
+        col_western = (regions_raw.str.strip() == "Western").astype(float).values
+        col_eastern = (regions_raw.str.strip() == "Eastern").astype(float).values
+        col_midwestern = (regions_raw.str.strip() == "Mid-Western").astype(float).values
     else:
         border_prox = np.zeros(n_lga)
+        col_western = np.zeros(n_lga)
+        col_eastern = np.zeros(n_lga)
+        col_midwestern = np.zeros(n_lga)
 
     # land_formalization_gap: max(0, 100 - LandFormalPct)
     land_form = _col("Land Formalization Pct")
@@ -910,6 +947,9 @@ def compute_all_lga_salience(
         "religious_tension_proxy": rel_tension,
         "population_pressure": pop_pressure,
         "youth_bulge": youth_b,
+        "is_colonial_western": col_western,
+        "is_colonial_eastern": col_eastern,
+        "is_colonial_midwestern": col_midwestern,
     }
 
     # Pre-extract columns used in conditionals (avoid repeat _col calls)

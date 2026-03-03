@@ -586,6 +586,14 @@ def compute_all_lga_results(
     _pri_enr = _lga_col("Primary Enrollment Pct", 60.0)
     _lga_turnout_mod -= 0.06 * np.clip(_pri_enr / 100.0, 0.0, 1.0)  # enrolled → civic engagement
 
+    # Colonial Era Region: distinct civic cultures affect turnout
+    _col_western = _lga_col("Colonial Western", 0.0)
+    _col_eastern = _lga_col("Colonial Eastern", 0.0)
+    _col_midwestern = _lga_col("Colonial Mid-Western", 0.0)
+    _lga_turnout_mod -= 0.05 * _col_western    # Western: strong civic/Oba mobilisation tradition
+    _lga_turnout_mod -= 0.03 * _col_eastern     # Eastern: Igbo community mobilisation
+    _lga_turnout_mod -= 0.04 * _col_midwestern  # Mid-Western: minority identity mobilisation
+
     lga_turnout_modifier = _lga_turnout_mod.astype(np.float32)
 
     # ---- Identity context modifiers ----

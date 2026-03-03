@@ -87,6 +87,17 @@ def run_election(
     lga_data = load_lga_data(data_path)
     df = lga_data.df
 
+    # Derive colonial region binary columns for ideal point coefficients
+    if "Colonial Era Region" in df.columns:
+        _cr = df["Colonial Era Region"].fillna("").astype(str).str.strip()
+        _new_cols = pd.DataFrame({
+            "Colonial Western": (_cr == "Western").astype(float),
+            "Colonial Eastern": (_cr == "Eastern").astype(float),
+            "Colonial Mid-Western": (_cr == "Mid-Western").astype(float),
+        }, index=df.index)
+        lga_data.df = pd.concat([df, _new_cols], axis=1)
+        df = lga_data.df
+
     if verbose:
         logger.info("Loaded %d LGAs", len(df))
 

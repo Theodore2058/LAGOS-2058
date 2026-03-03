@@ -1026,6 +1026,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_hf_muslim_civil_servant": 0.8,  # HF Muslim civil servants: northern establishment, pro-Sharia framework
         "is_kanuri_muslim_youth": 1.5,  # Kanuri Muslim youth: radicalized, strongly pro-Sharia
         "is_yoruba_muslim_trader": -1.0,  # Yoruba Muslim traders: pragmatic, moderate on Sharia
+        "lga_Colonial Western": -0.5,  # Western Region: Yoruba Islam is moderate, less pro-Sharia
     },
     # 2. Fiscal Autonomy (centralism ↔ confederalism)
     {
@@ -1050,6 +1051,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_hf_muslim_civil_servant": -1.5,  # HF Muslim civil servants: benefit from federal centralism
         "is_igbo_pentecostal_formal": 1.5,  # Igbo Pentecostal business: strongly confederalist
         "is_ijaw_christian_unemployed": 2.0,  # Ijaw Christian unemployed: resource federalism radicals
+        "lga_Colonial Eastern": 0.5,  # Eastern Region: Biafra legacy → confederalism tradition
+        "lga_Colonial Mid-Western": 0.8,  # Mid-Western: extraction revenue + minority status → strong autonomy
     },
     # 3. Chinese Relations (Western pivot ↔ deepen WAFTA)
     {
@@ -1263,6 +1266,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_pada_tertiary": 1.5,      # Educated Padà: strongly pro-English (cosmopolitan)
         "lga_Al-Shahid Influence": -0.2 / 5.0,  # Al-Shahid areas: pro-Arabic, anti-English
         "lga_Almajiri Index": -0.15 / 5.0,  # Almajiri areas: Arabic/vernacular preferred
+        "lga_Colonial Western": -0.5,  # Western Region: strong Yoruba language pride → vernacular
+        "lga_Colonial Eastern": 0.5,   # Eastern Region: pragmatic Igbo pro-English for commerce
     },
     # 15. Women's Rights (traditional patriarchy ↔ aggressive feminism)
     {
@@ -1311,6 +1316,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_hf_rural_older": 1.5,  # HF rural elderly: strongest emirate system supporters
         "is_minority_urban_youth": -1.5,  # Minority urban youth: reject traditional authority entirely
         "is_yoruba_christian_urban": -0.5,  # Yoruba Christian urbanites: modern governance preference
+        "lga_Colonial Western": 0.8,  # Western Region: Oba institution deeply embedded in governance
     },
     # 17. Infrastructure (targeted ↔ universal provision)
     {
@@ -1458,6 +1464,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_Refinery Zone": 0.3,     # Refinery zones: direct pollution → want regulation
         "lga_Refinery Present": 0.5,  # Refinery present: residents demand clean air
         "is_older": -0.5,             # Elderly: prioritise growth over regulation
+        "lga_Colonial Mid-Western": 0.5,  # Mid-Western: Edo/Delta extraction zone → environmental awareness
     },
     # 24. Media Freedom (state control ↔ full press freedom)
     {
@@ -1476,6 +1483,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_Mobile Phone Penetration Pct": 0.005,  # Connected areas → value media freedom
         "is_ibibio": 0.5,             # Ibibio: Calabar/Uyo media tradition, pro-free press
         "is_edo": 0.5,                # Edo: Benin City press tradition
+        "lga_Colonial Western": 0.5,  # Western Region: Lagos media culture, Yoruba press tradition
+        "lga_Colonial Eastern": 0.3,  # Eastern Region: Igbo press freedom advocacy
     },
     # 25. Healthcare (pure market ↔ universal provision)
     {
@@ -1552,6 +1561,9 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_hf_muslim_civil_servant": 0.8,  # HF Muslim civil servants: benefit from current AZ structure
         "is_minority_urban_youth": -2.0,  # Minority urban youth: strongly pro-restructuring
         "is_ijaw_christian_unemployed": -1.5,  # Ijaw Christian unemployed: want Delta restructuring
+        "lga_Colonial Eastern": -0.5,  # Eastern Region: Biafra legacy → want restructuring
+        "lga_Colonial Mid-Western": -0.8,  # Mid-Western: created in 1963 split → identity tied to restructuring
+        "lga_Colonial Western": -0.3,  # Western Region: Yoruba want own state recognition
     },
 ]
 
