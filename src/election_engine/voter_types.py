@@ -1052,6 +1052,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_yoruba": 0.5,             # Yoruba favour structured education
         "lga_Al-Shahid Influence": -0.3 / 5.0,  # Al-Shahid areas: prefer Quranic/local over centralist
         "lga_Almajiri Index": -0.2 / 5.0,  # High almajiri → entrenched localist education norms
+        "lga_Num Secondary Schools": 0.05,   # More schools → more invested in centralist education system
+        "lga_Traditionalist Practice": -0.1 / 5.0,  # Traditional practice → localist education
     },
     # 11. Labor & Automation (pro-capital ↔ pro-labor)
     {
@@ -1129,6 +1131,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_Conflict History": -0.2 / 5.0,      # Conflict zones → conservative retrenchment
         "is_yoruba_muslim": 0.5,      # Yoruba Muslims: more progressive than other Muslims on gender
         "is_kanuri_rural": -1.0,      # Rural Kanuri: most conservative gender views
+        "lga_Almajiri Index": -0.2 / 5.0,  # Almajiri: reinforces patriarchal norms
+        "lga_Traditionalist Practice": -0.1 / 5.0,  # Traditionalist areas: patriarchal customs
     },
     # 16. Traditional Authority (marginalization ↔ formal integration)
     {
@@ -1145,6 +1149,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_urban_youth": -1.5,       # Urban youth reject trad authority
         "is_pada_tertiary": -2.0,     # Educated Padà: techno-progressive, anti-traditional
         "is_kanuri_rural": 1.0,       # Rural Kanuri: strong traditional Shehu system
+        "lga_Traditionalist Practice": 0.2 / 5.0,  # Active traditionalist practice → integrationist
     },
     # 17. Infrastructure (targeted ↔ universal provision)
     {
@@ -1175,6 +1180,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_rural_older": -1.0,      # Rural elderly defend customary tenure
         "lga_Conflict History": -0.2 / 5.0,  # Conflict zones: land disputes → customary defence
         "lga_Pct Livelihood Agriculture": -0.01,  # Agricultural LGAs → customary land defence
+        "lga_Traditionalist Practice": -0.15 / 5.0,  # Traditional practice → defend customary tenure
     },
     # 19. Taxation (low tax ↔ high redistribution)
     {

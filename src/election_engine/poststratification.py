@@ -389,8 +389,8 @@ def compute_all_lga_results(
     # Income
     turnout_demo_adjust[type_indices["inc"] == 2] -= 0.3   # Top 20%: more stake
     turnout_demo_adjust[type_indices["inc"] == 0] += 0.2   # Bottom 40%: barriers
-    # Gender
-    turnout_demo_adjust[type_indices["gen"] == 1] += 0.15  # Female: participation gap
+    # Gender: base gap (modulated per-LGA below via gender_turnout_gap)
+    turnout_demo_adjust[type_indices["gen"] == 1] += 0.05  # Female: small base gap
 
     # Use pre-computed salience if provided; otherwise compute here
     if precomputed_salience is not None:
@@ -621,6 +621,25 @@ def compute_all_lga_results(
         - 0.04 * np.clip(np.log1p(_pop_density_id) / 8.0, 0, 1)  # dense areas: more cross-group contact
     ).astype(np.float32)
 
+    # ---- LGA-modulated gender turnout gap ----
+    # The gender gap in turnout varies dramatically across Nigeria:
+    # conservative northern areas (high almajiri, low female literacy, Al-Shahid)
+    # have a much larger gap than progressive southern urban areas.
+    # Shape: (n_lga,) — added to female voters' abstention utility per LGA.
+    _fem_lit = _lga_col("Female Literacy Rate Pct", 50.0)
+    _male_lit = _lga_col("Male Literacy Rate Pct", 50.0)
+    _lit_gap = np.maximum(0.0, _male_lit - _fem_lit)  # male-female literacy gap
+    _gpi = _lga_col("Gender Parity Index", 1.0)
+
+    gender_turnout_gap = (
+        0.15 * np.clip(_almajiri_id / 5.0, 0.0, 1.0)      # Almajiri: female exclusion
+        + 0.1 * np.clip(_al_shahid_inf / 5.0, 0.0, 1.0)   # Al-Shahid: purdah enforcement
+        + 0.1 * np.clip(_lit_gap / 40.0, 0.0, 1.0)         # Literacy gap: female disadvantage
+        + 0.05 * np.maximum(0.0, 1.0 - _gpi)                # Gender parity gap
+        - 0.1 * np.clip(_urban_pct_id / 100.0, 0.0, 1.0)   # Urbanisation: narrows gap
+        - 0.05 * np.clip(_internet_id / 100.0, 0.0, 1.0)   # Internet: female empowerment
+    ).astype(np.float32)
+
     # ---- Religious minority mobilisation (turnout interaction) ----
     # Per-LGA, per-religion turnout adjustment. Religious minorities
     # in an LGA are more politically mobilised (defensive voting:
@@ -699,6 +718,7 @@ def compute_all_lga_results(
     _idx_age = type_indices["age"]
     _idx_set = type_indices["set"]
     _idx_rel = type_indices["rel"]
+    _idx_gen = type_indices["gen"]
 
     # Cache frequently-used scalars
     _beta_s = np.float32(params.beta_s)
@@ -847,7 +867,10 @@ def compute_all_lga_results(
         # 7c2. LGA-level turnout adjustment (same for all types in this LGA)
         v_abstain += lga_turnout_modifier[idx]
 
-        # 7c3. Religious minority mobilisation (per-LGA, per-religion)
+        # 7c3. LGA-modulated gender gap (female voters only)
+        v_abstain[_idx_gen[active_idx] == 1] += gender_turnout_gap[idx]
+
+        # 7c4. Religious minority mobilisation (per-LGA, per-religion)
         # Uses religion code of each active voter type to look up the
         # minority mobilisation adjustment for this LGA.
         v_abstain += minority_mobilisation[idx, _idx_rel[active_idx]]

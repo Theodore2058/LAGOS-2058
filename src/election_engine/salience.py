@@ -364,6 +364,7 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Population Density per km2": 0.3 / 1000.0,
             "youth_bulge": 0.5,                      # Young populations face acute housing needs
             "population_pressure": 0.3,              # Dense, poor-infra areas
+            "Median Age Estimate": -0.02,            # Younger median age → more acute housing needs
         },
     ),
     # 10. Education
@@ -378,6 +379,8 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "youth_bulge": 0.4,                   # Large youth populations amplify education debates
             "female_literacy_gap": 0.01,          # Gender education gap makes it more salient
             "Pentecostal Growth": 0.15 / 3.0,     # Pentecostal schools → education becomes contested
+            "Num Secondary Schools": 0.01,        # More schools → education policy more salient locally
+            "Median Age Estimate": -0.015,        # Younger population → education more salient
         },
     ),
     # 11. Labor & Automation
@@ -390,6 +393,7 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Unemployment Rate Pct": 0.8 / 100.0,
             "youth_unemployment_ratio": 0.4,      # Youth-specific job crisis
             "Chinese Economic Presence": 0.3 / 10.0,  # Chinese automation presence
+            "Median Age Estimate": -0.015,         # Younger workforce → more automation anxiety
         },
     ),
     # 12. Military Role
@@ -461,6 +465,8 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "% Fulani": 0.15 / 100.0,             # Fulani: emirate/lamido system
             "% Yoruba": 0.15 / 100.0,             # Yoruba: Oba institution
             "% Kanuri": 0.15 / 100.0,             # Kanuri: Shehu tradition
+            "Median Age Estimate": 0.01,           # Older population → traditional authority more salient
+            "Traditionalist Practice": 0.2 / 5.0,  # Active traditionalist practice amplifies relevance
         },
     ),
     # 17. Infrastructure
@@ -524,6 +530,7 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Urban Pct": 0.5 / 100.0,
             "% Population Under 30": 0.3 / 100.0,
             "Internet Access Pct": 0.2 / 100.0,   # Tech-connected areas engage with bioethics
+            "Median Age Estimate": -0.01,          # Younger population → bio-enhancement more relevant
         },
         conditional=_bio_enhancement_conditional,
     ),
@@ -582,6 +589,7 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Fertility Rate Est": 0.2,                # High fertility → maternal health concerns
             "population_pressure": 0.3,               # Dense + poor-infra → health crisis
             "conflict_severity": 0.2 / 5.0,          # Conflict zones: health infrastructure destroyed
+            "Median Age Estimate": 0.01,              # Older population → healthcare more salient
         },
     ),
     # 26. Padà Status
