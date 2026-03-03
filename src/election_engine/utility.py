@@ -245,6 +245,39 @@ def precompute_all_religious_indices(
     return np.array([religious_group_to_idx[vt.religion] for vt in voter_types], dtype=np.intp)
 
 
+def precompute_fixed_type_utility(
+    eth_table: np.ndarray,
+    all_eth_indices: np.ndarray,
+    rel_table: np.ndarray,
+    all_rel_indices: np.ndarray,
+    demo_table: Optional[np.ndarray] = None,
+) -> np.ndarray:
+    """
+    Precompute the LGA-invariant portion of voter-type utility.
+
+    Combines ethnic, religious, and demographic utility into a single
+    (N_types, J) array. This avoids 3 separate fancy-index lookups per LGA
+    in the hot loop.
+
+    Parameters
+    ----------
+    eth_table : (N_eth, J) ethnic utility lookup table
+    all_eth_indices : (N_types,) integer indices into eth_table
+    rel_table : (N_rel, J) religious utility lookup table
+    all_rel_indices : (N_types,) integer indices into rel_table
+    demo_table : (N_types, J) demographic utility table, optional
+
+    Returns
+    -------
+    np.ndarray, shape (N_types, J)
+    """
+    result = eth_table[all_eth_indices]  # (N_types, J)
+    result = result + rel_table[all_rel_indices]  # new array to avoid mutating eth_table rows
+    if demo_table is not None:
+        result += demo_table
+    return result
+
+
 def compute_utilities_batch(
     voter_ideals: np.ndarray,
     voter_ethnicities: list[str],
@@ -264,6 +297,7 @@ def compute_utilities_batch(
     has_demographic_coefficients: bool = False,
     precomputed_demo_table: Optional[np.ndarray] = None,
     active_indices: Optional[np.ndarray] = None,
+    fixed_type_utility: Optional[np.ndarray] = None,
 ) -> np.ndarray:
     """
     Compute full utilities for a batch of voter types × all parties.
@@ -312,6 +346,17 @@ def compute_utilities_batch(
         salience_weights=salience_weights,
     )
 
+    # --- Fast path: combined fixed_type_utility table ---
+    # When available, ethnic + religious + demographic are already precomputed
+    # into a single (N_all_types, J) table, so one fancy index replaces three.
+    if fixed_type_utility is not None and active_indices is not None:
+        # u_spatial is (N, J); valences broadcasts from (J,)
+        result = u_spatial
+        result += valences
+        result += fixed_type_utility[active_indices]
+        return result
+
+    # --- Fallback: separate ethnic/religious/demographic computation ---
     # 3. Ethnic utility (N, J) — vectorised via precomputed lookup table
     if precomputed_eth_indices is not None and ethnic_utility_table is not None:
         eth_table = ethnic_utility_table[0]

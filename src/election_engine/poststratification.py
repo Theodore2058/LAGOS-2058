@@ -35,7 +35,7 @@ from .utility import (
     compute_utility, compute_utilities_batch,
     precompute_ethnic_utility_table, precompute_religious_utility_table,
     precompute_all_ethnic_indices, precompute_all_religious_indices,
-    precompute_demographic_utility_table,
+    precompute_demographic_utility_table, precompute_fixed_type_utility,
 )
 from .turnout import compute_vote_probs_with_turnout, batch_compute_vote_probs_with_turnout
 
@@ -112,6 +112,8 @@ def compute_lga_results(
     lga_ideal_offset: np.ndarray | None = None,
     precomputed_demo_table: np.ndarray | None = None,
     precomputed_marginals_row: tuple | None = None,
+    fixed_type_utility: np.ndarray | None = None,
+    party_sq_norms_uniform: np.ndarray | None = None,
 ) -> tuple[np.ndarray, float, int]:
     """
     Compute vote shares and turnout for one LGA (fully vectorised).
@@ -223,6 +225,7 @@ def compute_lga_results(
         has_demographic_coefficients=has_demographic_coefficients,
         precomputed_demo_table=precomputed_demo_table,
         active_indices=active_idx,
+        fixed_type_utility=fixed_type_utility,
     )
 
     # Slice integer-coded demographic arrays for batch turnout
@@ -247,6 +250,7 @@ def compute_lga_results(
         educations=edu_codes,
         age_cohorts=age_codes,
         settings=set_codes,
+        party_sq_norms_uniform=party_sq_norms_uniform,
     )
 
     # Step 4: Aggregate (only active types contribute; inactive have zero weight)
@@ -313,11 +317,24 @@ def compute_all_lga_results(
     # Precompute party arrays (avoid recreating per LGA)
     party_positions = np.array([p.positions for p in parties])  # (J, 28)
     valences = np.array([p.valence for p in parties])  # (J,)
+    D = party_positions.shape[1]
+    party_sq_norms_uniform = np.sum(party_positions ** 2, axis=1) / D  # (J,)
     has_demo_coeffs = any(p.demographic_coefficients for p in parties)
 
     # Precompute demographic utility table (N_types, J) — avoids triple loop per LGA
     demo_table = (precompute_demographic_utility_table(voter_types, parties)
                   if has_demo_coeffs else None)
+
+    # Precompute combined fixed-type utility (ethnic + religious + demographic)
+    # into a single (N_types, J) table — replaces 3 fancy-index lookups per LGA
+    # with a single one.
+    fixed_type_utility = precompute_fixed_type_utility(
+        eth_table=eth_table[0],
+        all_eth_indices=all_eth_indices,
+        rel_table=rel_table[0],
+        all_rel_indices=all_rel_indices,
+        demo_table=demo_table,
+    )
 
     # Use pre-computed salience if provided; otherwise compute here
     if precomputed_salience is not None:
@@ -371,6 +388,8 @@ def compute_all_lga_results(
             lga_ideal_offset=lga_ideal_offset,
             precomputed_demo_table=demo_table,
             precomputed_marginals_row=marginals_row,
+            fixed_type_utility=fixed_type_utility,
+            party_sq_norms_uniform=party_sq_norms_uniform,
         )
 
         row_dict = {

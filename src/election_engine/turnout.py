@@ -222,6 +222,7 @@ def batch_compute_vote_probs_with_turnout(
     educations: np.ndarray,
     age_cohorts: np.ndarray,
     settings: np.ndarray,
+    party_sq_norms_uniform: np.ndarray | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     """
     Vectorised vote probabilities and turnout for N voter types at once.
@@ -256,20 +257,23 @@ def batch_compute_vote_probs_with_turnout(
     # Uses BLAS matmul for the cross-term; avoids (N, J, D) intermediate.
     inv_D = 1.0 / D
     voter_sq_norms = np.sum(voter_ideals ** 2, axis=1) * inv_D  # (N,)
-    party_sq_norms = np.sum(party_positions ** 2, axis=1) * inv_D  # (J,)
+    if party_sq_norms_uniform is None:
+        party_sq_norms_uniform = np.sum(party_positions ** 2, axis=1) * inv_D  # (J,)
     cross_terms = (voter_ideals @ party_positions.T) * (2.0 * inv_D)  # (N, J)
-    sq_dists = voter_sq_norms[:, np.newaxis] + party_sq_norms[np.newaxis, :] - cross_terms
+    sq_dists = voter_sq_norms[:, np.newaxis] + party_sq_norms_uniform[np.newaxis, :] - cross_terms
     min_dist_sq = sq_dists.min(axis=1)  # (N,)
 
     # --- Indifference: gap = top1 - mean(rest) without full sort ---
     # top1 = max, mean_rest = (sum - top1) / (J - 1), gap = top1 - mean_rest
+    # Reuse top1 later for softmax stability.
     if J >= 2:
         top1 = utilities_matrix.max(axis=1)  # (N,)
         row_sum = utilities_matrix.sum(axis=1)  # (N,)
         mean_rest = (row_sum - top1) / (J - 1)
         gap = np.abs(top1 - mean_rest)
     else:
-        gap = np.abs(utilities_matrix[:, 0]) + _EPSILON
+        top1 = utilities_matrix[:, 0].copy()
+        gap = np.abs(top1) + _EPSILON
     gap = np.maximum(gap, _EPSILON)
 
     # --- Base abstention utility ---
@@ -283,9 +287,8 @@ def batch_compute_vote_probs_with_turnout(
     v_abstain[settings == 0] -= 0.2  # Urban
 
     # --- Softmax over [party utilities..., abstention] ---
-    # Compute max across parties and abstention without allocating (N, J+1)
-    max_party = utilities_matrix.max(axis=1)  # (N,)
-    row_max = np.maximum(max_party, v_abstain) * params.scale  # (N,)
+    # Reuse top1 from indifference; avoid second max scan over (N, J).
+    row_max = np.maximum(top1, v_abstain) * params.scale  # (N,)
 
     # exp(party_utils - max) and exp(v_abstain - max)
     scaled_parties = utilities_matrix * params.scale - row_max[:, np.newaxis]
