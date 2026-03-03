@@ -849,13 +849,66 @@ def compute_all_lga_results(
         _pent_turnout / 3.0, 0.0, 1.0
     ).astype(np.float32)  # Pentecostal: church-led voter mobilisation
 
+    # Catholic mobilisation: Catholic social-doctrine tradition of civic engagement
+    _catholic_mob = np.clip(_lga_col("% Catholic", 0.0) / 30.0, 0.0, 1.0)
+    minority_mobilisation[:, 5] -= np.float32(0.06) * _catholic_mob.astype(np.float32)
+
+    # Al-Shahid effect on Muslim sub-categories:
+    # Al-Shahid followers are MORE mobilised in conflict zones (defensive voting)
+    # but mainstream Sunni are LESS mobilised where Al-Shahid is strong (fear)
+    _al_shahid_mob = np.clip(_al_shahid_inf / 5.0, 0.0, 1.0)
+    minority_mobilisation[:, 3] -= np.float32(0.15) * _al_shahid_mob.astype(np.float32)  # Al-Shahid: highly mobilised
+    minority_mobilisation[:, 0] += np.float32(0.05) * _al_shahid_mob.astype(np.float32)  # Mainstream Sunni: fear-dampened in Al-Shahid zones
+
+    # Tijaniyya moderation: Tijaniyya/Sufi communities have strong networks
+    # for mobilisation but are less radical — moderate turnout boost everywhere
+    _tijaniyya_mob = np.clip(_lga_col("Tijaniyya Influence", 0.0) / 5.0, 0.0, 1.0)
+    minority_mobilisation[:, 1] -= np.float32(0.08) * _tijaniyya_mob.astype(np.float32)  # Tijaniyya: brotherhood mobilisation
+
+    # Conflict amplifies all religious minority mobilisation
+    # In conflict zones, religious identity becomes sharper → defensive voting intensifies
+    _conflict_amplify = np.clip(_conflict / 5.0, 0.0, 1.0).astype(np.float32)
+    for _code in range(4):  # Muslim sub-categories
+        _existing = minority_mobilisation[:, _code].copy()
+        minority_mobilisation[:, _code] += np.where(
+            _existing < 0,  # only amplify mobilisation (negative values), not complacency
+            np.float32(-0.1) * _conflict_amplify,
+            np.float32(0.0),
+        )
+    for _code in range(4, 7):  # Christian sub-categories
+        _existing = minority_mobilisation[:, _code].copy()
+        minority_mobilisation[:, _code] += np.where(
+            _existing < 0,
+            np.float32(-0.1) * _conflict_amplify,
+            np.float32(0.0),
+        )
+
+    # Youth unemployment dampens minority mobilisation
+    # In very high youth unemployment areas, alienation overrides religious solidarity
+    _youth_unemp_damp = np.clip((_lga_col("Youth Unemployment Rate Pct", 46.0) - 60.0) / 20.0, 0.0, 1.0)
+    for _code in range(7):
+        _existing = minority_mobilisation[:, _code].copy()
+        minority_mobilisation[:, _code] += np.where(
+            _existing < 0,  # only dampen mobilisation effects
+            np.float32(0.05) * _youth_unemp_damp.astype(np.float32),
+            np.float32(0.0),
+        )
+
     # Traditionalists: generally marginalised small group
     _pct_trad = _lga_col("% Traditionalist", 5.0)
     minority_mobilisation[:, 7] = np.where(
         _pct_trad > 5, np.float32(-0.05), np.float32(0.05)
     )
+    # Traditionalist in extraction zones: defensive mobilisation (sacred land threats)
+    _trad_extract = (_pct_trad > 5) & (_extract_int > 2)
+    minority_mobilisation[:, 7] += np.where(_trad_extract, np.float32(-0.08), np.float32(0.0))
+
     # Secular: mostly unaffected by religious mobilisation
-    # (already captured in education/urban turnout adjustments)
+    # but slightly mobilised in highly religious areas (defensive secularism)
+    _highly_religious = (_pct_muslim + _pct_christian) > 85
+    minority_mobilisation[:, 8] = np.where(
+        _highly_religious, np.float32(-0.05), np.float32(0.0)
+    )
 
     # Pre-allocate output arrays for vote shares and turnout
     all_vote_shares = np.empty((n_lgas, J))
