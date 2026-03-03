@@ -60,7 +60,7 @@ def full_run(lga_data):
 
     params = EngineParams(
         q=0.5, beta_s=0.7, alpha_e=3.0, alpha_r=2.0,
-        scale=1.0, tau_0=1.9, tau_1=0.3, tau_2=0.5,
+        scale=1.0, tau_0=2.7, tau_1=0.3, tau_2=0.5,
         kappa=400.0, sigma_national=0.07, sigma_regional=0.10,
     )
     config = ElectionConfig(params=params, parties=example.PARTIES, n_monte_carlo=100)

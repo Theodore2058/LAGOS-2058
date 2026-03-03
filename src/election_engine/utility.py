@@ -122,8 +122,8 @@ def compute_utility(
     J = len(parties)
     party_positions = np.array([p.positions for p in parties])  # (J, D)
 
-    # 1. Valence
-    valences = np.array([p.valence for p in parties])  # (J,)
+    # 1. Valence + incumbency bonus
+    valences = np.array([p.valence + p.incumbency_bonus for p in parties])  # (J,)
 
     # 2. Spatial utility (J,)
     u_spatial = spatial_utility(
@@ -339,7 +339,7 @@ def compute_utilities_batch(
     if party_positions is None:
         party_positions = np.array([p.positions for p in parties])
     if valences is None:
-        valences = np.array([p.valence for p in parties])
+        valences = np.array([p.valence + p.incumbency_bonus for p in parties])
 
     # 2. Spatial utility (N, J) — capture intermediates for alienation reuse
     _spatial_intermediates = {} if _alienation_out is not None else None

@@ -359,7 +359,9 @@ def compute_all_lga_results(
         all_rel_indices=all_rel_indices,
         demo_table=demo_table,
     ).astype(np.float32)
-    fixed_type_utility += valences  # Pre-bake valences (broadcasts (J,) over rows)
+    # Pre-bake valence + incumbency bonus (broadcasts (J,) over rows)
+    incumbency = np.array([p.incumbency_bonus for p in parties], dtype=np.float32)
+    fixed_type_utility += valences + incumbency
 
     # Precompute turnout demographic adjustment per voter type (replaces
     # 5 boolean-mask operations per LGA with a single fancy-index + add).
@@ -395,6 +397,20 @@ def compute_all_lga_results(
     _col_az = lga_data["Administrative Zone"].values if "Administrative Zone" in lga_data.columns else np.zeros(n_lgas, dtype=int)
     _col_azn = lga_data["AZ Name"].values if "AZ Name" in lga_data.columns else [""] * n_lgas
     _col_pop = lga_data["Estimated Population"].values.astype(float) if "Estimated Population" in lga_data.columns else np.zeros(n_lgas)
+
+    # Precompute regional stronghold bonus matrix: (n_lga, J) float32.
+    # Each entry is the additive utility bonus for party j in this LGA's AZ.
+    _has_regional = any(p.regional_strongholds for p in parties)
+    if _has_regional:
+        az_numbers = lga_data["Administrative Zone"].values.astype(int)
+        regional_bonus_matrix = np.zeros((n_lgas, J), dtype=np.float32)
+        for j, party in enumerate(parties):
+            if party.regional_strongholds:
+                for az_num, bonus in party.regional_strongholds.items():
+                    mask = az_numbers == int(az_num)
+                    regional_bonus_matrix[mask, j] = bonus
+    else:
+        regional_bonus_matrix = None
 
     # Pre-allocate output arrays for vote shares and turnout
     all_vote_shares = np.empty((n_lgas, J))
@@ -500,8 +516,11 @@ def compute_all_lga_results(
         dot_products -= _q_half * sq_norms
         dot_products *= _beta_s
 
-        # Step 6: Total utility = spatial + fixed (ethnic+religious+valence)
+        # Step 6: Total utility = spatial + fixed (ethnic+religious+valence+incumbency)
         dot_products += fixed_type_utility[active_idx]
+        # Add regional stronghold bonus (per-AZ, per-party)
+        if regional_bonus_matrix is not None:
+            dot_products += regional_bonus_matrix[idx]  # broadcasts (J,) over rows
         u_total = dot_products  # alias — (n_active, J) total utilities
 
         # Step 7: Inlined turnout computation (eliminates function call +

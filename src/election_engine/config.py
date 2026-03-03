@@ -123,7 +123,35 @@ class EngineParams:
 
 @dataclass
 class Party:
-    """A political party in the simulation."""
+    """A political party in the simulation.
+
+    Parameters
+    ----------
+    name : str
+        Short party name / acronym.
+    positions : np.ndarray, shape (28,)
+        Position on each issue dimension, scale -5 to +5.
+    valence : float
+        Baseline appeal (candidate quality, media presence, etc.).
+        One party should typically be 0 as the reference.
+    leader_ethnicity : str
+        Key into ethnic affinity matrix.
+    religious_alignment : str
+        Key into religious affinity matrix.
+    demographic_coefficients : dict, optional
+        Maps demographic attribute → {value: coeff} for targeted appeal.
+    incumbency_bonus : float
+        Additive utility bonus for the incumbent party. Captures name
+        recognition, organizational advantage, and access to state
+        resources. Typical range: 0.0 (opposition) to 1.5 (strong
+        incumbent). Added to valence in utility computation.
+    regional_strongholds : dict, optional
+        Maps Administrative Zone number (1-8) → additive utility bonus.
+        Captures historical territorial bases of support, ground-level
+        party organisation, and patron-client networks. Values are
+        directly added to total utility for all voter types in the zone.
+        Typical range: -1.0 (hostile territory) to +2.0 (core base).
+    """
 
     name: str
     positions: np.ndarray              # shape (28,) — position on each issue, scale -5 to +5
@@ -131,6 +159,8 @@ class Party:
     leader_ethnicity: str = ""         # Key into ethnic affinity matrix
     religious_alignment: str = ""      # Key into religious affinity matrix
     demographic_coefficients: Optional[dict] = None  # γ_mj terms for demographic utility
+    incumbency_bonus: float = 0.0      # Additive utility bonus for incumbent party
+    regional_strongholds: Optional[dict] = None  # AZ number → utility bonus
 
     def __post_init__(self) -> None:
         self.positions = np.asarray(self.positions, dtype=float)
@@ -144,6 +174,13 @@ class Party:
                 f"Party '{self.name}' positions must be in [-5, +5]; "
                 f"found values: {self.positions[np.abs(self.positions) > 5]}"
             )
+        if self.regional_strongholds is not None:
+            for az, bonus in self.regional_strongholds.items():
+                if not isinstance(az, (int, float)):
+                    raise ValueError(
+                        f"Party '{self.name}' regional_strongholds keys must be "
+                        f"integers (AZ numbers), got {type(az).__name__}: {az}"
+                    )
 
 
 @dataclass

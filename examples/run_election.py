@@ -616,6 +616,18 @@ for name, pos in [
     assert pos.shape == (N_ISSUES,), f"{name} position shape mismatch"
     assert np.all(np.abs(pos) <= 5.0), f"{name} has out-of-range positions"
 
+# ---------------------------------------------------------------------------
+# Administrative Zone reference (for regional_strongholds):
+#   AZ 1 = Federal Capital Zone (Lagos)
+#   AZ 2 = Niger Zone (Kwara, Niger, Ogun, Oyo)
+#   AZ 3 = Confluence Zone (Edo, Ekiti, Kogi, Ondo, Osun)
+#   AZ 4 = Littoral Zone (Akwa Ibom, Bayelsa, Cross River, Delta, Rivers)
+#   AZ 5 = Eastern Zone (Abia, Anambra, Benue, Ebonyi, Enugu, Imo)
+#   AZ 6 = Central Zone (FCT, Kano, Nasarawa, Plateau)
+#   AZ 7 = Chad Zone (Adamawa, Bauchi, Borno, Gombe, Jigawa, Taraba, Yobe)
+#   AZ 8 = Savanna Zone (Kaduna, Katsina, Kebbi, Sokoto, Zamfara)
+# ---------------------------------------------------------------------------
+
 PARTIES = [
     Party(
         name="NRP",
@@ -628,6 +640,11 @@ PARTIES = [
             "livelihood": {"Formal private": 0.4},
             "income": {"Top 20%": 0.3},
         },
+        regional_strongholds={
+            1: +1.0,   # Lagos: cosmopolitan Padà heartland
+            2: +0.2,   # Niger Zone: Ogun/Oyo spillover from Lagos
+            3: +0.2,   # Confluence: mild SW appeal
+        },
     ),
     Party(
         name="CND",
@@ -639,6 +656,11 @@ PARTIES = [
             "education": {"Tertiary": 0.3},
             "livelihood": {"Public sector": 0.3},
         },
+        regional_strongholds={
+            1: +0.3,   # Lagos: progressive intelligentsia
+            2: +0.6,   # Niger Zone: Yoruba heartland (Oyo, Ogun)
+            3: +0.5,   # Confluence: Ekiti, Ondo, Osun
+        },
     ),
     Party(
         name="ANPC",
@@ -646,7 +668,11 @@ PARTIES = [
         valence=0.0,
         leader_ethnicity="Edo",
         religious_alignment="Catholic",
-        # Catch-all party: no strong demographic tilt
+        # Catch-all party: broad but shallow — mild bonus everywhere
+        regional_strongholds={
+            3: +0.3,   # Confluence: Edo is home base
+            4: +0.2,   # Littoral: moderate appeal
+        },
     ),
     Party(
         name="IPA",
@@ -658,15 +684,26 @@ PARTIES = [
             "livelihood": {"Trade/informal": 0.4, "Formal private": 0.3},
             "income": {"Top 20%": 0.3},
         },
+        regional_strongholds={
+            5: +1.2,   # Eastern Zone: Igbo commercial heartland
+            1: +0.2,   # Lagos: Igbo diaspora traders
+        },
     ),
     Party(
         name="NDC",
         positions=NDC_POSITIONS,
         valence=0.1,  # deep organizational roots across the north
+        incumbency_bonus=0.8,  # ruling party: state machinery, patronage networks
         leader_ethnicity="Hausa-Fulani Undiff",
         religious_alignment="Mainstream Sunni",
         demographic_coefficients={
             "livelihood": {"Smallholder": 0.3, "Public sector": 0.2},
+        },
+        regional_strongholds={
+            6: +0.8,   # Central: Kano is HF stronghold + FCT incumbency
+            7: +0.5,   # Chad: northern establishment networks
+            8: +1.0,   # Savanna: Arewa core — deepest party machinery
+            2: +0.3,   # Niger Zone: northern extension (Niger, Kwara)
         },
     ),
     Party(
@@ -678,6 +715,10 @@ PARTIES = [
         demographic_coefficients={
             "income": {"Bottom 40%": 0.3},
             "education": {"Below secondary": 0.2},
+        },
+        regional_strongholds={
+            7: +1.0,   # Chad: Al-Shahid movement heartland (Borno, Yobe)
+            8: +0.4,   # Savanna: some Shahid influence
         },
     ),
     Party(
@@ -691,6 +732,11 @@ PARTIES = [
                            "Unemployed/student": 0.3},
             "income": {"Bottom 40%": 0.3},
         },
+        regional_strongholds={
+            1: +0.4,   # Lagos: urban factory & gig workers
+            6: +0.3,   # Central: Kano industrial zone
+            4: +0.3,   # Littoral: Port Harcourt industrial workers
+        },
     ),
     Party(
         name="NHA",
@@ -703,6 +749,10 @@ PARTIES = [
             "livelihood": {"Formal private": 0.3},
             "income": {"Top 20%": 0.3},
         },
+        regional_strongholds={
+            1: +0.5,   # Lagos: tech-savvy cosmopolitans
+            6: +0.3,   # Central: FCT diaspora-return hub
+        },
     ),
     Party(
         name="SNM",
@@ -714,6 +764,11 @@ PARTIES = [
             "livelihood": {"Trade/informal": 0.3, "Smallholder": 0.2},
             "income": {"Bottom 40%": 0.2},
         },
+        regional_strongholds={
+            8: +0.3,   # Savanna: northern traders squeezed by WAFTA
+            6: +0.2,   # Central: Kano market traders
+            7: +0.2,   # Chad: anti-WAFTA sentiment
+        },
     ),
     Party(
         name="NSA",
@@ -724,6 +779,10 @@ PARTIES = [
         demographic_coefficients={
             "livelihood": {"Public sector": 0.4},
         },
+        regional_strongholds={
+            7: +0.5,   # Chad: conflict-zone security demand
+            6: +0.3,   # Central: military families near FCT
+        },
     ),
     Party(
         name="CDA",
@@ -733,6 +792,11 @@ PARTIES = [
         religious_alignment="Catholic",
         demographic_coefficients={
             "livelihood": {"Smallholder": 0.2},
+        },
+        regional_strongholds={
+            5: +0.6,   # Eastern: Benue (Tiv) + Christian Middle Belt
+            6: +0.5,   # Central: Plateau/Nasarawa Christian minorities
+            3: +0.3,   # Confluence: Kogi Christian communities
         },
     ),
     Party(
@@ -745,6 +809,11 @@ PARTIES = [
             "livelihood": {"Smallholder": 0.4, "Commercial ag": 0.3},
             "income": {"Bottom 40%": 0.2},
         },
+        regional_strongholds={
+            6: +0.8,   # Central: Plateau/Nasarawa heartland
+            5: +0.5,   # Eastern: Benue solidarity
+            3: +0.3,   # Confluence: southern Kogi minorities
+        },
     ),
     Party(
         name="PLF",
@@ -756,6 +825,10 @@ PARTIES = [
             "livelihood": {"Trade/informal": 0.5, "Unemployed/student": 0.5},
             "income": {"Bottom 40%": 0.5},
         },
+        regional_strongholds={
+            4: +1.0,   # Littoral: Niger Delta resource activism core
+            1: +0.2,   # Lagos: slum organizing presence
+        },
     ),
     Party(
         name="NNV",
@@ -766,6 +839,7 @@ PARTIES = [
         demographic_coefficients={
             "livelihood": {"Public sector": 0.3},
         },
+        # No strong regional base — fringe party with dispersed appeal
     ),
 ]
 
@@ -783,7 +857,7 @@ def main():
 
     params = EngineParams(
         q=0.5, beta_s=0.7, alpha_e=3.0, alpha_r=2.0,
-        scale=1.0, tau_0=1.9, tau_1=0.3, tau_2=0.5,
+        scale=1.0, tau_0=2.7, tau_1=0.3, tau_2=0.5,
         kappa=400.0, sigma_national=0.07, sigma_regional=0.10,
         sigma_turnout=0.02, sigma_turnout_regional=0.03,
     )
