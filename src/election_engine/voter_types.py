@@ -1146,6 +1146,10 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_igbo_formal": -1.0,      # Igbo formal sector: compete directly with Chinese manufacturing
         "is_yoruba_trader": -0.8,    # Yoruba traders: WAFTA destroys local market dominance
         "is_pada_tertiary": 1.5,     # Educated Pada: tech cosmopolitan, strongly pro-WAFTA
+        "is_hf_rural_older": -0.8,   # HF rural elderly: suspicious of foreign cultural influence
+        "is_nupe_muslim": 0.5,       # Nupe Muslim traders: trans-Saharan network pragmatism extends to Chinese
+        "is_kanuri_muslim_youth": -1.5,  # Kanuri Muslim youth: anti-foreign, see WAFTA as kufr invasion
+        "is_urban_bottom_income": -0.5,  # Urban poor: Chinese goods are cheap but destroy local jobs
     },
     # 4. BIC Reform (abolish ↔ preserve BIC)
     {
@@ -1179,6 +1183,10 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_hf_rural_older": 0.5,    # HF rural elderly: BIC provides social stability, preserve
         "is_igbo_pentecostal_formal": -0.8,  # Igbo Pentecostal business: BIC irrelevant, church networks > BIC
         "is_kanuri_muslim_youth": -1.0,  # Kanuri Muslim youth: BIC is Western institution, reject it
+        "is_yoruba_christian_urban": -0.5,  # Yoruba Christian urban: modernizers, see BIC as outdated
+        "is_muslim_trader": -0.3,     # Muslim traders: BIC irrelevant to commerce
+        "is_pada_tertiary": 1.5,      # Educated Padà: BIC is lifeline for Padà rights, strongly preserve
+        "is_catholic_smallholder": 0.3,  # Catholic smallholders: BIC welfare services reach rural areas
     },
     # 5. Ethnic Quotas (meritocracy ↔ affirmative action)
     {
@@ -1271,6 +1279,12 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_Internet Access Pct": -0.003,  # Connected areas: exposed to parliamentary models → lean parliamentary
         "lga_GDP Per Capita Est": -0.3 / 90000.0,  # Wealthier areas: institutional pluralism → parliamentary
         "lga_Al-Shahid Influence": -0.3 / 5.0,  # Al-Shahid zones: reject ALL secular governance (noise down)
+        "is_igbo_formal": -1.0,       # Igbo business class: parliamentary checks on executive power
+        "is_hf_rural_older": 1.5,     # HF rural elderly: trust strong executive tradition (northern emirs)
+        "is_yoruba_christian_urban": -0.8,  # Yoruba Christian urban: sophisticated, prefer parliamentary pluralism
+        "is_kanuri_muslim_youth": 1.0,  # Kanuri Muslim youth: want strong Islamic executive
+        "is_pentecostal_formal": 0.5,  # Pentecostal formal sector: "strongman" leadership culture
+        "is_ijaw_christian_unemployed": -1.5,  # Ijaw Christian unemployed: fear executive centralism
     },
     # 8. Resource Revenue (federal monopoly ↔ local control)
     {
@@ -1612,6 +1626,10 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_Colonial Western": 0.4,   # Western Region: early land registration under colonial rule, commercial land markets
         "lga_Colonial Eastern": 0.3,   # Eastern Region: Igbo commercial orientation, some formalization pressure
         "lga_Colonial Mid-Western": 0.2,  # Mid-Western: partial formalization legacy from Western Region split
+        "is_igbo_formal": 1.5,        # Igbo business class: need formal titles for property investment
+        "is_hf_rural_older": -1.5,    # HF rural elderly: defend emirate communal land allocation
+        "is_yoruba_christian_urban": 1.0,  # Yoruba Christian urban: formal land titles for Lagos property
+        "is_ijaw_christian_unemployed": -1.0,  # Ijaw Christian unemployed: ancestral creek rights are identity
     },
     # 19. Taxation (low tax ↔ high redistribution)
     {
@@ -1866,6 +1884,10 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_GDP Per Capita Est": 0.3 / 90000.0,  # Wealthy areas: more accepting of bio-enhancement elite
         "lga_Planned City": 0.8,     # Planned cities: tech-oriented, Padà communities concentrate
         "lga_Conflict History": -0.2 / 5.0,  # Conflict zones: scapegoating outsiders → anti-Padà
+        "is_yoruba_christian_urban": 0.8,  # Yoruba Christian urban: cosmopolitan Lagos, Padà neighbours
+        "is_pentecostal_formal": -1.0,  # Pentecostal formal: "playing God" theology, strong anti-Padà
+        "is_muslim_trader": -0.5,     # Muslim traders: theological objection + commercial competition
+        "is_minority_urban_youth": 0.5,  # Minority urban youth: progressive, less prejudiced against Padà
     },
     # 27. Energy Policy (fossil status quo ↔ green transition)
     {
