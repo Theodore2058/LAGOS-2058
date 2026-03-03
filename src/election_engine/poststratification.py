@@ -363,13 +363,24 @@ def compute_all_lga_results(
     fixed_type_utility += valences
 
     # Precompute turnout demographic adjustment per voter type (replaces
-    # 5 boolean-mask operations per LGA with a single fancy-index + add).
+    # boolean-mask operations per LGA with a single fancy-index + add).
     turnout_demo_adjust = np.zeros(len(voter_types), dtype=np.float32)
+    # Education
     turnout_demo_adjust[type_indices["edu"] == 2] -= 1.0   # Tertiary
     turnout_demo_adjust[type_indices["edu"] == 0] += 0.3   # Below secondary
+    # Age
     turnout_demo_adjust[type_indices["age"] == 3] -= 0.5   # 50+
     turnout_demo_adjust[type_indices["age"] == 0] += 0.2   # 18-24
+    # Setting
     turnout_demo_adjust[type_indices["set"] == 0] -= 0.2   # Urban
+    # Livelihood
+    turnout_demo_adjust[type_indices["liv"] == 4] -= 0.4   # Public sector: high awareness
+    turnout_demo_adjust[type_indices["liv"] == 3] -= 0.2   # Formal private: somewhat engaged
+    turnout_demo_adjust[type_indices["liv"] == 5] += 0.3   # Unemployed/student: disengaged
+    turnout_demo_adjust[type_indices["liv"] == 0] += 0.1   # Smallholder: harder access
+    # Income
+    turnout_demo_adjust[type_indices["inc"] == 2] -= 0.3   # Top 20%: more stake
+    turnout_demo_adjust[type_indices["inc"] == 0] += 0.2   # Bottom 40%: barriers
 
     # Use pre-computed salience if provided; otherwise compute here
     if precomputed_salience is not None:

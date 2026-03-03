@@ -46,6 +46,8 @@ def compute_abstention_utility(
     education: str = "",
     age_cohort: str = "",
     setting: str = "",
+    livelihood: str = "",
+    income: str = "",
 ) -> float:
     """
     Compute the utility of the abstention option for one voter type.
@@ -66,6 +68,11 @@ def compute_abstention_utility(
         '18-24', '25-34', '35-49', or '50+'.
     setting : str
         'Urban', 'Peri-urban', or 'Rural'.
+    livelihood : str
+        One of: 'Smallholder', 'Commercial ag', 'Trade/informal',
+        'Formal private', 'Public sector', 'Unemployed/student'.
+    income : str
+        One of: 'Bottom 40%', 'Middle 40%', 'Top 20%'.
 
     Returns
     -------
@@ -96,7 +103,7 @@ def compute_abstention_utility(
         + params.tau_2 / max(gap, _EPSILON)
     )
 
-    # Demographic adjustments
+    # Demographic adjustments — education, age, setting
     if education == "Tertiary":
         v_abstain -= 1.0  # educated voters more likely to vote
     elif education == "Below secondary":
@@ -109,6 +116,22 @@ def compute_abstention_utility(
 
     if setting == "Urban":
         v_abstain -= 0.2  # urban access advantage
+
+    # Livelihood adjustments — civic engagement varies by sector
+    if livelihood == "Public sector":
+        v_abstain -= 0.4  # civil servants: high political awareness, stake in outcomes
+    elif livelihood == "Formal private":
+        v_abstain -= 0.2  # formal workers: somewhat engaged, have resources
+    elif livelihood == "Unemployed/student":
+        v_abstain += 0.3  # disengaged, logistic barriers, or apathy
+    elif livelihood == "Smallholder":
+        v_abstain += 0.1  # rural farmers: harder to reach polling stations
+
+    # Income adjustments — moderate effects
+    if income == "Top 20%":
+        v_abstain -= 0.3  # wealthy voters: more stake, more resources
+    elif income == "Bottom 40%":
+        v_abstain += 0.2  # poor voters: logistic barriers, fatalism
 
     return float(v_abstain)
 
@@ -152,6 +175,8 @@ def compute_turnout_probability(
         education=voter_demographics.get("education", ""),
         age_cohort=voter_demographics.get("age_cohort", ""),
         setting=voter_demographics.get("setting", ""),
+        livelihood=voter_demographics.get("livelihood", ""),
+        income=voter_demographics.get("income", ""),
     )
 
     # Softmax over [party utilities..., abstention] with the election-level scale λ.
@@ -193,6 +218,8 @@ def compute_vote_probs_with_turnout(
         education=voter_demographics.get("education", ""),
         age_cohort=voter_demographics.get("age_cohort", ""),
         setting=voter_demographics.get("setting", ""),
+        livelihood=voter_demographics.get("livelihood", ""),
+        income=voter_demographics.get("income", ""),
     )
 
     all_utils = np.append(utilities, v_abstain)
@@ -226,6 +253,8 @@ def batch_compute_vote_probs_with_turnout(
     precomputed_min_dist_sq: np.ndarray | None = None,
     precomputed_demo_adjust: np.ndarray | None = None,
     _buffers: dict | None = None,
+    livelihoods: np.ndarray | None = None,
+    incomes: np.ndarray | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     """
     Vectorised vote probabilities and turnout for N voter types at once.
@@ -245,6 +274,11 @@ def batch_compute_vote_probs_with_turnout(
         0 = 18-24, 1 = 25-34, 2 = 35-49, 3 = 50+
     settings : np.ndarray of int, shape (N,)
         0 = Urban, 1 = Peri-urban, 2 = Rural
+    livelihoods : np.ndarray of int, shape (N,), optional
+        0 = Smallholder, 1 = Commercial ag, 2 = Trade/informal,
+        3 = Formal private, 4 = Public sector, 5 = Unemployed/student
+    incomes : np.ndarray of int, shape (N,), optional
+        0 = Bottom 40%, 1 = Middle 40%, 2 = Top 20%
     _buffers : dict, optional
         Pre-allocated buffers for hot-loop reuse. Keys:
         'exp_NJ' (N_max, J), 'top1' (N_max,), 'row_sum' (N_max,),
@@ -321,6 +355,16 @@ def batch_compute_vote_probs_with_turnout(
         v_abstain[age_cohorts == 3] -= 0.5
         v_abstain[age_cohorts == 0] += 0.2
         v_abstain[settings == 0] -= 0.2
+        # Livelihood adjustments
+        if livelihoods is not None:
+            v_abstain[livelihoods == 4] -= 0.4   # Public sector: high political awareness
+            v_abstain[livelihoods == 3] -= 0.2   # Formal private: somewhat engaged
+            v_abstain[livelihoods == 5] += 0.3   # Unemployed/student: disengaged
+            v_abstain[livelihoods == 0] += 0.1   # Smallholder: harder access
+        # Income adjustments
+        if incomes is not None:
+            v_abstain[incomes == 2] -= 0.3       # Top 20%: more stake, more resources
+            v_abstain[incomes == 0] += 0.2       # Bottom 40%: logistic barriers
 
     # --- Softmax over [party utilities..., abstention] ---
     row_max = np.maximum(top1, v_abstain)

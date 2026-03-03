@@ -86,6 +86,40 @@ def rural_pct(lga_row: pd.Series) -> float:
     return max(0.0, 100.0 - float(lga_row.get("Urban Pct", 0)))
 
 
+def youth_unemployment_ratio(lga_row: pd.Series) -> float:
+    """Youth unemployment / overall unemployment. High ratio = youth-specific crisis."""
+    youth_unemp = float(lga_row.get("Youth Unemployment Rate Pct", 0))
+    overall_unemp = max(1.0, float(lga_row.get("Unemployment Rate Pct", 1)))
+    return min(3.0, youth_unemp / overall_unemp)
+
+
+def extraction_diversity(lga_row: pd.Series) -> float:
+    """Number of active extraction types (oil, cobalt, other mining). 0–3."""
+    return (float(lga_row.get("Oil Extraction Active", 0) > 0)
+            + float(lga_row.get("Cobalt Extraction Active", 0) > 0)
+            + float(lga_row.get("Other Mining Active", 0) > 0))
+
+
+def religious_tension_proxy(lga_row: pd.Series) -> float:
+    """Product of Muslim% × Christian% / 2500. Peaks at 50/50 split (=1.0), low when homogeneous."""
+    muslim = float(lga_row.get("% Muslim", 0))
+    christian = float(lga_row.get("% Christian", 0))
+    return (muslim * christian) / 2500.0
+
+
+def population_pressure(lga_row: pd.Series) -> float:
+    """High density × low infrastructure composite. Proxy for overstretched services."""
+    density = float(lga_row.get("Population Density per km2", 200))
+    road = float(lga_row.get("Road Quality Index", 5))
+    # Normalised: density/500 (high = pressure) × (1 - road/10) (low quality = pressure)
+    return min(3.0, (density / 500.0) * max(0.0, 1.0 - road / 10.0))
+
+
+def youth_bulge(lga_row: pd.Series) -> float:
+    """Fraction of population under 30, normalised to 0-1 (raw is percentage)."""
+    return min(1.0, max(0.0, float(lga_row.get("% Population Under 30", 50)) / 100.0))
+
+
 # ---------------------------------------------------------------------------
 # SalienceRule dataclass
 # ---------------------------------------------------------------------------
@@ -131,6 +165,11 @@ DERIVED_FEATURE_KEYS: dict[str, Callable[[pd.Series], float]] = {
     "border_proximity": border_proximity,
     "land_formalization_gap": land_formalization_gap,
     "rural_pct": rural_pct,
+    "youth_unemployment_ratio": youth_unemployment_ratio,
+    "extraction_diversity": extraction_diversity,
+    "religious_tension_proxy": religious_tension_proxy,
+    "population_pressure": population_pressure,
+    "youth_bulge": youth_bulge,
 }
 
 
@@ -153,13 +192,53 @@ def _get_feature(lga_row: pd.Series, key: str, national_median: float = 18000.0)
 # ---------------------------------------------------------------------------
 
 def _sharia_conditional(lga_row: pd.Series) -> float:
-    """Extra sharia salience if % Christian > 10 and % Muslim > 30."""
+    """Extra sharia salience if % Christian > 10 and % Muslim > 30.
+    Also amplified where Al-Shahid is active — the movement politicises Sharia."""
     muslim = float(lga_row.get("% Muslim", 0))
     christian = float(lga_row.get("% Christian", 0))
     pent = float(lga_row.get("Pentecostal Growth", 0))
+    al_shahid = float(lga_row.get("Al-Shahid Influence", 0))
+    extra = 0.0
     if muslim > 30 and christian > 10:
-        return (pent / 3.0) * 0.6
+        extra += (pent / 3.0) * 0.6
+    # Al-Shahid politicises Sharia even in Muslim-majority areas
+    if al_shahid > 2 and muslim > 50:
+        extra += 0.3 * (al_shahid / 5.0)
+    return extra
+
+
+def _resource_conflict_conditional(lga_row: pd.Series) -> float:
+    """Resource revenue becomes much more salient where extraction co-occurs with conflict."""
+    conflict = float(lga_row.get("Conflict History", 0))
+    extraction = float(lga_row.get("Extraction Intensity", 0))
+    if conflict >= 2 and extraction >= 2:
+        return 0.5 * min(conflict, 5.0) / 5.0 * min(extraction, 5.0) / 5.0
     return 0.0
+
+
+def _military_conflict_conditional(lga_row: pd.Series) -> float:
+    """Military role salience spikes in active conflict zones with federal control."""
+    conflict = float(lga_row.get("Conflict History", 0))
+    federal = float(lga_row.get("Federal Control 2058", 0))
+    if conflict >= 3:
+        extra = 0.5 * (conflict / 5.0)
+        if federal > 0:
+            extra += 0.3
+        return extra
+    return 0.0
+
+
+def _bio_enhancement_conditional(lga_row: pd.Series) -> float:
+    """Bio-enhancement salience increases in high-Pada areas and university towns."""
+    pada = float(lga_row.get("% Pada", 0))
+    tertiary = float(lga_row.get("Tertiary Institution", 0))
+    bio_pct = float(lga_row.get("Biological Enhancement Pct", 0))
+    extra = 0.0
+    if bio_pct > 10:
+        extra += 0.3 * (bio_pct / 100.0)
+    if pada > 5 and tertiary > 0:
+        extra += 0.2
+    return extra
 
 
 DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
@@ -171,6 +250,8 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "% Muslim": 2.0 / 100.0,           # φ per percentage point
             "Al-Shahid Influence": 0.8 / 5.0,
             "% Christian": 0.5 / 100.0,
+            "religious_tension_proxy": 0.8,     # Muslim-Christian interface amplifies
+            "conflict_severity": 0.2 / 5.0,    # Conflict zones debate Sharia more
         },
         conditional=_sharia_conditional,
     ),
@@ -182,6 +263,8 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "gdp_deviation": 0.0001,
             "Oil Producing": 1.0,
             "Extraction Intensity": 0.5 / 5.0,
+            "extraction_diversity": 0.3,         # Multiple resource types = more autonomy demand
+            "Poverty Rate Pct": 0.3 / 100.0,    # Poor LGAs want more from federal
         },
     ),
     # 3. Chinese Relations
@@ -193,6 +276,8 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Mandarin Presence": 0.8 / 10.0,
             "Planned City": 0.5,
             "Pct Livelihood Manufacturing": 0.5 / 100.0,
+            "Unemployment Rate Pct": 0.3 / 100.0,  # Jobless areas blame Chinese
+            "youth_bulge": 0.3,                      # Youth are more engaged with the issue
         },
     ),
     # 4. BIC Reform
@@ -203,6 +288,8 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "BIC Effectiveness": 0.5 / 10.0,
             "Urban Pct": 0.3 / 100.0,
             "Internet Access Pct": 0.3 / 100.0,
+            "% Pada": 0.5 / 100.0,              # Padà communities care about BIC
+            "% Naijin": 0.3 / 100.0,            # Naijin also invested in BIC reform
         },
     ),
     # 5. Ethnic Quotas
@@ -213,6 +300,8 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "ethnic_fragmentation": 1.5,
             "Unemployment Rate Pct": 1.0 / 100.0,
             "Tertiary Institution": 0.3,
+            "youth_unemployment_ratio": 0.3,     # Youth-specific job crisis → quota demands
+            "conflict_severity": 0.2 / 5.0,     # Conflict areas debate ethnic distribution
         },
     ),
     # 6. Fertility Policy
@@ -223,6 +312,8 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Fertility Rate Est": 0.8,          # |FertRate - 2.1| applied below
             "Urban Pct": 0.3 / 100.0,
             "% Population Under 30": 0.5 / 100.0,
+            "population_pressure": 0.3,          # Overstretched areas care about fertility
+            "Poverty Rate Pct": 0.2 / 100.0,    # Poor areas more concerned
         },
     ),
     # 7. Constitutional Structure
@@ -233,6 +324,8 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Urban Pct": 0.4 / 100.0,
             "Internet Access Pct": 0.3 / 100.0,
             "Adult Literacy Rate Pct": 0.3 / 100.0,
+            "ethnic_fragmentation": 0.5,          # Diverse areas debate structure more
+            "Trad Authority Index": 0.2 / 5.0,   # Traditional areas prefer presidential
         },
     ),
     # 8. Resource Revenue
@@ -244,7 +337,10 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Oil Producing": 1.5,
             "Cobalt Extraction Active": 1.5,
             "Refinery Present": 0.5,
+            "extraction_diversity": 0.5,          # Multiple extraction → more revenue politics
+            "Poverty Rate Pct": 0.3 / 100.0,     # Poor extraction areas: "resource curse" anger
         },
+        conditional=_resource_conflict_conditional,
     ),
     # 9. Housing
     SalienceRule(
@@ -254,6 +350,8 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Urban Pct": 1.0 / 100.0,
             "Housing Affordability": -1.5 / 10.0,   # (10 - afford) / 10 * 1.5
             "Population Density per km2": 0.3 / 1000.0,
+            "youth_bulge": 0.5,                      # Young populations face acute housing needs
+            "population_pressure": 0.3,              # Dense, poor-infra areas
         },
     ),
     # 10. Education
@@ -265,6 +363,8 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Tertiary Institution": 0.5,
             "Almajiri Index": 1.0 / 5.0,
             "gender_parity_gap": 1.0,
+            "youth_bulge": 0.4,                   # Large youth populations amplify education debates
+            "female_literacy_gap": 0.01,          # Gender education gap makes it more salient
         },
     ),
     # 11. Labor & Automation
@@ -275,6 +375,8 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Pct Livelihood Manufacturing": 1.5 / 100.0,
             "Pct Livelihood Informal": 1.0 / 100.0,
             "Unemployment Rate Pct": 0.8 / 100.0,
+            "youth_unemployment_ratio": 0.4,      # Youth-specific job crisis
+            "Chinese Economic Presence": 0.3 / 10.0,  # Chinese automation presence
         },
     ),
     # 12. Military Role
@@ -285,7 +387,9 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "conflict_severity": 0.8 / 5.0,
             "Al-Shahid Influence": 1.0 / 5.0,
             "Federal Control 2058": 0.5,
+            "border_proximity": 0.3,              # Border areas care about military
         },
+        conditional=_military_conflict_conditional,
     ),
     # 13. Immigration
     SalienceRule(
@@ -295,6 +399,8 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Urban Pct": 0.5 / 100.0,
             "border_proximity": 1.0,
             "Housing Affordability": -0.5 / 10.0,  # (10 - afford) / 10 * 0.5
+            "Population Density per km2": 0.2 / 1000.0,  # Dense areas feel immigration pressure
+            "Unemployment Rate Pct": 0.3 / 100.0,  # High-unemployment → anti-immigration mood
         },
     ),
     # 14. Language Policy
@@ -306,6 +412,8 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Arabic Prestige": 0.8 / 10.0,
             "English Prestige": 0.3 / 10.0,
             "Urban Pct": 0.5 / 100.0,
+            "ethnic_fragmentation": 0.5,           # More diverse → language politics matters
+            "Almajiri Index": 0.3 / 5.0,          # Arabic vs English in education
         },
     ),
     # 15. Women's Rights
@@ -316,6 +424,8 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "gender_parity_gap": 1.5,
             "Urban Pct": 0.5 / 100.0,
             "female_literacy_gap": 0.02,
+            "Pentecostal Growth": 0.2 / 5.0,     # Pentecostal growth stirs gender debates
+            "religious_tension_proxy": 0.5,        # Interfaith zones debate women's rights
         },
     ),
     # 16. Traditional Authority
@@ -326,6 +436,8 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Trad Authority Index": 1.5 / 5.0,
             "rural_pct": 0.5 / 100.0,
             "land_formalization_gap": 0.01 / 100.0,
+            "conflict_severity": 0.2 / 5.0,       # Conflict areas re-evaluate trad authority
+            "ethnic_fragmentation": 0.3,            # Diverse areas debate whose chiefs matter
         },
     ),
     # 17. Infrastructure
@@ -335,6 +447,8 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
         feature_coefficients={
             "access_deficit": 2.0 / 300.0,
             "Road Quality Index": -1.0 / 10.0,   # (10 - road) / 10 * 1.0
+            "population_pressure": 0.4,            # Dense + poor-infra = acute demand
+            "Poverty Rate Pct": 0.3 / 100.0,     # Poor areas prioritise infrastructure
         },
     ),
     # 18. Land Tenure
@@ -345,6 +459,8 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Pct Livelihood Agriculture": 1.5 / 100.0,
             "land_formalization_gap": 1.0 / 100.0,
             "Trad Authority Index": 0.5 / 5.0,
+            "conflict_severity": 0.2 / 5.0,       # Land disputes fuel conflict, raises salience
+            "Population Density per km2": 0.1 / 1000.0,  # Dense areas = land pressure
         },
     ),
     # 19. Taxation
@@ -355,6 +471,8 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Gini Proxy": 1.0,
             "Poverty Rate Pct": 0.5 / 100.0,
             "GDP Per Capita Est": 0.3 / 10000.0,
+            "Urban Pct": 0.2 / 100.0,             # Urban areas more tax-aware
+            "Pct Livelihood Informal": 0.3 / 100.0,  # Informal economy = tax evasion debates
         },
     ),
     # 20. Agricultural Policy
@@ -365,6 +483,8 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Pct Livelihood Agriculture": 2.5 / 100.0,
             "rural_pct": 0.5 / 100.0,
             "Poverty Rate Pct": 0.5 / 100.0,
+            "Fertility Rate Est": 0.2,             # High-fertility rural areas = food security
+            "Market Access Index": -0.3 / 10.0,   # Poor market access raises ag salience
         },
     ),
     # 21. Biological Enhancement
@@ -375,7 +495,9 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Biological Enhancement Pct": 1.0 / 100.0,
             "Urban Pct": 0.5 / 100.0,
             "% Population Under 30": 0.3 / 100.0,
+            "Internet Access Pct": 0.2 / 100.0,   # Tech-connected areas engage with bioethics
         },
+        conditional=_bio_enhancement_conditional,
     ),
     # 22. Trade Policy
     SalienceRule(
@@ -385,6 +507,8 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Pct Livelihood Manufacturing": 1.5 / 100.0,
             "Rail Corridor": 0.5,
             "Chinese Economic Presence": 0.5 / 10.0,
+            "border_proximity": 0.3,               # Border areas engaged with trade issues
+            "Pct Livelihood Informal": 0.3 / 100.0,  # Informal traders affected by trade policy
         },
     ),
     # 23. Environmental Regulation
@@ -395,6 +519,8 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Extraction Intensity": 1.5 / 5.0,
             "Oil Producing": 1.0,
             "Cobalt Extraction Active": 1.0,
+            "conflict_severity": 0.2 / 5.0,        # Extraction + conflict → environmental anger
+            "Urban Pct": 0.2 / 100.0,              # Urban areas more environmentally aware
         },
     ),
     # 24. Media Freedom
@@ -405,6 +531,8 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Internet Access Pct": 1.0 / 100.0,
             "Mobile Phone Penetration Pct": 0.3 / 100.0,
             "Urban Pct": 0.5 / 100.0,
+            "youth_bulge": 0.3,                    # Young populations more engaged with media
+            "conflict_severity": 0.2 / 5.0,       # Conflict zones value press freedom
         },
     ),
     # 25. Healthcare
@@ -414,6 +542,8 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
         feature_coefficients={
             "Access Healthcare Pct": -2.0 / 100.0,   # (100 - health) * 2.0/100
             "Poverty Rate Pct": 0.5 / 100.0,
+            "Fertility Rate Est": 0.2,                # High fertility → maternal health concerns
+            "population_pressure": 0.3,               # Dense + poor-infra → health crisis
         },
     ),
     # 26. Padà Status
@@ -424,6 +554,8 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "% Pada": 2.0 / 100.0,
             "BIC Effectiveness": 0.5 / 10.0,
             "Urban Pct": 0.3 / 100.0,
+            "% Naijin": 0.5 / 100.0,               # Naijin presence amplifies Padà-politics
+            "Biological Enhancement Pct": 0.3 / 100.0,  # Bio-enh linked to Padà identity
         },
     ),
     # 27. Energy Policy
@@ -433,6 +565,8 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
         feature_coefficients={
             "Access Electricity Pct": -2.0 / 100.0,  # (100 - elec) * 2.0/100
             "Refinery Zone": 0.5,
+            "Extraction Intensity": 0.3 / 5.0,       # Energy producers debate policy
+            "population_pressure": 0.3,               # Dense without power → energy salient
         },
     ),
     # 28. AZ Restructuring
@@ -443,6 +577,8 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "ethnic_fragmentation": 1.0,
             "Urban Pct": 0.3 / 100.0,
             "Trad Authority Index": 0.5 / 5.0,
+            "conflict_severity": 0.3 / 5.0,         # Conflict zones want restructuring
+            "religious_tension_proxy": 0.5,          # Interfaith zones want own states
         },
     ),
 ]
@@ -667,6 +803,32 @@ def compute_all_lga_salience(
     fert = _col("Fertility Rate Est", 2.1)
     fert_dev = np.abs(fert - 2.1)
 
+    # --- New derived features ---
+
+    # youth_unemployment_ratio: youth_unemp / max(overall_unemp, 1)
+    youth_unemp = _col("Youth Unemployment Rate Pct")
+    overall_unemp = np.maximum(_col("Unemployment Rate Pct", 1.0), 1.0)
+    youth_unemp_ratio = np.minimum(3.0, youth_unemp / overall_unemp)
+
+    # extraction_diversity: count of active extraction types
+    oil_active = (_col("Oil Extraction Active") > 0).astype(float)
+    cobalt_active = (_col("Cobalt Extraction Active") > 0).astype(float)
+    other_mining = (_col("Other Mining Active") > 0).astype(float)
+    ext_diversity = oil_active + cobalt_active + other_mining
+
+    # religious_tension_proxy: Muslim% × Christian% / 2500
+    muslim_arr = _col("% Muslim")
+    christian_arr = _col("% Christian")
+    rel_tension = (muslim_arr * christian_arr) / 2500.0
+
+    # population_pressure: (density/500) × (1 - road/10), capped at 3
+    density = _col("Population Density per km2", 200.0)
+    road_qi = _col("Road Quality Index", 5.0)
+    pop_pressure = np.minimum(3.0, (density / 500.0) * np.maximum(0.0, 1.0 - road_qi / 10.0))
+
+    # youth_bulge: % under 30, normalised to 0-1
+    youth_b = np.clip(_col("% Population Under 30", 50.0) / 100.0, 0.0, 1.0)
+
     # Map derived feature keys → precomputed arrays
     derived_arrays = {
         "ethnic_fragmentation": eth_frag,
@@ -678,7 +840,21 @@ def compute_all_lga_salience(
         "land_formalization_gap": land_gap,
         "rural_pct": r_pct,
         "gdp_deviation": gdp_dev,
+        "youth_unemployment_ratio": youth_unemp_ratio,
+        "extraction_diversity": ext_diversity,
+        "religious_tension_proxy": rel_tension,
+        "population_pressure": pop_pressure,
+        "youth_bulge": youth_b,
     }
+
+    # Pre-extract columns used in conditionals (avoid repeat _col calls)
+    al_shahid_arr = _col("Al-Shahid Influence")
+    extraction_int = _col("Extraction Intensity")
+    federal_ctrl = _col("Federal Control 2058")
+    pada_arr = _col("% Pada")
+    tertiary_inst = _col("Tertiary Institution")
+    bio_enh_pct = _col("Biological Enhancement Pct")
+    pent_col = _col("Pentecostal Growth")
 
     # --- Build salience matrix ---
     result = np.zeros((n_lga, n_issues))
@@ -710,17 +886,38 @@ def compute_all_lga_salience(
             w += 2.0
         if rule.issue_name == "immigration":
             w += 0.5
+        if rule.issue_name == "agricultural_policy":
+            # Market Access Index has negative coeff: salience ∝ (10 - market_access)/10 * 0.3
+            w += 0.3
 
-        # Conditional term (sharia)
+        # Vectorised conditional terms
         if rule.conditional is not None:
             if rule.issue_name == "sharia_jurisdiction":
-                # Vectorise sharia conditional
-                muslim = _col("% Muslim")
-                christian = _col("% Christian")
-                pent_col = _col("Pentecostal Growth")
-                mask = (muslim > 30) & (christian > 10)
-                cond_val = np.where(mask, (pent_col / 3.0) * 0.6, 0.0)
+                # Sharia conditional: Pentecostal growth at Muslim-Christian interface
+                mask_sc = (muslim_arr > 30) & (christian_arr > 10)
+                cond_val = np.where(mask_sc, (pent_col / 3.0) * 0.6, 0.0)
                 w += cond_val
+                # Al-Shahid politicises Sharia in Muslim-majority areas
+                mask_as = (al_shahid_arr > 2) & (muslim_arr > 50)
+                w += np.where(mask_as, 0.3 * (al_shahid_arr / 5.0), 0.0)
+            elif rule.issue_name == "resource_revenue":
+                # Resource-conflict interaction
+                mask_rc = (conflict >= 2) & (extraction_int >= 2)
+                w += np.where(mask_rc,
+                              0.5 * np.minimum(conflict, 5.0) / 5.0
+                              * np.minimum(extraction_int, 5.0) / 5.0, 0.0)
+            elif rule.issue_name == "military_role":
+                # Military salience spikes in active conflict zones
+                mask_mc = conflict >= 3
+                w += np.where(mask_mc, 0.5 * (conflict / 5.0), 0.0)
+                mask_fed = mask_mc & (federal_ctrl > 0)
+                w += np.where(mask_fed, 0.3, 0.0)
+            elif rule.issue_name == "biological_enhancement":
+                # Bio-enhancement: high-Pada + university towns + high adoption
+                mask_bio = bio_enh_pct > 10
+                w += np.where(mask_bio, 0.3 * (bio_enh_pct / 100.0), 0.0)
+                mask_padu = (pada_arr > 5) & (tertiary_inst > 0)
+                w += np.where(mask_padu, 0.2, 0.0)
             else:
                 # Generic fallback for custom conditionals
                 for idx in range(n_lga):
