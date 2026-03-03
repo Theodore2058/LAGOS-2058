@@ -323,6 +323,27 @@ class VoterType:
     def is_kanuri_rural(self) -> bool:
         return self.is_kanuri and self.is_rural
 
+    # --- Ethnicity-livelihood interactions ---
+    @property
+    def is_hf_smallholder(self) -> bool:
+        return self.is_hausa_fulani and self.livelihood == "Smallholder"
+
+    @property
+    def is_yoruba_trader(self) -> bool:
+        return self.is_yoruba and self.livelihood == "Trade/informal"
+
+    @property
+    def is_igbo_formal(self) -> bool:
+        return self.is_igbo and self.livelihood == "Formal private"
+
+    @property
+    def is_kanuri_unemployed(self) -> bool:
+        return self.is_kanuri and self.livelihood == "Unemployed/student"
+
+    @property
+    def is_ijaw_extraction(self) -> bool:
+        return self.is_ijaw and self.livelihood in ("Formal private", "Trade/informal")
+
 
 @lru_cache(maxsize=1)
 def generate_all_voter_types() -> list[VoterType]:
@@ -888,6 +909,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_muslim": 5.0, "is_al_shahid": 2.0, "is_tijaniyya": 1.0,
         "is_tertiary": -1.5, "is_urban": -1.0, "is_pada": -2.0, "is_female": -0.5,
         "is_kanuri": 1.5,          # Kanuri are deeply Islamist
+        "is_hf_smallholder": 1.0,  # HF pastoral/agricultural base: deeply traditional Islamic
+        "is_kanuri_unemployed": 1.5,  # Kanuri jobless youth: Al-Shahid recruitment target
         "is_muslim_female": 1.0,   # Muslim women still favour Sharia, just less so
         "is_muslim_tertiary": -1.5, # Educated Muslims are more moderate
         "is_pentecostal": -1.5,    # Pentecostals strongly oppose Sharia
@@ -907,9 +930,12 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_ijaw": 2.5,           # Niger Delta wants resource federalism
         "is_nd_minority": 2.0,    # Other Delta groups also want local control
         "is_igbo": 1.5,           # Igbo favour confederalism (self-determination tradition)
+        "is_igbo_formal": 2.0,    # Igbo business class: strongest confederalist constituency
         "is_tiv": 1.0,            # Middle Belt wants local autonomy from northern hegemony
         "is_mb_minority": 1.0,    # Middle Belt minorities pro-local control
         "is_yoruba": 0.5,         # Yoruba moderately favour fiscal autonomy
+        "is_yoruba_trader": 0.5,  # Yoruba traders benefit from local control of markets
+        "is_ijaw_extraction": 2.5,  # Ijaw in extraction: want resource revenue kept local
         "is_igbo_pentecostal": 1.0,  # Igbo Pentecostals: self-determination + activism
     },
     # 3. Chinese Relations (Western pivot ↔ deepen WAFTA)
@@ -942,8 +968,10 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_mb_minority": 1.5,        # Middle Belt minorities need quota protection
         "is_kanuri": 1.0,             # Kanuri favour northern solidarity quotas
         "is_igbo": -1.5,              # Igbo strongly meritocratic (self-reliance ethos)
+        "is_igbo_formal": -2.0,       # Igbo business class: extremely meritocratic
         "is_yoruba": -1.0,            # Yoruba lean meritocratic
         "is_edo": 0.5,                # Edo moderate pro-quota
+        "is_hf_smallholder": 1.5,     # HF smallholders: benefit from northern quotas
         "is_yoruba_muslim": -0.5,     # Yoruba Muslims: less pro-quota than northern Muslims
     },
     # 6. Fertility Policy (population control ↔ pro-natalism)
@@ -981,9 +1009,11 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_ijaw": 3.0, "is_civil_servant": -2.0,
         "lga_Cobalt Extraction Active": 2.0,
         "is_nd_minority": 2.5,        # Niger Delta minorities want local control
+        "is_ijaw_extraction": 3.0,     # Ijaw in extraction: most vocal for local revenue
         "is_edo": 1.5,                 # Edo in oil zone; pro-local control
         "is_ibibio": 1.0,              # Ibibio: Akwa Ibom oil state
         "is_hausa_fulani": -1.5,       # Northern establishment benefits from federal control
+        "is_hf_smallholder": -1.0,     # HF smallholders: benefit from federal redistribution
         "is_kanuri": -1.0,             # Kanuri benefit from federal redistribution
         "is_tiv": 0.5,                 # Tiv: Benue has mineral resources
     },
@@ -1032,8 +1062,10 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_civil_servant": 2.0, "is_pada": 0.5, "is_hausa_fulani": 1.0,
         "lga_Conflict History": 0.8 / 5.0, "is_youth": -0.5, "is_tertiary": -1.5,
         "is_kanuri": 2.0,             # Kanuri heavily pro-military (Boko Haram era)
+        "is_kanuri_unemployed": 1.5,  # Kanuri jobless: security concerns, some militant sympathy
         "is_tiv": -1.0,              # Tiv wary of military (history of military rule)
         "is_igbo": -1.5,             # Igbo anti-military (civil war memory)
+        "is_igbo_formal": -2.0,      # Igbo business class: strongly anti-military (civ war + markets)
         "is_rural_older": 0.5,       # Rural elderly trust military for security
         "lga_Federal Control 2058": 0.8,  # Federal control zones strongly pro-military
     },
@@ -1043,7 +1075,9 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_pada": -0.5, "is_naijin": 1.5, "is_bottom_income": -2.0,
         "is_top_income": 1.5, "lga_Fertility Rate Est": -0.3, "is_hausa_fulani": -1.0,
         "is_kanuri": -1.5,            # Kanuri: border region, suspicious of migrants
+        "is_kanuri_unemployed": -2.0,  # Kanuri unemployed: blame migrants for jobs
         "is_urban_youth": -1.0,       # Urban youth feel competition from migrants
+        "is_yoruba_trader": -1.0,     # Yoruba traders: compete with migrant businesses
         "is_informal": -0.5,          # Informal workers face migrant competition
         "is_ibibio": 0.5,             # Ibibio: coastal, more open to trade/people
         "lga_Conflict History": -0.3 / 5.0,  # Conflict zones → more restrictionist
@@ -1143,10 +1177,12 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_Poverty Rate Pct": 0.01,            # Poorer LGAs → protectionist for food security
         "lga_Pct Livelihood Services": -0.01,     # Service economy → less interest in ag protection
         "lga_Market Access Index": -0.1,          # Good market access → less need for protection
+        "is_hf_smallholder": 2.0,    # HF pastoral/farming base: strongly protectionist
         "is_tiv": 1.5,               # Tiv: breadbasket, smallholder heartland
         "is_nupe": 1.0,              # Nupe: farming tradition
         "is_mb_minority": 0.5,       # Middle Belt agricultural communities
         "is_yoruba": -0.5,           # Yoruba: more commercially oriented
+        "is_yoruba_trader": -1.0,    # Yoruba traders: prefer free market ag
     },
     # 21. Biological Enhancement (prohibition ↔ universal access)
     {
@@ -1173,9 +1209,12 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_GDP Per Capita Est": 0.5 / 90000.0,  # Wealthy LGAs benefit from open trade
         "lga_Market Access Index": 0.1,  # Good market access → benefit from open trade
         "is_igbo": 1.0,               # Igbo: entrepreneurial, pro-open trade
+        "is_igbo_formal": 2.0,        # Igbo business class: strongest free-trade advocates
         "is_yoruba": 0.5,             # Yoruba: commercial culture
+        "is_yoruba_trader": 1.0,      # Yoruba traders: benefit from open markets
         "is_nupe": 0.5,               # Nupe: historic trans-Saharan trade routes
         "is_kanuri": -0.5,            # Kanuri: protectionist instinct
+        "is_hf_smallholder": -1.0,    # HF smallholders: fear cheap food imports
         "is_pada_tertiary": 1.5,       # Educated Padà: cosmopolitan, very pro-open trade
     },
     # 23. Environmental Regulation (growth first ↔ strong regulation)
@@ -1188,6 +1227,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_Pct Livelihood Extraction": -0.02,  # Extraction workers → anti-regulation (livelihood)
         "lga_GDP Per Capita Est": 0.3 / 90000.0,  # Wealthier LGAs → post-materialist green values
         "is_nd_minority": 1.5,        # Niger Delta minorities: pollution victims
+        "is_ijaw_extraction": 2.0,    # Ijaw in extraction: direct victims, want regulation
         "is_edo": 1.0,                # Edo: oil zone environmental awareness
         "is_tertiary_youth": 1.0,     # Educated youth pro-environment
         "is_ibibio": 0.5,             # Ibibio: Akwa Ibom environmental concern
@@ -1495,6 +1535,17 @@ def _build_voter_feature_matrix(voter_types: list[VoterType],
             mat[:, fi] = (_is_rural & _is_bottom).astype(np.float32)
         elif feat == "is_kanuri_rural":
             mat[:, fi] = ((eth_idx == _kanuri) & _is_rural).astype(np.float32)
+        # --- Ethnicity-livelihood interactions ---
+        elif feat == "is_hf_smallholder":
+            mat[:, fi] = (_is_hf & (liv_idx == 0)).astype(np.float32)
+        elif feat == "is_yoruba_trader":
+            mat[:, fi] = ((eth_idx == _yoruba) & (liv_idx == 2)).astype(np.float32)
+        elif feat == "is_igbo_formal":
+            mat[:, fi] = ((eth_idx == _igbo) & (liv_idx == 3)).astype(np.float32)
+        elif feat == "is_kanuri_unemployed":
+            mat[:, fi] = ((eth_idx == _kanuri) & (liv_idx == 5)).astype(np.float32)
+        elif feat == "is_ijaw_extraction":
+            mat[:, fi] = ((eth_idx == _ijaw) & np.isin(liv_idx, [2, 3])).astype(np.float32)
         else:
             # Fallback for any unknown feature — use getattr (shouldn't happen
             # for the default table, but supports custom coefficient tables)
