@@ -937,6 +937,85 @@ def compute_vote_source_decomposition(
     return result
 
 
+def compute_coalition_feasibility(
+    lga_results: pd.DataFrame,
+    party_names: list[str],
+    max_coalition_size: int = 3,
+    state_col: str = "State",
+    pop_col: str = "Estimated Population",
+    turnout_col: str = "Turnout",
+) -> list[dict]:
+    """
+    Identify party coalitions that could meet the presidential spread requirement.
+
+    For each combination of 2-N parties (N <= max_coalition_size), sums their
+    state-level vote shares and checks:
+      1. Combined national plurality (highest combined share)
+      2. Combined >=25% in at least 24 states
+
+    Only coalitions where the lead party has national plurality among
+    single parties are considered (the strongest party "leads" the coalition).
+
+    Parameters
+    ----------
+    lga_results : pd.DataFrame
+    party_names : list[str]
+    max_coalition_size : int
+        Maximum number of parties per coalition (default: 3).
+    state_col, pop_col, turnout_col : column names
+
+    Returns
+    -------
+    list[dict]
+        Each dict: {parties, combined_share, states_25pct, meets_spread,
+                     per_party_shares, margin_over_second}
+        Sorted by combined_share descending.
+    """
+    from itertools import combinations
+
+    # Compute state-level shares for each party
+    state_shares = compute_state_shares(lga_results, party_names, state_col)
+    national = _pop_weighted_national(lga_results, party_names)
+
+    # Sort parties by national share descending
+    sorted_parties = sorted(party_names, key=lambda p: -national[p])
+
+    results = []
+    for size in range(2, max_coalition_size + 1):
+        for combo in combinations(sorted_parties, size):
+            # Combined national share
+            combined_national = sum(national[p] for p in combo)
+
+            # Check if any non-coalition party beats the combined share
+            non_coalition_max = max(
+                (national[p] for p in party_names if p not in combo), default=0.0
+            )
+            # Also check if another coalition of same size could beat this one
+            # (simplified: just check combined vs best single outsider)
+            has_plurality = combined_national > non_coalition_max
+
+            # Combined state-level shares
+            combined_state_shares = np.zeros(len(state_shares))
+            for p in combo:
+                combined_state_shares += state_shares[f"{p}_share"].values.astype(float)
+
+            states_25 = int(np.sum(combined_state_shares >= 0.25))
+            meets_spread = has_plurality and states_25 >= 24
+
+            results.append({
+                "parties": list(combo),
+                "combined_share": combined_national,
+                "per_party_shares": {p: national[p] for p in combo},
+                "states_25pct": states_25,
+                "meets_spread": meets_spread,
+                "margin_over_second": combined_national - non_coalition_max,
+            })
+
+    # Sort by combined share descending
+    results.sort(key=lambda r: -r["combined_share"])
+    return results
+
+
 def compute_summary_stats(
     lga_results: pd.DataFrame,
     party_names: list[str],

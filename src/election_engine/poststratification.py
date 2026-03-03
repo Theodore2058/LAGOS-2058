@@ -170,10 +170,10 @@ def compute_lga_results(
     if precomputed_ideals is not None:
         active_ideals = precomputed_ideals[active_idx]  # (n_active, 28)
     elif voter_ideal_base is not None and lga_ideal_offset is not None:
-        # Only compute ideals for active types (avoids full 87,480 × 28 clip)
-        active_ideals = np.clip(
-            voter_ideal_base[active_idx] + lga_ideal_offset, -5.0, 5.0
-        )
+        # Only compute ideals for active types — in-place ops avoid temporaries
+        active_ideals = voter_ideal_base[active_idx]  # fancy index copy
+        active_ideals += lga_ideal_offset              # in-place broadcast add
+        np.clip(active_ideals, -5.0, 5.0, out=active_ideals)  # in-place clip
     else:
         active_ideals = np.array([
             demographics_to_ideal_point(voter_types[i], lga_row, ideal_point_coeff_table)

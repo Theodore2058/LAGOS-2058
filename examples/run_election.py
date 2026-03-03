@@ -51,6 +51,7 @@ from election_engine.election import run_election
 from election_engine.results import (
     compute_vote_counts, compute_state_vote_counts,
     compute_competitiveness, compute_vote_source_decomposition,
+    compute_coalition_feasibility,
 )
 
 logging.basicConfig(
@@ -876,6 +877,27 @@ def main():
                       f"{sp['spread_prob']:7.0%}  {sp['full_requirement_prob']:7.0%}  "
                       f"{sp['states_above_25pct_mean']:17.1f}  "
                       f"[{sp['states_above_25pct_p5']:.0f} - {sp['states_above_25pct_p95']:.0f}]")
+
+    # --- Coalition feasibility analysis ---
+    coalitions = compute_coalition_feasibility(results["lga_results_base"], party_names)
+    viable = [c for c in coalitions if c["meets_spread"]]
+    print(f"\nCOALITION FEASIBILITY (2-3 party, meets spread requirement): "
+          f"{len(viable)} viable")
+    if viable:
+        for c in viable[:10]:
+            names = "+".join(c["parties"])
+            print(f"  {names:30s}  {c['combined_share']:5.1%}  "
+                  f"({c['states_25pct']:2d}/24 states)  "
+                  f"margin: {c['margin_over_second']:+.1%}")
+    else:
+        # Show top 5 closest coalitions
+        print("  No coalition meets all requirements. Closest:")
+        near = sorted(coalitions, key=lambda c: -c["states_25pct"])[:5]
+        for c in near:
+            names = "+".join(c["parties"])
+            plur = "Y" if c["margin_over_second"] > 0 else "N"
+            print(f"  {names:30s}  {c['combined_share']:5.1%}  "
+                  f"({c['states_25pct']:2d}/24 states)  plur: {plur}")
 
     # --- Zonal shares and turnout ---
     print("\nZONAL SHARES (base run):")
