@@ -630,6 +630,31 @@ def compute_all_lga_results(
     _land_formal = _lga_col("Land Formalization Pct", 20.0)
     _lga_turnout_mod -= 0.015 * np.clip(_land_formal / 100.0, 0.0, 1.0)  # property → civic engagement
 
+    # Oil Producing: resource-rich LGAs have heightened political salience —
+    # communities mobilise over revenue-sharing, pollution, and resource control
+    _oil_prod = _lga_col("Oil Producing", 0.0)
+    _lga_turnout_mod -= 0.08 * _oil_prod  # oil communities politically mobilised
+
+    # Border LGA: border regions face unique cross-border security dynamics
+    # and heightened political awareness from migration/smuggling issues
+    _border = _lga_col("Border LGA", 0.0)
+    _lga_turnout_mod += 0.04 * _border  # border areas: security concerns suppress some turnout
+    _lga_turnout_mod -= 0.02 * _border * np.clip(_conflict / 3.0, 0.0, 1.0)  # but border + conflict → defensive mobilisation
+
+    # Population Density: dense areas have more polling stations per km²,
+    # shorter travel times, and greater party presence
+    _pop_density = _lga_col("Population Density per km2", 200.0)
+    _lga_turnout_mod -= 0.04 * np.clip(np.log1p(_pop_density) / 10.0, 0.0, 1.0)  # dense → accessible
+
+    # Manufacturing sector: factory workers are politically organised,
+    # have workplace unions and collective action experience
+    _pct_manuf = _lga_col("Pct Livelihood Manufacturing", 10.0)
+    _lga_turnout_mod -= 0.03 * np.clip(_pct_manuf / 40.0, 0.0, 1.0)  # industrial → organised
+
+    # Diaspora Return: returnees bring democratic norms, higher civic expectation
+    _diaspora = _lga_col("Diaspora Influence Index", 0.0)
+    _lga_turnout_mod -= 0.02 * np.clip(_diaspora / 5.0, 0.0, 1.0)  # diaspora → engagement
+
     # Urban saturation: areas with near-100% connectivity + literacy have
     # voter fatigue, opportunity cost of time, "my vote doesn't matter" apathy
     _urban_sat = (np.clip(_internet / 100.0, 0, 1)
