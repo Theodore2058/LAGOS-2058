@@ -370,6 +370,110 @@ def _pada_tension_conditional(lga_row: pd.Series) -> float:
     return extra
 
 
+def _safe_float(val, default: float = 0.0) -> float:
+    """Convert to float, returning *default* on ValueError/TypeError."""
+    try:
+        return float(val)
+    except (ValueError, TypeError):
+        return default
+
+
+def _infrastructure_crisis_conditional(lga_row: pd.Series) -> float:
+    """Infrastructure becomes hyper-salient where access deficit combines with
+    population density — overcrowded areas without basic services."""
+    elec = _safe_float(lga_row.get("Access Electricity Pct", 50), 50)
+    water = _safe_float(lga_row.get("Access Water Pct", 50), 50)
+    density = _safe_float(lga_row.get("Population Density per km2", 200), 200)
+    extra = 0.0
+    # Dense areas without electricity = energy crisis politics
+    if elec < 40 and density > 500:
+        extra += 0.3 * (1.0 - elec / 100.0)
+    # No water + high density = acute public health + infrastructure demand
+    if water < 30 and density > 300:
+        extra += 0.2 * (1.0 - water / 100.0)
+    return extra
+
+
+def _education_deprivation_conditional(lga_row: pd.Series) -> float:
+    """Education salience spikes where out-of-school rate is high AND youth
+    population is large — a powder keg of frustrated young people."""
+    osc = _safe_float(lga_row.get("Out of School Children Pct", 20), 20)
+    youth_unemp = _safe_float(lga_row.get("Youth Unemployment Rate Pct", 46), 46)
+    almajiri = _safe_float(lga_row.get("Almajiri Index", 0), 0)
+    extra = 0.0
+    # Mass out-of-school + youth unemployment = education as top issue
+    if osc > 40 and youth_unemp > 50:
+        extra += 0.25 * min(osc, 80) / 80.0
+    # Almajiri system + high OSC = parallel education systems debate
+    if almajiri > 2 and osc > 30:
+        extra += 0.2 * min(almajiri, 5) / 5.0
+    return extra
+
+
+def _healthcare_crisis_conditional(lga_row: pd.Series) -> float:
+    """Healthcare becomes politically charged where access is poor AND
+    fertility is high — maternal/child mortality drives voter anger."""
+    health = _safe_float(lga_row.get("Access Healthcare Pct", 50), 50)
+    fertility = _safe_float(lga_row.get("Fertility Rate Est", 5), 5)
+    poverty = _safe_float(lga_row.get("Poverty Rate Pct", 30), 30)
+    extra = 0.0
+    # Poor healthcare + high fertility = maternal mortality crisis
+    if health < 30 and fertility > 5:
+        extra += 0.3 * (1.0 - health / 100.0)
+    # Poverty + poor healthcare = compounding deprivation
+    if poverty > 50 and health < 40:
+        extra += 0.2 * min(poverty, 80) / 80.0
+    return extra
+
+
+def _housing_pressure_conditional(lga_row: pd.Series) -> float:
+    """Housing becomes politically explosive where population density meets
+    low affordability — the classic urban housing crisis."""
+    density = _safe_float(lga_row.get("Population Density per km2", 200), 200)
+    afford = _safe_float(lga_row.get("Housing Affordability", 5), 5)
+    urban = _safe_float(lga_row.get("Urban Pct", 50), 50)
+    extra = 0.0
+    # Dense + unaffordable = housing crisis
+    if density > 1000 and afford < 4:
+        extra += 0.3 * min(density, 10000) / 10000.0
+    # Urban areas with low affordability
+    if urban > 70 and afford < 3:
+        extra += 0.2
+    return extra
+
+
+def _environmental_extraction_conditional(lga_row: pd.Series) -> float:
+    """Environment becomes salient where extraction intensity is high AND
+    poverty is high — communities bear pollution costs without benefits."""
+    extraction = _safe_float(lga_row.get("Extraction Intensity", 0), 0)
+    poverty = _safe_float(lga_row.get("Poverty Rate Pct", 30), 30)
+    oil = _safe_float(lga_row.get("Oil Producing", 0), 0)
+    extra = 0.0
+    # Oil-producing + high poverty = "resource curse" anger
+    if oil > 0 and poverty > 40:
+        extra += 0.3 * min(poverty, 80) / 80.0
+    # Intense extraction + poverty = environmental justice
+    if extraction > 3 and poverty > 35:
+        extra += 0.2 * min(extraction, 5) / 5.0
+    return extra
+
+
+def _energy_crisis_conditional(lga_row: pd.Series) -> float:
+    """Energy policy becomes urgent where electricity access is low AND
+    manufacturing/services need power — economic development blocked."""
+    elec = _safe_float(lga_row.get("Access Electricity Pct", 50), 50)
+    manuf = _safe_float(lga_row.get("Pct Livelihood Manufacturing", 15), 15)
+    oil_active = _safe_float(lga_row.get("Oil Extraction Active", 0), 0)
+    extra = 0.0
+    # Low electricity + manufacturing base = frustrated businesses
+    if elec < 40 and manuf > 10:
+        extra += 0.25 * (1.0 - elec / 100.0)
+    # Oil-producing area with poor electricity = paradox anger
+    if oil_active > 0 and elec < 50:
+        extra += 0.3 * (1.0 - elec / 100.0)
+    return extra
+
+
 DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
     # 1. Sharia Jurisdiction
     SalienceRule(
@@ -511,6 +615,7 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Gini Proxy": 0.5,                        # High inequality → housing becomes politically contested
             "Land Formalization Pct": 0.3 / 100.0,   # Formalized land → housing market issues politically salient
         },
+        conditional=_housing_pressure_conditional,
     ),
     # 10. Education
     SalienceRule(
@@ -531,6 +636,7 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "English Prestige": 0.2 / 10.0,       # English prestige → language-of-instruction debates → education salient
             "Female Literacy Rate Pct": -0.01,    # Low female literacy → girls' education as political issue
         },
+        conditional=_education_deprivation_conditional,
     ),
     # 11. Labor & Automation
     SalienceRule(
@@ -644,6 +750,7 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Poverty Rate Pct": 0.3 / 100.0,     # Poor areas prioritise infrastructure
             "conflict_severity": 0.2 / 5.0,       # Conflict zones: infrastructure destroyed
         },
+        conditional=_infrastructure_crisis_conditional,
     ),
     # 18. Land Tenure
     SalienceRule(
@@ -740,6 +847,7 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "is_colonial_midwestern": 0.5,          # Mid-Western: Edo/Delta extraction → environmental politics
             "is_colonial_eastern": 0.2,             # Eastern: Niger Delta fringe → environmental awareness
         },
+        conditional=_environmental_extraction_conditional,
     ),
     # 24. Media Freedom
     SalienceRule(
@@ -771,6 +879,7 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Out of School Children Pct": 0.3 / 100.0,  # High OSC → systemic deprivation → health salient
             "Internet Access Pct": 0.15 / 100.0,  # Internet: health awareness campaigns, COVID legacy
         },
+        conditional=_healthcare_crisis_conditional,
     ),
     # 26. Padà Status
     SalienceRule(
@@ -801,6 +910,7 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Oil Extraction Active": 0.8,         # Active oil → energy politics salient
             "Other Mining Active": 0.3,           # Mining → energy infrastructure demands
         },
+        conditional=_energy_crisis_conditional,
     ),
     # 28. AZ Restructuring
     SalienceRule(

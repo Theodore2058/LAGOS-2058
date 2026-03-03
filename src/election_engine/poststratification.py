@@ -635,7 +635,7 @@ def compute_all_lga_results(
     _urban_sat = (np.clip(_internet / 100.0, 0, 1)
                   * np.clip(_mobile / 100.0, 0, 1)
                   * np.clip(_literacy / 100.0, 0, 1))
-    _lga_turnout_mod += 0.14 * _urban_sat  # saturated areas: comfort → apathy
+    _lga_turnout_mod += 0.16 * _urban_sat  # saturated areas: comfort → apathy
 
     lga_turnout_modifier = _lga_turnout_mod.astype(np.float32)
 
