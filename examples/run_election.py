@@ -565,42 +565,44 @@ PLF_POSITIONS = np.array([
 ])
 
 # NNV — Nigerian National Vanguard
-# Hyper-nationalist authoritarian party. Strongest positions on military
-# guardianship, presidential power, immigration restriction, and anti-press
-# freedom in the entire system. Combines extreme centralism with cultural
-# conservatism and aggressive pro-natalism. Anti-sharia but not secularist —
-# draws on pre-Islamic traditional identity and military-state ideology. The
-# party for people who think what Nigeria needs is a man on horseback and a
-# closed border.
+# Nationalist-authoritarian party rooted in the military-state tradition.
+# Strong on security, centralism, presidential power, and immigration control.
+# Led by a Hausa-Fulani former military figure who champions "One Nigeria"
+# unity over ethnic/religious politics. Anti-Sharia (favors secular national
+# law), pro-English (national unity language), and dirigiste economics.
+# Appeals to security-state constituencies: military families, civil servants
+# in conflict zones, and northern urban professionals who want order over
+# ethnic patronage. Splits the northern vote with NDC by offering a secular
+# nationalist alternative to the establishment.
 NNV_POSITIONS = np.array([
-    -4.5,  #  0  sharia: strongly anti-sharia
-    -4.0,  #  1  fiscal: extreme centralism
-    -3.5,  #  2  chinese: anti-WAFTA
-    +4.5,  #  3  bic: strongly preserve BIC
-    -4.5,  #  4  ethnic_quotas: extreme meritocracy
-    +4.5,  #  5  fertility: extreme pro-natalist
-    +5.0,  #  6  constitutional: maximum presidential
-    -3.5,  #  7  resource: federal monopoly
-    +2.5,  #  8  housing: interventionist
-    +4.5,  #  9  education: strongest centralism
-    +1.0,  # 10  labor: mildly pro-labor
-    +5.0,  # 11  military: maximum guardianship
-    +5.0,  # 12  immigration: maximum restrictionism
-    +5.0,  # 13  language: maximum English supremacy
-    -1.0,  # 14  womens_rights: mildly conservative
-    -4.5,  # 15  trad_authority: extreme marginalization
-    +1.5,  # 16  infrastructure: mildly universal
-    +4.0,  # 17  land_tenure: strong formalization
-    +1.5,  # 18  taxation: mild redistribution
-    +1.5,  # 19  agriculture: mildly protectionist
-    +4.5,  # 20  bio_enhancement: extreme pro-access
-    -2.5,  # 21  trade: autarkic
-    -3.5,  # 22  environment: growth first
-    -5.0,  # 23  media: maximum state control
-    +2.5,  # 24  healthcare: universal
-    +1.5,  # 25  pada_status: mildly pro-Padà
-    -3.5,  # 26  energy: fossil
-    +4.5,  # 27  az_restructuring: strongly keep AZs
+    -2.5,  #  0  sharia: anti-sharia but not extreme — secular-nationalist, not atheist
+    -3.0,  #  1  fiscal: strong centralism — "one Nigeria" ideology
+    -2.5,  #  2  chinese: anti-WAFTA — economic nationalism
+    +3.0,  #  3  bic: preserve BIC — nationalist institutions
+    -2.0,  #  4  ethnic_quotas: meritocratic — oppose ethnic patronage
+    +3.0,  #  5  fertility: pro-natalist — "populate or perish" nationalism
+    +4.0,  #  6  constitutional: strongly presidential — strongman governance
+    -2.5,  #  7  resource: federal control — central resource management
+    +2.0,  #  8  housing: interventionist — state-built housing projects
+    +3.0,  #  9  education: centralist — national curriculum, discipline
+    +1.5,  # 10  labor: pro-labor — nationalist workers' solidarity
+    +4.0,  # 11  military: strong guardianship — security state
+    +3.5,  # 12  immigration: restrictionist — "Nigeria for Nigerians"
+    +3.0,  # 13  language: English — unifying national language
+    -0.5,  # 14  womens_rights: mildly conservative — traditional family
+    -1.5,  # 15  trad_authority: marginalize — military over chiefs, but not extreme
+    +1.5,  # 16  infrastructure: universal — national development projects
+    +2.5,  # 17  land_tenure: formalization — state land management
+    +1.5,  # 18  taxation: mild redistribution — statist economics
+    +2.0,  # 19  agriculture: protectionist — food sovereignty
+    +1.0,  # 20  bio_enhancement: cautious pro — national competitiveness
+    -2.0,  # 21  trade: protectionist — economic nationalism
+    -2.0,  # 22  environment: growth first — development priority
+    -3.5,  # 23  media: state control — information management
+    +2.0,  # 24  healthcare: universal — national health service
+    +0.5,  # 25  pada_status: mild pro-Padà — all Nigerians matter
+    -2.0,  # 26  energy: fossil — energy independence over green
+    +3.5,  # 27  az_restructuring: keep AZs — national unity
 ])
 
 # Validation check
@@ -637,14 +639,18 @@ PARTIES = [
         religious_alignment="Secular",
         economic_positioning=-0.6,  # pro-market liberal, appeals to prosperous areas
         demographic_coefficients={
-            "education": {"Tertiary": 0.5},
-            "livelihood": {"Formal private": 0.4},
-            "income": {"Top 20%": 0.3},
+            "education": {"Tertiary": 0.5, "Secondary": 0.1},
+            "livelihood": {"Formal private": 0.5, "Public sector": 0.2},
+            "income": {"Top 20%": 0.4, "Middle 40%": 0.1},
+            "age_cohort": {"25-34": 0.2, "35-49": 0.1},
+            "setting": {"Urban": 0.3},
+            "gender": {"Female": 0.1},
         },
         regional_strongholds={
             1: +1.0,   # Lagos: cosmopolitan Padà heartland
-            2: +0.2,   # Niger Zone: Ogun/Oyo spillover from Lagos
-            3: +0.2,   # Confluence: mild SW appeal
+            2: +0.3,   # Niger Zone: Ogun/Oyo spillover from Lagos, Ibadan elite
+            3: +0.3,   # Confluence: Ekiti/Ondo professional class
+            5: +0.2,   # Eastern: Igbo business-professional overlap
         },
     ),
     Party(
@@ -879,19 +885,25 @@ PARTIES = [
     Party(
         name="NNV",
         positions=NNV_POSITIONS,
-        valence=-0.1,  # extreme positions limit broad appeal
-        leader_ethnicity="Nupe",
-        religious_alignment="Traditionalist",
-        economic_positioning=0.1,  # mildly statist, traditionalist economics
+        valence=0.1,  # nationalist brand resonates with security-conscious voters
+        leader_ethnicity="Hausa-Fulani Undiff",
+        religious_alignment="Mainstream Sunni",
+        economic_positioning=0.2,  # statist-nationalist economics, dirigiste
         demographic_coefficients={
-            "livelihood": {"Public sector": 0.3, "Smallholder": 0.2},
-            "age_cohort": {"50+": 0.3, "35-49": 0.1},
-            "setting": {"Rural": 0.3},
-            "education": {"Below secondary": 0.2},
+            "livelihood": {"Public sector": 0.5, "Smallholder": 0.2,
+                           "Formal private": 0.2},
+            "age_cohort": {"50+": 0.4, "35-49": 0.2, "25-34": 0.1},
+            "setting": {"Rural": 0.2, "Peri-urban": 0.1},
+            "education": {"Below secondary": 0.2, "Secondary": 0.2},
+            "gender": {"Male": 0.3},
+            "income": {"Middle 40%": 0.2},
         },
         regional_strongholds={
-            2: +0.3,   # Niger Zone: Nupe heartland
-            3: +0.2,   # Confluence: traditionalist communities
+            2: +0.4,   # Niger Zone: Nupe heartland, military cantonment areas
+            3: +0.3,   # Confluence: security-concerned communities
+            6: +0.5,   # Central: Kano/Kaduna — security state appeal, conflict zone
+            7: +0.3,   # Northeastern: Borno/Yobe — military support for security
+            8: +0.2,   # Northwestern: military/civil service communities
         },
     ),
 ]
