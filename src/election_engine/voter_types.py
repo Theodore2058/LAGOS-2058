@@ -1173,6 +1173,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_Planned City": -0.5,     # Planned cities: already well-served → less demand
         "lga_Rail Corridor": -0.3,    # Rail access → infrastructure already decent
         "lga_Market Access Index": -0.1,  # Well-connected LGAs need less universal provision
+        "lga_Road Quality Index": -0.1,  # Good roads → less demand for universal provision
     },
     # 18. Land Tenure (customary ↔ formalization)
     {
@@ -1201,6 +1202,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_youth_unemployed": 1.0,  # Unemployed youth strongly pro-redistribution
         "is_igbo": -1.0,             # Igbo prefer low-tax self-reliance
         "is_rural_bottom_income": 1.5,  # Rural poor: strongly pro-redistribution
+        "lga_Access Healthcare Pct": -0.005,  # Poor healthcare → want redistribution for services
+        "lga_Access Water Pct": -0.005,       # Poor water → want redistribution for services
     },
     # 20. Agricultural Policy (free market ↔ protectionist smallholder)
     {
@@ -1255,6 +1258,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_pada_tertiary": 1.5,       # Educated Padà: cosmopolitan, very pro-open trade
         "lga_Planned City": 0.8,      # Chinese planned cities: WAFTA trade beneficiaries
         "lga_Chinese Economic Presence": 0.15 / 10.0,  # Chinese presence → pro-open trade (WAFTA)
+        "lga_Pct Livelihood Services": 0.01,  # Service economy → pro-open trade
     },
     # 23. Environmental Regulation (growth first ↔ strong regulation)
     {
@@ -1288,6 +1292,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_Federal Control 2058": -0.5,      # Federal control → accept media restrictions
         "is_igbo_pentecostal": 1.0,    # Igbo Pentecostals: strongly pro-free expression
         "is_older": -0.5,             # Elderly: prefer media control (stability)
+        "lga_Mobile Phone Penetration Pct": 0.005,  # Connected areas → value media freedom
     },
     # 25. Healthcare (pure market ↔ universal provision)
     {
@@ -1303,6 +1308,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_kanuri": 0.5,             # Kanuri: health infrastructure poor
         "lga_Conflict History": 0.3 / 5.0,   # Conflict zones → demand universal healthcare
         "is_rural_bottom_income": 1.0,  # Rural poor: desperate for healthcare access
+        "lga_Access Water Pct": -0.005, # Poor water access → demand universal healthcare
+        "lga_Median Age Estimate": 0.02,  # Older population → healthcare more urgent
     },
     # 26. Padà Status (anti-Padà ↔ Padà preservation)
     {
