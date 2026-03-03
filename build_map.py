@@ -3,10 +3,11 @@ Build an interactive HTML map of Nigeria 2058 voting districts.
 Pre-computes district/zone boundaries with shapely, then embeds
 everything into a standalone Leaflet.js HTML file (no Turf.js).
 """
-import json
+import json, re
 from collections import defaultdict
 from shapely.geometry import shape, mapping, box, Polygon, MultiPolygon
 from shapely.ops import unary_union
+import pandas as pd
 
 # ── Load data ──────────────────────────────────────────────────────────
 with open('GeoJSON/nga_lga_enriched.geojson') as f:
@@ -19,6 +20,78 @@ with open('GeoJSON/district_info.json') as f:
     district_info = json.load(f)
 with open('GeoJSON/zone_info.json') as f:
     zone_info = json.load(f)
+
+# ── Load LGA demographic data for choropleth modes ──────────────────────
+print("Loading LGA demographic data...")
+excel_df = pd.read_excel('nigeria_lga_polsim_2058.xlsx', header=[0, 1])
+
+def normalize_name(s):
+    return re.sub(r'[\s\-/()]+', ' ', str(s).strip()).lower()
+
+excel_lookup = {}
+for _, row in excel_df.iterrows():
+    state = row[('IDENTIFICATION', 'State')]
+    lga = row[('IDENTIFICATION', 'LGA Name')]
+    excel_lookup[(normalize_name(state), normalize_name(lga))] = row
+
+# State alias and LGA name alias for GeoJSON -> Excel mismatches
+STATE_ALIAS = {'federal capital territory': 'fct'}
+LGA_ALIAS = {
+    ('ekiti', 'aiyekire (gbonyin)'): ('ekiti', 'gbonyin'),
+    ('oyo', 'atigbo'): ('oyo', 'atisbo'),
+    ('plateau', 'barikin ladi'): ('plateau', 'barkin ladi'),
+    ('cross river', 'bekwara'): ('cross river', 'bekwarra'),
+    ('jigawa', 'birni kudu'): ('jigawa', 'birnin kudu'),
+    ('zamfara', 'birnin magaji'): ('zamfara', 'birnin magaji/kiyaw'),
+    ('ogun', 'egbado north'): ('ogun', 'yewa north'),
+    ('ogun', 'egbado south'): ('ogun', 'yewa south'),
+    ('imo', 'ezinihitte'): ('imo', 'ezinihitte mbaise'),
+    ('kano', 'garum mallam'): ('kano', 'garun mallam'),
+    ('lagos', 'ifako-ijaye'): ('lagos', 'ifako-ijaiye'),
+    ('ekiti', 'ilejemeji'): ('ekiti', 'ilejemeje'),
+    ('osun', 'ilesha east'): ('osun', 'ilesa east'),
+    ('osun', 'ilesha west'): ('osun', 'ilesa west'),
+    ('abia', 'isiukwuato'): ('abia', 'isuikwuato'),
+    ('jigawa', 'kiri kasamma'): ('jigawa', 'kiri kasama'),
+    ('kaduna', 'markafi'): ('kaduna', 'makarfi'),
+    ('niger', 'muya'): ('niger', 'munya'),
+    ('rivers', 'obia/akpor'): ('rivers', 'obio/akpor'),
+    ('kogi', 'olamabolo'): ('kogi', 'olamaboro'),
+    ('rivers', 'omumma'): ('rivers', 'omuma'),
+    ('abia', 'osisioma ngwa'): ('abia', 'osisioma'),
+    ('benue', 'oturkpo'): ('benue', 'otukpo'),
+    ('ogun', 'shagamu'): ('ogun', 'sagamu'),
+    ('gombe', 'shomgom'): ('gombe', 'shongom'),
+    ('yobe', 'tarmua'): ('yobe', 'tarmuwa'),
+    ('imo', 'unuimo'): ('imo', 'onuimo'),
+    ('bayelsa', 'yenegoa'): ('bayelsa', 'yenagoa'),
+    ('kaduna', 'zango-kataf'): ('kaduna', 'zangon kataf'),
+    ('ondo', 'ile-oluji-okeigbo'): ('ondo', 'ile oluji/oke igbo'),
+    ('lagos', 'ibeju/lekki'): ('lagos', 'ibeju-lekki'),
+}
+
+def resolve_key(state, lga):
+    """Resolve GeoJSON (state, lga) to Excel lookup key with alias fallback."""
+    ns = normalize_name(state)
+    nl = normalize_name(lga)
+    # Try direct match
+    if (ns, nl) in excel_lookup:
+        return (ns, nl)
+    # Try state alias
+    ns_alias = STATE_ALIAS.get(ns, ns)
+    if (ns_alias, nl) in excel_lookup:
+        return (ns_alias, nl)
+    # Try LGA alias
+    raw_key = (ns, lga.strip().lower())
+    if raw_key in LGA_ALIAS:
+        alias_state, alias_lga = LGA_ALIAS[raw_key]
+        alias_state = STATE_ALIAS.get(alias_state, alias_state)
+        return (normalize_name(alias_state), normalize_name(alias_lga))
+    return None
+
+eth_cols = [c for c in excel_df.columns
+            if c[0] == 'ETHNOLINGUISTIC COMPOSITION' and c[1].startswith('% ')]
+print(f"  {len(excel_df)} LGA rows loaded, {len(eth_cols)} ethnic groups")
 
 # ── Build Nigeria mask (opaque fill to hide basemap under the country) ─
 print("Building country mask...")
@@ -34,16 +107,59 @@ mask_geo = {
 }
 print("  Mask polygon created")
 
-# ── Strip unnecessary properties ──────────────────────────────────────
+# ── Strip unnecessary properties + inject choropleth data ─────────────
+unmatched_lgas = []
 for feat in lga_data['features']:
     p = feat['properties']
+    geo_state = p.get('adm1_name', '')
+    geo_lga = p.get('adm2_name', '')
+    key = resolve_key(geo_state, geo_lga)
+    row = excel_lookup.get(key) if key else None
+
+    choro = {}
+    if row is not None:
+        # Religion
+        choro['rm'] = round(float(row[('RELIGIOUS COMPOSITION', '% Muslim')]), 1)
+        choro['rc'] = round(float(row[('RELIGIOUS COMPOSITION', '% Christian')]), 1)
+        choro['rt'] = round(float(row[('RELIGIOUS COMPOSITION', '% Traditionalist')]), 1)
+        # Ethnicity: find dominant group
+        eth_vals = {}
+        for c in eth_cols:
+            gname = c[1].replace('% ', '')
+            val = float(row[c])
+            if val > 0:
+                eth_vals[gname] = val
+        if eth_vals:
+            dom_group = max(eth_vals, key=eth_vals.get)
+            choro['eg'] = dom_group
+            choro['ep'] = round(eth_vals[dom_group], 1)
+            proportions = [v / 100.0 for v in eth_vals.values()]
+            choro['ed'] = round(1 - sum(pp**2 for pp in proportions), 3)
+        # Poverty
+        choro['pv'] = round(float(row[('ECONOMIC', 'Poverty Rate Pct')]), 1)
+        # Education
+        choro['al'] = round(float(row[('EDUCATION', 'Adult Literacy Rate Pct')]), 1)
+        choro['pe'] = round(float(row[('EDUCATION', 'Primary Enrollment Pct')]), 1)
+        choro['se'] = round(float(row[('EDUCATION', 'Secondary Enrollment Pct')]), 1)
+        choro['gp'] = round(float(row[('EDUCATION', 'Gender Parity Index')]), 2)
+    else:
+        unmatched_lgas.append((geo_state, geo_lga))
+
     feat['properties'] = {
         'n': p.get('adm2_name'),   # LGA name
         's': p.get('adm1_name'),   # state
         'd': p.get('district_id'), # district
         'z': p.get('az'),          # zone number
         'zn': p.get('az_name'),    # zone name
+        **choro,
     }
+
+if unmatched_lgas:
+    print(f"  WARNING: {len(unmatched_lgas)} LGAs unmatched to Excel data:")
+    for s, l in unmatched_lgas[:10]:
+        print(f"    {s} / {l}")
+else:
+    print(f"  All {len(lga_data['features'])} LGAs matched successfully")
 
 for feat in state_data['features']:
     p = feat['properties']
@@ -438,6 +554,49 @@ html = f"""<!DOCTYPE html>
     color: rgba(180,90,20,0.2);
   }}
 
+  /* ── Choropleth control ── */
+  .choro-control {{
+    position: absolute; top: 240px; right: 14px; z-index: 1000;
+    padding: 16px 20px; font-size: 13px;
+  }}
+  .choro-control h3 {{
+    font-family: 'Orbitron', monospace;
+    font-size: 8px; text-transform: uppercase; letter-spacing: 4px;
+    color: rgba(42,139,154,0.6); margin-bottom: 8px;
+  }}
+  .choro-btn {{
+    padding: 7px 14px; margin: 2px 0; cursor: pointer;
+    font-family: 'Rajdhani', sans-serif; font-weight: 600;
+    font-size: 12px; letter-spacing: 1px;
+    color: rgba(44,24,16,0.5);
+    border-left: 2px solid transparent;
+    transition: all 0.25s;
+  }}
+  .choro-btn:hover {{
+    color: #2A8B9A;
+    border-left-color: rgba(42,139,154,0.3);
+    background: rgba(42,139,154,0.04);
+  }}
+  .choro-btn.active {{
+    color: #B45A14;
+    border-left: 2px solid #B45A14;
+    background: rgba(180,90,20,0.06);
+    text-shadow: 0 0 8px rgba(180,90,20,0.15);
+  }}
+  .choro-sub {{
+    padding-left: 16px; margin: 2px 0;
+  }}
+  .choro-sub label {{
+    display: block; padding: 2px 0; cursor: pointer;
+    font-size: 10px; color: rgba(44,24,16,0.45); letter-spacing: 0.5px;
+    transition: color 0.2s;
+  }}
+  .choro-sub label:hover {{ color: #2A8B9A; }}
+  .choro-sub input[type=radio] {{
+    accent-color: #2A8B9A; margin-right: 4px;
+    width: 10px; height: 10px;
+  }}
+
   /* ── Legend ── */
   .legend {{
     position: absolute; bottom: 130px; right: 14px; z-index: 1000;
@@ -549,6 +708,22 @@ html = f"""<!DOCTYPE html>
   <div class="lc-row"><span class="lc-name">LGAs</span><label><input type="checkbox" id="togLGA" checked></label><label><input type="checkbox" id="togLGALbl" checked></label></div>
 </div>
 
+<!-- Choropleth control -->
+<div class="choro-control panel" id="choroControl">
+  <div class="panel-corners"><div class="corner corner-tl"></div><div class="corner corner-tr"></div><div class="corner corner-bl"></div><div class="corner corner-br"></div></div>
+  <h3>Data Layer</h3>
+  <div class="glow-line"></div>
+  <div class="choro-btn active" data-mode="zones">Zones</div>
+  <div class="choro-btn" data-mode="religion">Religion</div>
+  <div class="choro-btn" data-mode="ethnicity">Ethnicity</div>
+  <div class="choro-sub" id="ethSub" style="display:none;">
+    <label><input type="radio" name="ethMode" value="diversity" checked> Diversity Index</label>
+    <label><input type="radio" name="ethMode" value="dominant"> Dominant Group</label>
+  </div>
+  <div class="choro-btn" data-mode="poverty">Poverty</div>
+  <div class="choro-btn" data-mode="education">Education</div>
+</div>
+
 <!-- Info panel -->
 <div class="info-panel panel" id="infoPanel">
   <div class="panel-corners"><div class="corner corner-tl"></div><div class="corner corner-tr"></div><div class="corner corner-bl"></div><div class="corner corner-br"></div></div>
@@ -604,11 +779,155 @@ const ZG = {{
   5: '#38B0C4', 6: '#88AA78', 7: '#9A70E0', 8: '#E88830',
 }};
 
-// ── Build legend ──
-const legendEl = document.getElementById('legendItems');
-for (const [az, info] of Object.entries(zoneInfo).sort((a,b) => a[1].az - b[1].az)) {{
-  legendEl.innerHTML += '<div class="legend-item"><div class="legend-swatch" style="background:' + ZC[info.az] + '"></div>' + info.zone_name + '</div>';
+// ── Choropleth color system ──
+let choroMode = 'zones';
+let ethSubMode = 'diversity';
+
+function hexLerp(c1, c2, t) {{
+  const r1=parseInt(c1.slice(1,3),16),g1=parseInt(c1.slice(3,5),16),b1=parseInt(c1.slice(5,7),16);
+  const r2=parseInt(c2.slice(1,3),16),g2=parseInt(c2.slice(3,5),16),b2=parseInt(c2.slice(5,7),16);
+  const r=Math.round(r1+(r2-r1)*t),g=Math.round(g1+(g2-g1)*t),b=Math.round(b1+(b2-b1)*t);
+  return '#'+[r,g,b].map(v=>v.toString(16).padStart(2,'0')).join('');
 }}
+function seqScale(value, min, max, colors) {{
+  const t = Math.max(0, Math.min(1, (value - min) / (max - min)));
+  const idx = t * (colors.length - 1);
+  const lo = Math.floor(idx), hi = Math.min(lo + 1, colors.length - 1);
+  return hexLerp(colors[lo], colors[hi], idx - lo);
+}}
+
+// Religion: categorical by dominant + intensity by %
+const REL_SCALES = {{
+  muslim:       ['#B7E4C7','#52B788','#2D6A4F','#1B4332'],
+  christian:    ['#A8DADC','#457B9D','#1D3557','#0D1B2A'],
+  traditionalist:['#DDB892','#B08968','#7F4F24','#582F0E'],
+}};
+function religionColor(f) {{
+  const p=f.properties, rm=p.rm||0, rc=p.rc||0, rt=p.rt||0;
+  let scale, pct;
+  if (rm>=rc && rm>=rt)       {{ scale=REL_SCALES.muslim; pct=rm; }}
+  else if (rc>=rm && rc>=rt)  {{ scale=REL_SCALES.christian; pct=rc; }}
+  else                        {{ scale=REL_SCALES.traditionalist; pct=rt; }}
+  return seqScale(pct, 33, 100, scale);
+}}
+
+// Ethnicity: diversity index (terracotta→teal) or dominant group categorical
+const DIV_SCALE = ['#7A3A08','#B45A14','#D4870A','#D09A40','#6A8A5A','#2A8B9A'];
+function diversityColor(f) {{ return seqScale(f.properties.ed||0, 0, 0.85, DIV_SCALE); }}
+
+const ETH_COLORS = {{
+  'Hausa':'#D06A10','Yoruba':'#4A6FA5','Igbo':'#2A8B9A','Kanuri':'#7B4EC8',
+  'Ijaw':'#6A8A5A','Fulani':'#C83838','Edo Bini':'#D4870A','Tiv':'#8B6914',
+  'Hausa Fulani Undiff':'#D06A10',
+}};
+function dominantEthColor(f) {{
+  const base = ETH_COLORS[f.properties.eg] || '#888';
+  const t = Math.max(0, Math.min(1, ((f.properties.ep||50)-20)/80));
+  return hexLerp('#E8D8C0', base, t);
+}}
+
+// Poverty: green→amber→red
+const POV_SCALE = ['#6A8A5A','#88AA78','#D4870A','#C85A2A','#C83838'];
+function povertyColor(f) {{ return seqScale(f.properties.pv||30, 2, 65, POV_SCALE); }}
+
+// Education: composite score, brown→teal
+const EDU_SCALE = ['#5A2A0A','#8B5A2A','#B45A14','#6A8A5A','#2A8B9A','#38B0C4'];
+function eduScore(f) {{
+  const p=f.properties;
+  return 0.4*(p.al||50)+0.25*(p.pe||50)+0.25*(p.se||50)+0.1*((p.gp||0.7)*100);
+}}
+function educationColor(f) {{ return seqScale(eduScore(f), 35, 100, EDU_SCALE); }}
+
+// Master style function
+function lgaStyle(f) {{
+  let fillColor, fillOpacity, strokeColor, strokeOpacity;
+  switch (choroMode) {{
+    case 'religion':  fillColor=religionColor(f); fillOpacity=0.55; break;
+    case 'ethnicity': fillColor=(ethSubMode==='diversity')?diversityColor(f):dominantEthColor(f); fillOpacity=0.55; break;
+    case 'poverty':   fillColor=povertyColor(f); fillOpacity=0.55; break;
+    case 'education': fillColor=educationColor(f); fillOpacity=0.55; break;
+    default:          fillColor=ZC[f.properties.z]||'#222'; fillOpacity=0.18; break;
+  }}
+  const isChoro = choroMode !== 'zones';
+  return {{
+    fillColor: fillColor,
+    fillOpacity: fillOpacity,
+    color: isChoro ? 'rgba(44,24,16,0.25)' : (ZC[f.properties.z]||'#333'),
+    weight: 0.6,
+    opacity: isChoro ? 0.4 : 0.3,
+  }};
+}}
+
+// ── Legend helpers ──
+function swatch(color, label) {{
+  return '<div class="legend-item"><div class="legend-swatch" style="background:'+color+'"></div>'+label+'</div>';
+}}
+function gradientBar(colors, minL, maxL, caption) {{
+  const g='linear-gradient(90deg,'+colors.join(',')+')';
+  return '<div style="margin:6px 0">'+
+    '<div style="height:10px;border-radius:2px;background:'+g+';margin-bottom:2px"></div>'+
+    '<div style="display:flex;justify-content:space-between;font-size:9px;color:rgba(44,24,16,0.45)">'+
+    '<span>'+minL+'</span><span>'+maxL+'</span></div>'+
+    '<div style="text-align:center;font-size:8px;color:rgba(42,139,154,0.5);letter-spacing:1px;margin-top:2px">'+caption+'</div></div>';
+}}
+
+function updateLegend(mode) {{
+  const title = document.querySelector('#legend h3');
+  const items = document.getElementById('legendItems');
+  if (mode === 'zones') {{
+    title.textContent = 'Admin Zones';
+    items.innerHTML = '';
+    for (const [az,info] of Object.entries(zoneInfo).sort((a,b)=>a[1].az-b[1].az)) {{
+      items.innerHTML += swatch(ZC[info.az], info.zone_name);
+    }}
+  }} else if (mode === 'religion') {{
+    title.textContent = 'Dominant Religion';
+    items.innerHTML =
+      swatch('#2D6A4F','Muslim') + swatch('#1D3557','Christian') + swatch('#7F4F24','Traditionalist') +
+      gradientBar(['#DDB892','#52B788','#2D6A4F'],'33%','100%','Dominance');
+  }} else if (mode === 'ethnicity') {{
+    if (ethSubMode === 'diversity') {{
+      title.textContent = 'Ethnic Diversity (ELF)';
+      items.innerHTML = gradientBar(['#7A3A08','#D4870A','#6A8A5A','#2A8B9A'],'0.0','0.85','Homogeneous \u2192 Diverse');
+    }} else {{
+      title.textContent = 'Dominant Ethnic Group';
+      items.innerHTML = Object.entries(ETH_COLORS).filter(([g])=>g!=='Hausa Fulani Undiff').map(([g,c])=>swatch(c,g)).join('') + swatch('#888','Other');
+    }}
+  }} else if (mode === 'poverty') {{
+    title.textContent = 'Poverty Rate';
+    items.innerHTML = gradientBar(['#6A8A5A','#D4870A','#C83838'],'2%','65%','Low \u2192 High');
+  }} else if (mode === 'education') {{
+    title.textContent = 'Education Score';
+    items.innerHTML = gradientBar(['#5A2A0A','#B45A14','#2A8B9A','#38B0C4'],'35','100','Low \u2192 High');
+  }}
+}}
+
+// ── Mode switching ──
+function setChoroMode(mode) {{
+  choroMode = mode;
+  document.querySelectorAll('.choro-btn').forEach(b => {{
+    b.classList.toggle('active', b.dataset.mode === mode);
+  }});
+  document.getElementById('ethSub').style.display = (mode === 'ethnicity') ? 'block' : 'none';
+  lgaLayer.eachLayer(l => l.setStyle(lgaStyle(l.feature)));
+  updateLegend(mode);
+  clearHighlight();
+}}
+document.querySelectorAll('.choro-btn').forEach(btn => {{
+  btn.addEventListener('click', () => setChoroMode(btn.dataset.mode));
+}});
+document.querySelectorAll('input[name="ethMode"]').forEach(radio => {{
+  radio.addEventListener('change', function() {{
+    ethSubMode = this.value;
+    if (choroMode === 'ethnicity') {{
+      lgaLayer.eachLayer(l => l.setStyle(lgaStyle(l.feature)));
+      updateLegend('ethnicity');
+    }}
+  }});
+}});
+
+// ── Build legend (initial) ──
+updateLegend('zones');
 
 // ── Map init ──
 const map = L.map('map', {{
@@ -632,22 +951,15 @@ function fmt(n) {{ return n == null ? '\u2014' : Number(n).toLocaleString(); }}
 // ── LGA layer — glowing polygons ──
 let hlLGA = null;
 const lgaLayer = L.geoJSON(lgaData, {{
-  style: function(f) {{
-    return {{
-      fillColor: ZC[f.properties.z] || '#222',
-      fillOpacity: 0.18,
-      color: ZC[f.properties.z] || '#333',
-      weight: 0.6,
-      opacity: 0.3,
-    }};
-  }},
+  style: lgaStyle,
   onEachFeature: function(f, layer) {{
     layer.on({{
       mouseover: function() {{
         if (hlActive) return;
         if (hlLGA && hlLGA !== layer) lgaLayer.resetStyle(hlLGA);
-        const c = ZG[f.properties.z] || '#B45A14';
-        layer.setStyle({{ fillOpacity: 0.4, weight: 2, color: c, opacity: 0.8 }});
+        const s = lgaStyle(f);
+        const hc = (choroMode === 'zones') ? (ZG[f.properties.z] || '#B45A14') : s.fillColor;
+        layer.setStyle({{ fillOpacity: 0.6, weight: 2, color: hc, opacity: 0.8 }});
         layer.bringToFront();
         if (map.hasLayer(districtLayer)) districtLayer.bringToFront();
         if (map.hasLayer(stateLayer)) stateLayer.bringToFront();
@@ -791,8 +1103,9 @@ function highlightLGAs(pred) {{
   lgaLayer.eachLayer(l => {{
     const f = l.feature;
     if (pred(f)) {{
-      const gc = ZG[f.properties.z] || '#B45A14';
-      l.setStyle({{ fillOpacity: 0.5, weight: 1.8, color: gc, opacity: 0.9 }});
+      const s = lgaStyle(f);
+      const gc = (choroMode === 'zones') ? (ZG[f.properties.z] || '#B45A14') : s.fillColor;
+      l.setStyle({{ fillColor: s.fillColor, fillOpacity: 0.65, weight: 1.8, color: gc, opacity: 0.9 }});
     }} else {{
       l.setStyle({{ fillOpacity: 0.03, weight: 0.3, color: '#C8B090', opacity: 0.12 }});
     }}
@@ -868,6 +1181,27 @@ function showLGAInfo(p) {{
     h += row('Top Group', d.top1_group + ' (' + d.top1_pct + '%)');
     h += row('2nd Group', d.top2_group + ' (' + d.top2_pct + '%)');
     h += row('Religion', d.pct_muslim + '% M / ' + d.pct_christian + '% C / ' + d.pct_trad + '% T');
+  }}
+  // Choropleth-specific LGA data
+  if (choroMode === 'religion' && p.rm != null) {{
+    h += GL + '<div class="subtitle">LGA Religion</div>';
+    h += row('Muslim', (p.rm||0) + '%');
+    h += row('Christian', (p.rc||0) + '%');
+    h += row('Traditionalist', (p.rt||0) + '%');
+  }} else if (choroMode === 'ethnicity' && p.eg) {{
+    h += GL + '<div class="subtitle">LGA Ethnicity</div>';
+    h += row('Dominant Group', (p.eg||'\u2014') + ' (' + (p.ep||0) + '%)');
+    h += row('Diversity (ELF)', (p.ed||0).toFixed(3));
+  }} else if (choroMode === 'poverty' && p.pv != null) {{
+    h += GL + '<div class="subtitle">LGA Poverty</div>';
+    h += row('Poverty Rate', (p.pv||0) + '%');
+  }} else if (choroMode === 'education' && p.al != null) {{
+    h += GL + '<div class="subtitle">LGA Education</div>';
+    h += row('Adult Literacy', (p.al||0) + '%');
+    h += row('Primary Enrollment', (p.pe||0) + '%');
+    h += row('Secondary Enrollment', (p.se||0) + '%');
+    h += row('Gender Parity', (p.gp||0));
+    h += row('Composite Score', eduScore({{properties:p}}).toFixed(1));
   }}
   showPanel(h);
 }}
