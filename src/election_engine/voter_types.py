@@ -1170,6 +1170,9 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_edo": -0.3,              # Edo: pragmatic, see BIC as colonial relic
         "is_formal_sector": -0.3,    # Formal sector: reform-oriented institutions
         "is_female": 0.3,            # Women: BIC welfare services benefit women disproportionately
+        "lga_Internet Access Pct": -0.003,  # Connected areas: more BIC criticism → reform
+        "lga_Trad Authority Index": 0.1 / 5.0,  # Trad authority areas: BIC complements local governance → preserve
+        "lga_Urban Pct": -0.003,     # Urban areas: reform-oriented, less BIC loyalty
     },
     # 5. Ethnic Quotas (meritocracy ↔ affirmative action)
     {
@@ -1255,6 +1258,9 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_ijaw": -1.0,             # Ijaw: fear presidential centralism, want power-sharing
         "is_nupe": -0.5,             # Nupe: minority, prefer parliamentary power-sharing
         "is_ibibio": -0.5,           # Ibibio: minority, prefer parliamentary representation
+        "lga_Internet Access Pct": -0.003,  # Connected areas: exposed to parliamentary models → lean parliamentary
+        "lga_GDP Per Capita Est": -0.3 / 90000.0,  # Wealthier areas: institutional pluralism → parliamentary
+        "lga_Al-Shahid Influence": -0.3 / 5.0,  # Al-Shahid zones: reject ALL secular governance (noise down)
     },
     # 8. Resource Revenue (federal monopoly ↔ local control)
     {
