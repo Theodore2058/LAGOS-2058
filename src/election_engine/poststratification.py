@@ -574,6 +574,18 @@ def compute_all_lga_results(
     _gini_t = _lga_col("Gini Proxy", 0.36)
     _lga_turnout_mod -= 0.05 * np.clip((_gini_t - 0.30) / 0.30, 0.0, 1.0)  # inequality → mobilisation
 
+    # Major Urban Center: concentrated election infrastructure, party presence, media
+    _major_urban = _lga_col("Major Urban Center", 0.0)
+    _lga_turnout_mod -= 0.12 * _major_urban  # major cities: much better election logistics
+
+    # Traditional Authority (binary): chiefs can mobilise communities to vote
+    _trad_auth_bin = _lga_col("Traditional Authority", 0.0)
+    _lga_turnout_mod -= 0.06 * _trad_auth_bin  # patron-client mobilisation effect
+
+    # Primary Enrollment: community integration into state systems → engagement
+    _pri_enr = _lga_col("Primary Enrollment Pct", 60.0)
+    _lga_turnout_mod -= 0.06 * np.clip(_pri_enr / 100.0, 0.0, 1.0)  # enrolled → civic engagement
+
     lga_turnout_modifier = _lga_turnout_mod.astype(np.float32)
 
     # ---- Identity context modifiers ----

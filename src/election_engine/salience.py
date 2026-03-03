@@ -369,6 +369,7 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Median Age Estimate": -0.02,            # Younger median age → more acute housing needs
             "Unemployment Rate Pct": 0.3 / 100.0,   # Unemployment → housing insecurity
             "Poverty Rate Pct": 0.3 / 100.0,        # Poverty → housing deprivation
+            "Major Urban Center": 0.8,               # Major cities: housing is top political issue
         },
     ),
     # 10. Education
@@ -400,6 +401,7 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Median Age Estimate": -0.015,         # Younger workforce → more automation anxiety
             "Cobalt Extraction Active": 0.3,       # Cobalt mining: automation disruption in extraction
             "Poverty Rate Pct": 0.2 / 100.0,      # Poverty → more anxious about job displacement
+            "Major Urban Center": 0.4,             # Major cities: industrial base, automation anxiety
         },
     ),
     # 12. Military Role
@@ -456,6 +458,7 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "% Muslim": 0.2 / 100.0,              # Muslim areas: gender norms are politically contested
             "% Christian": 0.15 / 100.0,           # Christian areas: feminist movements engage
             "Out of School Children Pct": 0.5 / 100.0,  # High OSC → girls' education contested → gender salient
+            "Primary Enrollment Pct": -0.2 / 100.0,  # Low primary enrollment → girls excluded → gender rights contested
         },
     ),
     # 16. Traditional Authority
@@ -474,6 +477,7 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "% Kanuri": 0.15 / 100.0,             # Kanuri: Shehu tradition
             "Median Age Estimate": 0.01,           # Older population → traditional authority more salient
             "Traditionalist Practice": 0.2 / 5.0,  # Active traditionalist practice amplifies relevance
+            "Traditional Authority": 0.5,          # Binary: presence of active trad authority amplifies debate
         },
     ),
     # 17. Infrastructure

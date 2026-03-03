@@ -1068,6 +1068,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_catholic": 0.8,             # Catholics: anti-contraception, pro-natalist doctrine
         "is_pentecostal_formal": -0.5,  # Pentecostal formal: more pragmatic family planning
         "is_mainline_protestant": -0.5, # Mainline Protestants: accept family planning
+        "lga_Primary Enrollment Pct": -0.005,  # High primary enrollment → more exposure to family planning education
     },
     # 7. Constitutional Structure (parliamentary ↔ presidential)
     {
@@ -1115,6 +1116,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_Urban Pct": 0.01,        # Urban areas → more housing pressure
         "lga_Unemployment Rate Pct": 0.01,  # High unemployment → more demand for state housing
         "is_igbo_bottom_income": 1.0,  # Poor Igbo in cities: acute housing crisis
+        "lga_Major Urban Center": 1.0,  # Major cities: extreme housing pressure → interventionism
     },
     # 10. Education (radical localism ↔ meritocratic centralism)
     {
@@ -1247,6 +1249,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_pada_tertiary": -2.0,     # Educated Padà: techno-progressive, anti-traditional
         "is_kanuri_rural": 1.0,       # Rural Kanuri: strong traditional Shehu system
         "lga_Traditionalist Practice": 0.2 / 5.0,  # Active traditionalist practice → integrationist
+        "lga_Traditional Authority": 1.0,  # Binary: LGA has active traditional authority → everyone leans integrationist
     },
     # 17. Infrastructure (targeted ↔ universal provision)
     {
@@ -1265,6 +1268,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_Market Access Index": -0.1,  # Well-connected LGAs need less universal provision
         "lga_Road Quality Index": -0.1,  # Good roads → less demand for universal provision
         "is_urban_bottom_income": 0.5,   # Urban poor: inadequate infrastructure despite density
+        "lga_Major Urban Center": -0.8,  # Major cities: already served → less demand for universal infra
     },
     # 18. Land Tenure (customary ↔ formalization)
     {
@@ -1366,6 +1370,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_Refinery Present": 0.3,           # Refinery zones: export-oriented economy
         "is_muslim_trader": -0.5,    # Muslim traders: protective of local market networks
         "is_tijaniyya_trader": 0.5,  # Tijaniyya traders (Yoruba): historically cosmopolitan, pro-trade
+        "lga_Major Urban Center": 0.8,  # Major cities: trade-connected, pro-openness
     },
     # 23. Environmental Regulation (growth first ↔ strong regulation)
     {
