@@ -344,6 +344,27 @@ class VoterType:
     def is_ijaw_extraction(self) -> bool:
         return self.is_ijaw and self.livelihood in ("Formal private", "Trade/informal")
 
+    # --- Additional cross-pressure terms ---
+    @property
+    def is_igbo_bottom_income(self) -> bool:
+        return self.is_igbo and self.is_bottom_income
+
+    @property
+    def is_fulani_smallholder(self) -> bool:
+        return self.ethnicity == "Fulani" and self.livelihood == "Smallholder"
+
+    @property
+    def is_urban_bottom_income(self) -> bool:
+        return self.is_urban and self.is_bottom_income
+
+    @property
+    def is_christian_rural(self) -> bool:
+        return self.is_christian and self.is_rural
+
+    @property
+    def is_yoruba_formal(self) -> bool:
+        return self.is_yoruba and self.is_formal_sector
+
 
 @lru_cache(maxsize=1)
 def generate_all_voter_types() -> list[VoterType]:
@@ -846,9 +867,11 @@ def precompute_all_lga_marginals(
 
     # ----- Education fractions (N, 3) -----
     literacy = np.clip(_col("Adult Literacy Rate Pct", 50.0) / 100.0, 0.0, 1.0)
+    sec_enr = np.clip(_col("Secondary Enrollment Pct", 50.0) / 100.0, 0.0, 1.0)
     tertiary_ord = _col("Tertiary Institution", 0.0)
     tertiary_frac = np.minimum(0.25, tertiary_ord * 0.15 + urban_pct * 0.10)
-    secondary_frac = np.minimum(0.60, literacy * 0.5)
+    # Blend literacy-based estimate with actual secondary enrollment data
+    secondary_frac = np.minimum(0.60, 0.3 * literacy + 0.35 * sec_enr)
     below_sec_frac = np.maximum(0.05, 1.0 - tertiary_frac - secondary_frac)
     edu_raw = np.column_stack([below_sec_frac, secondary_frac, tertiary_frac])
     edu_totals = edu_raw.sum(axis=1, keepdims=True)
@@ -939,6 +962,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_igbo_pentecostal": 1.0,  # Igbo Pentecostals: self-determination + activism
         "lga_Conflict History": 0.2 / 5.0,  # Conflict zones → distrust federal, want local control
         "lga_Gini Proxy": 1.0,   # High inequality → demand local autonomy to address it
+        "lga_Refinery Present": 0.5,  # Refinery zones: want revenue kept locally
     },
     # 3. Chinese Relations (Western pivot ↔ deepen WAFTA)
     {
@@ -1078,6 +1102,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_middle_income": 0.5,      # Middle class worried about automation
         "is_older": -0.5,             # Elderly less concerned about automation
         "lga_Chinese Economic Presence": 0.1 / 10.0,  # Chinese presence → automation threat
+        "lga_Cobalt Extraction Active": 0.5,  # Cobalt mining areas: battery supply chain → automation anxiety
+        "lga_Poverty Rate Pct": 0.01,         # Poorer areas → more worried about job displacement
     },
     # 12. Military Role (civilian control ↔ military guardianship)
     {
@@ -1181,6 +1207,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_Rail Corridor": -0.3,    # Rail access → infrastructure already decent
         "lga_Market Access Index": -0.1,  # Well-connected LGAs need less universal provision
         "lga_Road Quality Index": -0.1,  # Good roads → less demand for universal provision
+        "is_urban_bottom_income": 0.5,   # Urban poor: inadequate infrastructure despite density
     },
     # 18. Land Tenure (customary ↔ formalization)
     {
@@ -1211,6 +1238,9 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_rural_bottom_income": 1.5,  # Rural poor: strongly pro-redistribution
         "lga_Access Healthcare Pct": -0.005,  # Poor healthcare → want redistribution for services
         "lga_Access Water Pct": -0.005,       # Poor water → want redistribution for services
+        "is_igbo_bottom_income": 0.5,  # Even poor Igbo want some redistribution (cross-pressure)
+        "is_urban_bottom_income": 1.0,  # Urban poor: cost of living → demand redistribution
+        "is_yoruba_formal": -0.5,      # Yoruba formal sector: tax-conscious, low-redistribution
     },
     # 20. Agricultural Policy (free market ↔ protectionist smallholder)
     {
@@ -1221,11 +1251,13 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_Pct Livelihood Services": -0.01,     # Service economy → less interest in ag protection
         "lga_Market Access Index": -0.1,          # Good market access → less need for protection
         "is_hf_smallholder": 2.0,    # HF pastoral/farming base: strongly protectionist
+        "is_fulani_smallholder": 2.5,  # Fulani pastoralists: most vulnerable to market disruption
         "is_tiv": 1.5,               # Tiv: breadbasket, smallholder heartland
         "is_nupe": 1.0,              # Nupe: farming tradition
         "is_mb_minority": 0.5,       # Middle Belt agricultural communities
         "is_yoruba": -0.5,           # Yoruba: more commercially oriented
         "is_yoruba_trader": -1.0,    # Yoruba traders: prefer free market ag
+        "is_christian_rural": 0.5,   # Rural Christians in Middle Belt: smallholder base
     },
     # 21. Biological Enhancement (prohibition ↔ universal access)
     {
@@ -1266,6 +1298,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_Planned City": 0.8,      # Chinese planned cities: WAFTA trade beneficiaries
         "lga_Chinese Economic Presence": 0.15 / 10.0,  # Chinese presence → pro-open trade (WAFTA)
         "lga_Pct Livelihood Services": 0.01,  # Service economy → pro-open trade
+        "lga_Cobalt Extraction Active": 0.8,  # Cobalt extraction → global battery supply chain → pro-open trade
+        "lga_Refinery Present": 0.3,           # Refinery zones: export-oriented economy
     },
     # 23. Environmental Regulation (growth first ↔ strong regulation)
     {

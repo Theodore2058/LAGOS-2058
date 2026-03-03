@@ -561,6 +561,14 @@ def compute_all_lga_results(
     _sec_enr = _lga_col("Secondary Enrollment Pct", 50.0)
     _lga_turnout_mod -= 0.08 * np.clip(_sec_enr / 100.0, 0.0, 1.0)  # more enrolled → more engaged
 
+    # Median Age: older populations more politically engaged (civic habit)
+    _med_age = _lga_col("Median Age Estimate", 22.0)
+    _lga_turnout_mod -= 0.1 * np.clip((_med_age - 18.0) / 20.0, 0.0, 1.0)  # older median → more turnout
+
+    # Gini inequality: high inequality can mobilise protest voting
+    _gini_t = _lga_col("Gini Proxy", 0.36)
+    _lga_turnout_mod -= 0.05 * np.clip((_gini_t - 0.30) / 0.30, 0.0, 1.0)  # inequality → mobilisation
+
     lga_turnout_modifier = _lga_turnout_mod.astype(np.float32)
 
     # ---- Identity context modifiers ----
