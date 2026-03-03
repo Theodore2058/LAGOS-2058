@@ -950,6 +950,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_informal": -0.5,          # Informal traders hurt by Chinese imports
         "is_nupe": 0.5,               # Nupe traders pragmatically pro-trade
         "lga_Unemployment Rate Pct": -0.02,  # High unemployment → anti-WAFTA sentiment
+        "lga_Planned City": 1.5,      # Chinese-built planned cities: residents pro-WAFTA
+        "lga_Rail Corridor": 0.3,     # Rail corridor (Chinese-built): pro-WAFTA infrastructure
     },
     # 4. BIC Reform (abolish ↔ preserve BIC)
     {
@@ -1031,6 +1033,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_urban_youth": 1.0,        # Urban youth face acute housing crisis
         "is_informal": 0.5,           # Informal workers need housing support
         "is_middle_income": 0.5,      # Squeezed middle also wants state help
+        "lga_Planned City": -0.8,     # Planned cities have better housing → less demand for intervention
+        "lga_Rail Corridor": -0.2,    # Rail corridors: better connectivity eases housing pressure
     },
     # 10. Education (radical localism ↔ meritocratic centralism)
     {
@@ -1152,6 +1156,9 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_Conflict History": 0.3 / 5.0,   # Conflict zones demand reconstruction
         "lga_Federal Control 2058": 0.3,      # Federal control zones need rebuilding
         "is_rural_bottom_income": 1.0,  # Rural poor: most infrastructure-deprived
+        "lga_Planned City": -0.5,     # Planned cities: already well-served → less demand
+        "lga_Rail Corridor": -0.3,    # Rail access → infrastructure already decent
+        "lga_Market Access Index": -0.1,  # Well-connected LGAs need less universal provision
     },
     # 18. Land Tenure (customary ↔ formalization)
     {
@@ -1229,6 +1236,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_kanuri": -0.5,            # Kanuri: protectionist instinct
         "is_hf_smallholder": -1.0,    # HF smallholders: fear cheap food imports
         "is_pada_tertiary": 1.5,       # Educated Padà: cosmopolitan, very pro-open trade
+        "lga_Planned City": 0.8,      # Chinese planned cities: WAFTA trade beneficiaries
+        "lga_Chinese Economic Presence": 0.15 / 10.0,  # Chinese presence → pro-open trade (WAFTA)
     },
     # 23. Environmental Regulation (growth first ↔ strong regulation)
     {
@@ -1244,6 +1253,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_edo": 1.0,                # Edo: oil zone environmental awareness
         "is_tertiary_youth": 1.0,     # Educated youth pro-environment
         "is_ibibio": 0.5,             # Ibibio: Akwa Ibom environmental concern
+        "lga_Refinery Zone": 0.3,     # Refinery zones: direct pollution → want regulation
+        "lga_Refinery Present": 0.5,  # Refinery present: residents demand clean air
     },
     # 24. Media Freedom (state control ↔ full press freedom)
     {
@@ -1298,6 +1309,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_nd_minority": -0.5,       # Niger Delta: oil-dependent economies
         "is_tertiary_youth": 1.0,     # Educated youth pro-green
         "is_urban_youth": 0.5,        # Urban youth lean green
+        "lga_Refinery Zone": -0.5,    # Refinery zones: fossil economy entrenched
+        "lga_Refinery Present": -0.3,  # Refinery present: local jobs depend on fossil
     },
     # 28. AZ Restructuring (return to 36+ states ↔ keep 8 AZs)
     {
