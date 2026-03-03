@@ -401,6 +401,7 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Housing Affordability": -0.5 / 10.0,  # (10 - afford) / 10 * 0.5
             "Population Density per km2": 0.2 / 1000.0,  # Dense areas feel immigration pressure
             "Unemployment Rate Pct": 0.3 / 100.0,  # High-unemployment → anti-immigration mood
+            "ethnic_fragmentation": 0.3,            # Diverse areas more attuned to migration
         },
     ),
     # 14. Language Policy
@@ -447,8 +448,10 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
         feature_coefficients={
             "access_deficit": 2.0 / 300.0,
             "Road Quality Index": -1.0 / 10.0,   # (10 - road) / 10 * 1.0
+            "Market Access Index": -0.3 / 10.0,  # Poor market access → infra demand
             "population_pressure": 0.4,            # Dense + poor-infra = acute demand
             "Poverty Rate Pct": 0.3 / 100.0,     # Poor areas prioritise infrastructure
+            "conflict_severity": 0.2 / 5.0,       # Conflict zones: infrastructure destroyed
         },
     ),
     # 18. Land Tenure
@@ -509,6 +512,8 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Chinese Economic Presence": 0.5 / 10.0,
             "border_proximity": 0.3,               # Border areas engaged with trade issues
             "Pct Livelihood Informal": 0.3 / 100.0,  # Informal traders affected by trade policy
+            "Market Access Index": 0.1,             # Well-connected LGAs: trade matters more
+            "Pct Livelihood Services": 0.3 / 100.0,  # Service economy cares about trade openness
         },
     ),
     # 23. Environmental Regulation
@@ -541,9 +546,11 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
         base_weight=0.10,
         feature_coefficients={
             "Access Healthcare Pct": -2.0 / 100.0,   # (100 - health) * 2.0/100
+            "Access Water Pct": -0.3 / 100.0,        # Water access → health outcomes
             "Poverty Rate Pct": 0.5 / 100.0,
             "Fertility Rate Est": 0.2,                # High fertility → maternal health concerns
             "population_pressure": 0.3,               # Dense + poor-infra → health crisis
+            "conflict_severity": 0.2 / 5.0,          # Conflict zones: health infrastructure destroyed
         },
     ),
     # 26. Padà Status
@@ -567,6 +574,8 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Refinery Zone": 0.5,
             "Extraction Intensity": 0.3 / 5.0,       # Energy producers debate policy
             "population_pressure": 0.3,               # Dense without power → energy salient
+            "GDP Per Capita Est": 0.2 / 10000.0,     # Wealthier areas more engaged with energy transition
+            "Pct Livelihood Manufacturing": 0.3 / 100.0,  # Manufacturing needs reliable power
         },
     ),
     # 28. AZ Restructuring
@@ -680,11 +689,11 @@ def compute_salience(
             # salience contribution = 1.5*(10-afford)/10 = -0.15*afford + 1.5
             w += 1.5
         if rule.issue_name == "infrastructure":
-            # salience contribution = 1.0*(10-road)/10 = -0.10*road + 1.0
-            w += 1.0
+            # salience contribution = 1.0*(10-road)/10 + 0.3*(10-market)/10
+            w += 1.0 + 0.3
         if rule.issue_name == "healthcare":
-            # salience contribution = 2.0*(100-health)/100 = -0.02*health + 2.0
-            w += 2.0
+            # salience contribution = 2.0*(100-health)/100 + 0.3*(100-water)/100
+            w += 2.0 + 0.3
         if rule.issue_name == "energy_policy":
             # salience contribution = 2.0*(100-elec)/100 = -0.02*elec + 2.0
             w += 2.0
@@ -882,9 +891,9 @@ def compute_all_lga_salience(
         if rule.issue_name == "housing":
             w += 1.5
         if rule.issue_name == "infrastructure":
-            w += 1.0
+            w += 1.0 + 0.3  # +1.0 for road, +0.3 for market access
         if rule.issue_name == "healthcare":
-            w += 2.0
+            w += 2.0 + 0.3  # +2.0 for healthcare access, +0.3 for water access
         if rule.issue_name == "energy_policy":
             w += 2.0
         if rule.issue_name == "immigration":
