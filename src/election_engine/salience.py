@@ -574,6 +574,90 @@ def _trade_policy_conditional(lga_row: pd.Series) -> float:
     return extra
 
 
+def _chinese_relations_conditional(lga_row: pd.Series) -> float:
+    """Chinese relations become politically charged where Chinese economic
+    presence is high AND unemployment/manufacturing creates winners and losers."""
+    chinese = _safe_float(lga_row.get("Chinese Economic Presence", 0), 0)
+    mandarin = _safe_float(lga_row.get("Mandarin Presence", 0), 0)
+    unemp = _safe_float(lga_row.get("Unemployment Rate Pct", 33), 33)
+    planned = _safe_float(lga_row.get("Planned City", 0), 0)
+    extra = 0.0
+    # Chinese presence + unemployment = WAFTA backlash
+    if chinese > 3 and unemp > 35:
+        extra += 0.3 * min(chinese, 8) / 8.0
+    # Planned city (Chinese-built) = everyone has an opinion
+    if planned > 0 and mandarin > 2:
+        extra += 0.25
+    return extra
+
+
+def _traditional_authority_conditional(lga_row: pd.Series) -> float:
+    """Traditional authority becomes hyper-salient where strong traditional
+    institutions meet modernizing pressures — chiefs vs democracy."""
+    trad_auth = _safe_float(lga_row.get("Trad Authority Index", 0), 0)
+    trad_present = _safe_float(lga_row.get("Traditional Authority", 0), 0)
+    urban = _safe_float(lga_row.get("Urban Pct", 50), 50)
+    internet = _safe_float(lga_row.get("Internet Access Pct", 30), 30)
+    extra = 0.0
+    # Strong trad authority + urbanization = institutional clash
+    if trad_auth > 3 and urban > 40:
+        extra += 0.25 * min(trad_auth, 5) / 5.0
+    # Traditional authority present + internet access = online debate
+    if trad_present > 0 and internet > 30:
+        extra += 0.2
+    return extra
+
+
+def _agricultural_policy_conditional(lga_row: pd.Series) -> float:
+    """Agricultural policy becomes urgent where smallholder farming
+    dominates AND food security is threatened by poverty/climate."""
+    ag_pct = _safe_float(lga_row.get("Pct Livelihood Agriculture", 20), 20)
+    poverty = _safe_float(lga_row.get("Poverty Rate Pct", 30), 30)
+    fertility = _safe_float(lga_row.get("Fertility Rate Est", 5), 5)
+    extra = 0.0
+    # High agriculture + poverty = food security politicized
+    if ag_pct > 40 and poverty > 50:
+        extra += 0.3 * min(ag_pct, 80) / 80.0
+    # High fertility + agriculture = population pressure on farmland
+    if fertility > 5 and ag_pct > 30:
+        extra += 0.2 * min(fertility, 8) / 8.0
+    return extra
+
+
+def _media_freedom_conditional(lga_row: pd.Series) -> float:
+    """Media freedom becomes hyper-salient where internet penetration
+    is high AND conflict/security creates censorship pressure."""
+    internet = _safe_float(lga_row.get("Internet Access Pct", 30), 30)
+    mobile = _safe_float(lga_row.get("Mobile Phone Penetration Pct", 50), 50)
+    conflict = _safe_float(lga_row.get("Conflict History", 0), 0)
+    fed_control = _safe_float(lga_row.get("Federal Control 2058", 0), 0)
+    extra = 0.0
+    # High connectivity + conflict = censorship vs information freedom
+    if internet > 40 and conflict > 2:
+        extra += 0.25 * min(internet, 80) / 80.0
+    # Federal control zones + mobile access = media suppression debate
+    if fed_control > 0 and mobile > 50:
+        extra += 0.2
+    return extra
+
+
+def _az_restructuring_conditional(lga_row: pd.Series) -> float:
+    """AZ restructuring becomes hyper-salient where ethnic minorities
+    feel dominated by larger groups within their current AZ."""
+    frag = ethnic_fragmentation(lga_row)
+    conflict = _safe_float(lga_row.get("Conflict History", 0), 0)
+    trad_auth = _safe_float(lga_row.get("Trad Authority Index", 0), 0)
+    extraction = _safe_float(lga_row.get("Extraction Intensity", 0), 0)
+    extra = 0.0
+    # High fragmentation + conflict = demand for new states/AZs
+    if frag > 0.7 and conflict > 2:
+        extra += 0.3 * frag
+    # Extraction areas with diversity = resource-driven restructuring demands
+    if extraction > 2 and frag > 0.6:
+        extra += 0.2 * min(extraction, 5) / 5.0
+    return extra
+
+
 DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
     # 1. Sharia Jurisdiction
     SalienceRule(
@@ -622,6 +706,7 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Unemployment Rate Pct": 0.3 / 100.0,  # Jobless areas blame Chinese
             "youth_bulge": 0.3,                      # Youth are more engaged with the issue
         },
+        conditional=_chinese_relations_conditional,
     ),
     # 4. BIC Reform
     SalienceRule(
@@ -842,6 +927,7 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "is_colonial_western": 0.3,             # Western: Oba institution deeply embedded → debate
             "is_colonial_midwestern": 0.2,          # Mid-Western: Oba of Benin → trad authority relevant
         },
+        conditional=_traditional_authority_conditional,
     ),
     # 17. Infrastructure
     SalienceRule(
@@ -900,6 +986,7 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "% Fulani": 0.2 / 100.0,              # Fulani: pastoralist/herder-farmer conflicts
             "% Tiv": 0.15 / 100.0,                # Tiv: Middle Belt farming communities
         },
+        conditional=_agricultural_policy_conditional,
     ),
     # 21. Biological Enhancement
     SalienceRule(
@@ -969,6 +1056,7 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "% Christian": 0.1 / 100.0,            # Christian areas: media-savvy, free press tradition
             "is_colonial_western": 0.3,             # Western: Lagos media culture, Yoruba press tradition
         },
+        conditional=_media_freedom_conditional,
     ),
     # 25. Healthcare
     SalienceRule(
@@ -1031,6 +1119,7 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "is_colonial_eastern": 0.3,              # Eastern: Biafra memory, Igbo self-determination
             "is_colonial_midwestern": 0.4,           # Mid-Western: minority status → restructuring demand
         },
+        conditional=_az_restructuring_conditional,
     ),
 ]
 
