@@ -705,6 +705,9 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Pct Livelihood Manufacturing": 0.5 / 100.0,
             "Unemployment Rate Pct": 0.3 / 100.0,  # Jobless areas blame Chinese
             "youth_bulge": 0.3,                      # Youth are more engaged with the issue
+            "Rail Corridor": 0.3,                    # Chinese-built rail → WAFTA salience
+            "Internet Access Pct": 0.15 / 100.0,   # Connected areas: more WAFTA discourse
+            "Urban Pct": 0.2 / 100.0,               # Urban: more exposure to Chinese trade
         },
         conditional=_chinese_relations_conditional,
     ),
@@ -855,6 +858,9 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "border_proximity": 0.3,              # Border areas care about military
             "% Kanuri": 0.3 / 100.0,             # Kanuri: Borno insurgency experience
             "% Tiv": 0.15 / 100.0,               # Tiv: Middle Belt security concerns
+            "Youth Unemployment Rate Pct": 0.2 / 100.0,  # Jobless youth: security vacuum salience
+            "Poverty Rate Pct": 0.15 / 100.0,    # Poor areas: military as employer/security provider
+            "Border LGA": 0.3,                    # Actual border LGAs: military presence visible
         },
         conditional=_military_conflict_conditional,
     ),
@@ -940,6 +946,9 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "population_pressure": 0.4,            # Dense + poor-infra = acute demand
             "Poverty Rate Pct": 0.3 / 100.0,     # Poor areas prioritise infrastructure
             "conflict_severity": 0.2 / 5.0,       # Conflict zones: infrastructure destroyed
+            "Urban Pct": 0.3 / 100.0,             # Urban: traffic, congestion, infra overload
+            "Pct Livelihood Manufacturing": 0.3 / 100.0,  # Industrial: reliable power + roads critical
+            "Out of School Children Pct": 0.15 / 100.0,   # High OSC → school infrastructure deficit
         },
         conditional=_infrastructure_crisis_conditional,
     ),
@@ -954,6 +963,9 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "conflict_severity": 0.2 / 5.0,       # Land disputes fuel conflict, raises salience
             "Population Density per km2": 0.1 / 1000.0,  # Dense areas = land pressure
             "% Fulani": 0.3 / 100.0,              # Fulani presence: herder-farmer politics
+            "Urban Pct": 0.3 / 100.0,             # Urban: property rights, zoning, gentrification
+            "Extraction Intensity": 0.2 / 5.0,    # Extraction: land acquisition conflicts
+            "Oil Producing": 0.15,                 # Oil zones: community vs corporation land disputes
         },
         conditional=_herder_farmer_conditional,
     ),
@@ -998,6 +1010,10 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "% Population Under 30": 0.3 / 100.0,
             "Internet Access Pct": 0.2 / 100.0,   # Tech-connected areas engage with bioethics
             "Median Age Estimate": -0.01,          # Younger population → bio-enhancement more relevant
+            "Tertiary Institution": 0.15,          # University areas: bioethics debates
+            "GDP Per Capita Est": 0.3 / 90000.0,  # Wealthier areas: more bio-enhancement exposure
+            "% Pada": 0.8 / 100.0,                # Padà communities: bio-enhancement is identity issue
+            "Planned City": 0.3,                   # Planned cities: tech-forward, more enhancement
         },
         conditional=_bio_enhancement_conditional,
     ),
