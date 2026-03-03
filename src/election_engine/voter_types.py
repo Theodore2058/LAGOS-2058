@@ -1132,6 +1132,11 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_top_income": 0.8,         # Top income: benefit from Chinese investment/trade
         "is_pada": 1.0,               # Pada: tech-oriented, see Chinese biotech as ally
         "lga_Poverty Rate Pct": -0.005,  # Poorer areas resent foreign capital
+        "is_yoruba": -0.3,           # Yoruba traders: WAFTA competition hurts local markets
+        "is_tiv": -0.3,              # Tiv: rural, less benefit from Chinese investment
+        "is_older": -0.3,            # Older: suspicious of foreign economic influence
+        "is_female": -0.2,           # Women: less exposure to WAFTA trade benefits
+        "is_youth": 0.3,             # Youth: pragmatic, see Chinese tech as opportunity
     },
     # 4. BIC Reform (abolish ↔ preserve BIC)
     {
@@ -1154,6 +1159,11 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_pentecostal": 0.3,        # Pentecostal: BIC values align with Christian institutions
         "is_older": 0.3,              # Older: institutional loyalty, remember BIC establishment
         "lga_Poverty Rate Pct": 0.003,  # Poor areas: BIC welfare services → preserve
+        "is_ijaw": -0.5,             # Ijaw: BIC irrelevant to Delta resource politics
+        "is_tiv": -0.3,              # Tiv: less institutional attachment
+        "is_edo": -0.3,              # Edo: pragmatic, see BIC as colonial relic
+        "is_formal_sector": -0.3,    # Formal sector: reform-oriented institutions
+        "is_female": 0.3,            # Women: BIC welfare services benefit women disproportionately
     },
     # 5. Ethnic Quotas (meritocracy ↔ affirmative action)
     {
@@ -1174,6 +1184,13 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_hf_muslim_civil_servant": 1.0,  # HF Muslim civil servants: benefit most from northern quotas
         "is_igbo_pentecostal_formal": -1.5,  # Igbo Pentecostal formal: extreme meritocrats
         "is_minority_urban_youth": -1.0,  # Minority urban youth: reject both quotas and ethnic politics
+        "is_ibibio": 0.5,                # Ibibio: minority, benefit from affirmative action
+        "is_ijaw": 1.5,                  # Ijaw: minority protection, Delta representation
+        "is_nd_minority": 1.5,           # Niger Delta minorities: need quota protection
+        "is_nupe": 0.5,                  # Nupe: Middle Belt minority, mild pro-quota
+        "is_older": 0.5,                 # Older: established patronage networks, support quotas
+        "is_female": 0.5,               # Women: benefit from gender quotas in practice
+        "lga_Poverty Rate Pct": 0.005,   # Poorer areas: quotas = redistribution mechanism
     },
     # 6. Fertility Policy (population control ↔ pro-natalism)
     {
@@ -1251,6 +1268,11 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_pada": -0.5,              # Pada: new community, less attachment to resource battles
         "is_nupe": 0.3,               # Nupe: Middle Belt, want local resource control
         "lga_Poverty Rate Pct": 0.005,  # Poorer LGAs want more local revenue control
+        "is_older": -0.3,            # Older: accustomed to federal distribution, status quo
+        "is_female": 0.3,            # Women: local control = more community-level accountability
+        "is_bottom_income": 0.5,     # Bottom income: want local resource benefit
+        "is_youth": 0.3,             # Youth: resource justice framing resonates
+        "is_mb_minority": 1.0,       # Middle Belt minorities: mineral resources, want local control
     },
     # 9. Housing (pure market ↔ state intervention)
     {
@@ -1465,6 +1487,11 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_minority_urban_youth": -1.5,  # Minority urban youth: reject traditional authority entirely
         "is_yoruba_christian_urban": -0.5,  # Yoruba Christian urbanites: modern governance preference
         "lga_Colonial Western": 0.8,  # Western Region: Oba institution deeply embedded in governance
+        "is_ibibio": 0.5,             # Ibibio: respect for traditional leadership institutions
+        "is_ijaw": -0.5,              # Ijaw: traditional structures weak relative to Delta activism
+        "is_female": -0.3,            # Women: traditional authority often patriarchal
+        "is_al_shahid": -1.5,         # Al-Shahid: want Islamic authority, not traditional chiefs
+        "is_youth": -0.5,             # Youth: reject gerontocratic traditional systems
     },
     # 17. Infrastructure (targeted ↔ universal provision)
     {
@@ -1745,6 +1772,12 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_BIC Effectiveness": 0.15 / 10.0,    # Effective BIC → Padà more accepted
         "lga_Internet Access Pct": 0.003,         # Connected areas: more Padà discourse
         "lga_Urban Pct": 0.005,                   # Urban areas: Padà communities concentrate
+        "is_ibibio": 0.3,             # Ibibio: coastal cosmopolitanism, tolerant of Padà
+        "is_nupe": -0.3,             # Nupe: northern suspicion of enhancement community
+        "is_al_shahid": -2.0,        # Al-Shahid: theological hostility to biological enhancement
+        "is_older": -0.5,            # Older: generational anxiety about post-human identity
+        "is_female_tertiary": 0.5,   # Educated women: progressive, accepting of Padà
+        "is_bottom_income": -0.5,    # Bottom income: resentment of enhanced elite
     },
     # 27. Energy Policy (fossil status quo ↔ green transition)
     {
