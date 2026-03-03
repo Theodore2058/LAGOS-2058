@@ -462,6 +462,32 @@ class VoterType:
         """Urban informal traders: market stall economy, price-sensitive."""
         return self.is_urban and self.livelihood == "Trade/informal"
 
+    # --- Batch 20: ethnic-religious and livelihood cross-terms ---
+    @property
+    def is_edo_christian(self) -> bool:
+        """Edo Christians: cosmopolitan Benin City tradition."""
+        return self.is_edo and self.is_christian
+
+    @property
+    def is_mb_minority_christian(self) -> bool:
+        """Middle Belt Christian minorities: politically marginalised constituency."""
+        return self.ethnicity == "Middle Belt Minorities" and self.is_christian
+
+    @property
+    def is_nupe_muslim(self) -> bool:
+        """Nupe Muslims: bridge north-south Muslim divide."""
+        return self.is_nupe and self.is_muslim
+
+    @property
+    def is_igbo_trader(self) -> bool:
+        """Igbo traders: mobile entrepreneurial diaspora across Nigeria."""
+        return self.is_igbo and self.livelihood == "Trade/informal"
+
+    @property
+    def is_fulani_rural(self) -> bool:
+        """Rural Fulani: pastoralist herders, nomadic tradition."""
+        return self.ethnicity == "Fulani" and self.is_rural
+
 
 @lru_cache(maxsize=1)
 def generate_all_voter_types() -> list[VoterType]:
@@ -1151,6 +1177,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_urban_youth": -1.0,      # Urban youth favour smaller families
         "lga_Al-Shahid Influence": 0.3 / 5.0,  # Al-Shahid areas more pro-natalist
         "is_older": 1.0,            # Elderly: pro-natalist (traditional values)
+        "is_fulani_rural": 2.0,     # Rural Fulani: pastoral tradition, large families essential for herding
         "is_middle_age": 0.5,       # Middle-aged: moderately pro-natalist
         "lga_Out of School Children Pct": 0.01,  # High OSC → pro-natalist norms persist
         "is_catholic": 0.8,             # Catholics: anti-contraception, pro-natalist doctrine
@@ -1174,6 +1201,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_kanuri": 0.5,            # Kanuri moderate pro-presidential
         "is_igbo": -0.5,             # Igbo wary of presidential power
         "is_edo": -1.0,              # Edo pro-parliamentary (civic tradition)
+        "is_edo_christian": -1.0,     # Edo Christians: strongly pro-parliamentary (Benin civic tradition)
+        "is_mb_minority_christian": -1.5,  # MB Christian minorities: fear presidential centralisation
         "lga_Conflict History": 0.3 / 5.0,    # Conflict zones → favour strong executive
         "lga_Federal Control 2058": 0.5,       # Federal control → accept stronger executive
     },
@@ -1320,6 +1349,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_kanuri": -1.5,            # Kanuri defend Kanuri language
         "is_tiv": -1.0,              # Tiv defend local language
         "is_nupe": -0.5,             # Nupe value local identity
+        "is_nupe_muslim": -0.8,      # Nupe Muslims: Arabic influence, less pro-English
         "is_christian_urban": 0.5,    # Urban Christians lean English
         "is_yoruba_muslim": -0.5,     # Yoruba Muslims: value Arabic + Yoruba (less English)
         "is_pada_tertiary": 1.5,      # Educated Padà: strongly pro-English (cosmopolitan)
@@ -1344,6 +1374,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_igbo": 0.5,               # Igbo moderate feminist (market women tradition)
         "is_pentecostal": -0.5,       # Pentecostal complementarian gender views
         "is_tiv": 0.5,                # Tiv: relatively egalitarian tradition
+        "is_edo_christian": 0.8,      # Edo Christians: progressive Benin City tradition
         "lga_Al-Shahid Influence": -0.3 / 5.0,  # Al-Shahid areas → more conservative on women
         "lga_Conflict History": -0.2 / 5.0,      # Conflict zones → conservative retrenchment
         "is_yoruba_muslim": 0.5,      # Yoruba Muslims: more progressive than other Muslims on gender
@@ -1418,6 +1449,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_Land Formalization Pct": 0.03 / 100.0, "is_pada": 2.0,
         "is_tiv": -1.5,              # Tiv: strong customary land system
         "is_nupe": -1.0,             # Nupe: traditional land allocation
+        "is_fulani_rural": -2.0,     # Rural Fulani: communal grazing land tradition, fiercely anti-formalization
+        "is_mb_minority_christian": -1.0,  # MB Christian farmers: customary land rights, herder-farmer disputes
         "is_igbo": 1.0,              # Igbo: pro-formalization (commercial mindset)
         "is_commercial_ag": 2.0,     # Commercial farmers want formal titles
         "is_rural_older": -1.0,      # Rural elderly defend customary tenure
@@ -1472,6 +1505,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_yoruba": -0.5,           # Yoruba: more commercially oriented
         "is_yoruba_trader": -1.0,    # Yoruba traders: prefer free market ag
         "is_christian_rural": 0.5,   # Rural Christians in Middle Belt: smallholder base
+        "is_fulani_rural": 2.5,      # Rural Fulani pastoralists: need grazing protection, most vulnerable
+        "is_mb_minority_christian": 1.0,  # MB Christian minorities: farming communities, protectionist
         "is_catholic_smallholder": 1.5,  # Catholic smallholders: deeply agrarian, strongly protectionist
     },
     # 21. Biological Enhancement (prohibition ↔ universal access)
@@ -1517,6 +1552,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_yoruba": 0.5,             # Yoruba: commercial culture
         "is_yoruba_trader": 1.0,      # Yoruba traders: benefit from open markets
         "is_nupe": 0.5,               # Nupe: historic trans-Saharan trade routes
+        "is_nupe_muslim": 0.8,       # Nupe Muslims: trans-Saharan trade networks, pro-openness
+        "is_igbo_trader": 1.5,       # Igbo traders: mobile diaspora entrepreneurialism, pro-open trade
         "is_kanuri": -0.5,            # Kanuri: protectionist instinct
         "is_hf_smallholder": -1.0,    # HF smallholders: fear cheap food imports
         "is_pada_tertiary": 1.5,       # Educated Padà: cosmopolitan, very pro-open trade
@@ -1653,6 +1690,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_kanuri": 1.5,            # Kanuri prefer current AZ (Borno dominance)
         "is_nupe": -1.0,             # Nupe want distinct identity from HF hegemony
         "is_edo": -1.0,              # Edo want Mid-West recognition
+        "is_edo_christian": -1.5,     # Edo Christians: strongest Mid-West identity, want own AZ
+        "is_mb_minority_christian": -2.0,  # MB Christian minorities: strongly want Middle Belt state(s)
         "lga_Conflict History": -0.3 / 5.0,  # Conflict areas want restructuring / more states
         "lga_Extraction Intensity": -0.2 / 5.0,  # Extraction areas want own AZ (resource control)
         "lga_Traditional Authority": 0.5,  # Active traditional authority → resist restructuring (lose power)
@@ -1966,6 +2005,17 @@ def _build_voter_feature_matrix(voter_types: list[VoterType],
             mat[:, fi] = (age_idx == 1).astype(np.float32)  # 25-34 = index 1
         elif feat == "is_urban_trader":
             mat[:, fi] = (_is_urban & (liv_idx == 2)).astype(np.float32)
+        # --- Batch 20: ethnic-religious and livelihood cross-terms ---
+        elif feat == "is_edo_christian":
+            mat[:, fi] = ((eth_idx == _edo) & _is_christian).astype(np.float32)
+        elif feat == "is_mb_minority_christian":
+            mat[:, fi] = ((eth_idx == _mb_min) & _is_christian).astype(np.float32)
+        elif feat == "is_nupe_muslim":
+            mat[:, fi] = ((eth_idx == _nupe) & _is_muslim).astype(np.float32)
+        elif feat == "is_igbo_trader":
+            mat[:, fi] = ((eth_idx == _igbo) & (liv_idx == 2)).astype(np.float32)
+        elif feat == "is_fulani_rural":
+            mat[:, fi] = ((eth_idx == _fulani) & _is_rural).astype(np.float32)
         else:
             # Fallback for any unknown feature — use getattr (shouldn't happen
             # for the default table, but supports custom coefficient tables)
