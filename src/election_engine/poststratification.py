@@ -706,6 +706,11 @@ def compute_all_lga_results(
         - 0.03 * _col_midwestern                           # Mid-Western: cosmopolitan Benin City dampens religion
         + 0.06 * np.clip((_lga_col("Fertility Rate Est", 5.0) - 3.0) / 4.0, 0, 1)  # high fertility → traditional norms → religious identity
         - 0.04 * np.clip(_lga_col("Chinese Economic Presence", 0.0) / 10.0, 0, 1)  # Chinese presence → economic anxiety overrides religious identity
+        - 0.04 * _oil_prod                                    # oil areas: resource competition transcends religious lines
+        + 0.06 * _fed_ctrl                                    # federal control zones: state intervention heightens religious tensions
+        - 0.03 * np.clip(_lga_col("Diaspora Influence Index", 0.0) / 5.0, 0, 1)  # diaspora: returnees bring secular norms
+        + 0.08 * np.clip(_rel_tension * _lga_col("Youth Unemployment Rate Pct", 46.0) / 80.0, 0, 1)  # youth unemployment × religious mix → identity frustration
+        - 0.03 * np.clip(_lga_col("Pct Livelihood Manufacturing", 10.0) / 40.0, 0, 1)  # factory workers: class identity > religious identity
     ).astype(np.float32)
 
     # Ethnic context modifier:
@@ -748,6 +753,12 @@ def compute_all_lga_results(
         + 0.05 * np.clip((_lga_col("Gini Proxy", 0.4) - 0.35) / 0.25, 0, 1)  # inequality → ethnic scapegoating intensifies
         - 0.03 * np.clip(_lga_col("Land Formalization Pct", 20.0) / 100.0, 0, 1)  # formalized land → modern economy → less ethnic clientelism
         + 0.04 * np.clip(_lga_col("Fertility Rate Est", 5.0) / 7.0, 0, 1)  # high fertility → kinship bonds → ethnic identity strong
+        + 0.06 * _oil_prod                                     # oil areas: resource extraction linked to ethnic territorial claims
+        - 0.04 * _fed_ctrl                                     # federal control: military presence suppresses ethnic mobilisation
+        - 0.03 * np.clip(_lga_col("Diaspora Influence Index", 0.0) / 5.0, 0, 1)  # diaspora: cosmopolitan returnees weaken ethnic politics
+        + 0.05 * np.clip(_extract_int / 5.0, 0, 1)            # extraction intensity: resource competition intensifies ethnic claims
+        - 0.03 * np.clip(_lga_col("Pct Livelihood Manufacturing", 10.0) / 40.0, 0, 1)  # manufacturing: class solidarity > ethnic solidarity
+        + 0.04 * np.clip(_lga_col("Border LGA", 0.0), 0, 1)  # border LGAs: ethnic identity sharpened by cross-border ethnic kin
     ).astype(np.float32)
 
     # ---- LGA-modulated gender turnout gap ----
