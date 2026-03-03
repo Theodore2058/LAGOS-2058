@@ -1094,6 +1094,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_Conflict History": -0.3 / 5.0,  # Conflict zones → more restrictionist
         "lga_Unemployment Rate Pct": -0.02,  # High unemployment → anti-immigration
         "lga_Youth Unemployment Rate Pct": -0.01,  # Youth joblessness → restrictionism
+        "lga_Al-Shahid Influence": -0.15 / 5.0,  # Al-Shahid areas: xenophobic, restrictionist
+        "lga_Planned City": 0.5,       # Chinese planned cities: cosmopolitan, pro-open borders
     },
     # 14. Language Policy (vernacular ↔ English supremacy)
     {
@@ -1295,6 +1297,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_yoruba": 0.5,             # Yoruba tolerant of Padà presence
         "is_tiv": -0.5,              # Tiv mild suspicion
         "is_edo": 0.5,                # Edo: cosmopolitan, tolerant
+        "lga_Biological Enhancement Pct": 0.01,  # Bio-enhancement linked to Padà identity
+        "lga_BIC Effectiveness": 0.15 / 10.0,    # Effective BIC → Padà more accepted
     },
     # 27. Energy Policy (fossil status quo ↔ green transition)
     {
@@ -1325,6 +1329,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_nupe": -1.0,             # Nupe want distinct identity from HF hegemony
         "is_edo": -1.0,              # Edo want Mid-West recognition
         "lga_Conflict History": -0.3 / 5.0,  # Conflict areas want restructuring / more states
+        "lga_Extraction Intensity": -0.2 / 5.0,  # Extraction areas want own AZ (resource control)
         "is_igbo_pentecostal": -1.5,  # Igbo Pentecostals: strongly pro-restructuring (Biafra sentiment)
         "is_yoruba_muslim": 0.5,      # Yoruba Muslims: less anti-AZ than Yoruba Christians
     },
