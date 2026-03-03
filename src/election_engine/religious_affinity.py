@@ -375,5 +375,94 @@ def split_religious_subcategories(
     return fracs
 
 
+def batch_split_religious_subcategories(
+    pct_muslim: np.ndarray,
+    pct_christian: np.ndarray,
+    pct_traditionalist: np.ndarray,
+    tijaniyya_presence: np.ndarray,
+    qadiriyya_presence: np.ndarray,
+    pentecostal_growth: np.ndarray,
+    al_shahid_influence: np.ndarray,
+    urban_pct: np.ndarray,
+    tertiary_pct: np.ndarray,
+    pada_naijin_pct: np.ndarray,
+) -> np.ndarray:
+    """
+    Vectorised religious subcategory split for all LGAs at once.
+
+    All inputs are (N,) arrays.  Returns (N, 9) array of fractions in
+    RELIGIOUS_GROUPS order.
+    """
+    N = len(pct_muslim)
+    f_muslim = pct_muslim / 100.0
+    f_christian = pct_christian / 100.0
+    f_trad = pct_traditionalist / 100.0
+
+    # Muslim sub-splits
+    al_shahid_share = np.minimum(al_shahid_influence / 5.0 * 0.35, 0.35)
+    tijaniyya_share = np.minimum(tijaniyya_presence / 3.0 * 0.40, 0.40)
+    qadiriyya_share = np.minimum(qadiriyya_presence / 3.0 * 0.25, 0.25)
+
+    total_sufi = al_shahid_share + tijaniyya_share + qadiriyya_share
+    needs_scale = total_sufi > 1.0
+    scale = np.where(needs_scale, 1.0 / np.maximum(total_sufi, 1e-30), 1.0)
+    al_shahid_share = np.where(needs_scale, al_shahid_share * scale, al_shahid_share)
+    tijaniyya_share = np.where(needs_scale, tijaniyya_share * scale, tijaniyya_share)
+    qadiriyya_share = np.where(needs_scale, qadiriyya_share * scale, qadiriyya_share)
+    mainstream_sunni_share = np.maximum(0.0, 1.0 - al_shahid_share - tijaniyya_share - qadiriyya_share)
+
+    f_tijaniyya = f_muslim * tijaniyya_share
+    f_qadiriyya = f_muslim * qadiriyya_share
+    f_al_shahid = f_muslim * al_shahid_share
+    f_main_sunni = f_muslim * mainstream_sunni_share
+
+    # Christian sub-splits
+    pent_base = pentecostal_growth / 3.0 * 0.55 + (urban_pct / 100.0) * 0.10
+    pent_share = np.minimum(pent_base, 0.65)
+    remaining_christian = np.maximum(0.0, 1.0 - pent_share)
+    catholic_share = remaining_christian * (0.40 + urban_pct / 500.0)
+    mainline_share = np.maximum(0.0, remaining_christian - catholic_share)
+
+    f_pentecostal = f_christian * pent_share
+    f_catholic = f_christian * catholic_share
+    f_mainline = f_christian * mainline_share
+
+    # Secular
+    secular_est = (
+        (urban_pct / 100.0) * 0.04
+        + (tertiary_pct / 100.0) * 0.10
+        + (pada_naijin_pct / 100.0) * 0.15
+    )
+    secular_est = np.minimum(secular_est, 0.15)
+
+    # Redistribute
+    total_religious = (f_tijaniyya + f_qadiriyya + f_al_shahid + f_main_sunni
+                       + f_pentecostal + f_catholic + f_mainline + f_trad)
+    factor = np.where(
+        total_religious > 0,
+        np.maximum(0.0, 1.0 - secular_est) / np.maximum(total_religious, 1e-30),
+        1.0,
+    )
+    f_tijaniyya *= factor
+    f_qadiriyya *= factor
+    f_al_shahid *= factor
+    f_main_sunni *= factor
+    f_pentecostal *= factor
+    f_catholic *= factor
+    f_mainline *= factor
+    f_trad *= factor
+
+    # Stack and normalise: (N, 9)
+    result = np.column_stack([
+        f_tijaniyya, f_qadiriyya, f_al_shahid, f_main_sunni,
+        f_pentecostal, f_catholic, f_mainline, f_trad, secular_est,
+    ])
+    row_sums = result.sum(axis=1, keepdims=True)
+    row_sums = np.maximum(row_sums, 1e-30)
+    result /= row_sums
+
+    return result
+
+
 # Module-level default instance
 DEFAULT_RELIGIOUS_MATRIX = ReligiousAffinityMatrix()

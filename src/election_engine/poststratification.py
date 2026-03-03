@@ -27,6 +27,7 @@ from .voter_types import (
     demographics_to_ideal_point,
     build_voter_ideal_base, compute_lga_ideal_offset,
     compute_all_lga_ideal_offsets, precompute_compat_factors,
+    precompute_all_lga_marginals,
     _build_type_indices, EDUCATIONS, AGE_COHORTS, SETTINGS,
 )
 from .salience import SalienceRule, DEFAULT_SALIENCE_RULES
@@ -110,6 +111,7 @@ def compute_lga_results(
     voter_ideal_base: np.ndarray | None = None,
     lga_ideal_offset: np.ndarray | None = None,
     precomputed_demo_table: np.ndarray | None = None,
+    precomputed_marginals_row: tuple | None = None,
 ) -> tuple[np.ndarray, float, int]:
     """
     Compute vote shares and turnout for one LGA (fully vectorised).
@@ -151,7 +153,8 @@ def compute_lga_results(
 
     # Step 1: LGA population weights for each type
     type_weights = compute_type_weights(
-        lga_row, voter_types, _WEIGHT_THRESHOLD, precomputed_compat, type_indices
+        lga_row, voter_types, _WEIGHT_THRESHOLD, precomputed_compat, type_indices,
+        precomputed_marginals_row=precomputed_marginals_row,
     )
 
     # Step 2: identify active types (skip near-zero weight to save computation)
@@ -329,11 +332,21 @@ def compute_all_lga_results(
     # Precompute all LGA ideal offsets (vectorised over LGAs)
     all_lga_offsets = compute_all_lga_ideal_offsets(lga_data, ideal_point_coeff_table)
 
+    # Precompute all LGA demographic marginals (eliminates per-LGA pd.Series.get())
+    all_marginals = precompute_all_lga_marginals(lga_data)
+
     rows = []
     for idx in range(len(lga_data)):
         lga_row = lga_data.iloc[idx]
         salience_w = salience_matrix[idx]
         lga_ideal_offset = all_lga_offsets[idx]
+        marginals_row = (
+            all_marginals["eth"][idx],
+            all_marginals["rel"][idx],
+            all_marginals["set"][idx],
+            all_marginals["edu"][idx],
+            all_marginals["liv"][idx],
+        )
 
         vote_shares, turnout, n_active = compute_lga_results(
             lga_row=lga_row,
@@ -356,6 +369,7 @@ def compute_all_lga_results(
             voter_ideal_base=voter_ideal_base,
             lga_ideal_offset=lga_ideal_offset,
             precomputed_demo_table=demo_table,
+            precomputed_marginals_row=marginals_row,
         )
 
         row_dict = {
