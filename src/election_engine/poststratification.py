@@ -480,6 +480,27 @@ def compute_all_lga_results(
     _fed_ctrl = _lga_col("Federal Control 2058", 0.0)
     _lga_turnout_mod += 0.1 * _fed_ctrl  # federal control zones have slightly lower turnout
 
+    # Economic grievance effects on turnout:
+    # High poverty → mixed: can mobilise but also fatalism/barriers
+    _poverty = _lga_col("Poverty Rate Pct", 30.0)
+    _lga_turnout_mod += 0.15 * np.clip((_poverty - 30.0) / 35.0, 0.0, 1.0)  # above-average poverty
+
+    # High unemployment → disengagement and disillusionment
+    _unemp = _lga_col("Unemployment Rate Pct", 24.0)
+    _lga_turnout_mod += 0.1 * np.clip((_unemp - 24.0) / 43.0, 0.0, 1.0)  # above-average
+
+    # High youth unemployment → youth disengagement but also protest potential
+    _youth_unemp = _lga_col("Youth Unemployment Rate Pct", 46.0)
+    _lga_turnout_mod += 0.1 * np.clip((_youth_unemp - 46.0) / 34.0, 0.0, 1.0)
+
+    # High inequality (Gini) → can mobilise grievance voting
+    _gini = _lga_col("Gini Proxy", 0.36)
+    _lga_turnout_mod -= 0.1 * np.clip((_gini - 0.36) / 0.24, 0.0, 1.0)  # inequality mobilises
+
+    # Extraction economy → politically engaged (resource curse mobilisation)
+    _extract_int = _lga_col("Extraction Intensity", 0.0)
+    _lga_turnout_mod -= 0.1 * np.clip(_extract_int / 5.0, 0.0, 1.0)  # extraction mobilises
+
     lga_turnout_modifier = _lga_turnout_mod.astype(np.float32)
 
     # ---- Identity context modifiers ----
