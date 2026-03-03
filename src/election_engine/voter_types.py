@@ -872,6 +872,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_pentecostal": -1.5,    # Pentecostals strongly oppose Sharia
         "is_igbo": -1.0,           # Igbo are strongly secular
         "is_ibibio": -0.5,         # Southern Christians oppose Sharia
+        "lga_Al-Shahid Influence": 0.3 / 5.0,  # Al-Shahid areas push all voters slightly pro-Sharia
     },
     # 2. Fiscal Autonomy (centralism ↔ confederalism)
     {
@@ -928,6 +929,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_kanuri": 1.0,            # Kanuri high-fertility culture
         "is_female_tertiary": -1.0,  # Educated women strongly pro-control
         "is_urban_youth": -1.0,      # Urban youth favour smaller families
+        "lga_Al-Shahid Influence": 0.3 / 5.0,  # Al-Shahid areas more pro-natalist
     },
     # 7. Constitutional Structure (parliamentary ↔ presidential)
     {
@@ -940,6 +942,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_kanuri": 0.5,            # Kanuri moderate pro-presidential
         "is_igbo": -0.5,             # Igbo wary of presidential power
         "is_edo": -1.0,              # Edo pro-parliamentary (civic tradition)
+        "lga_Conflict History": 0.3 / 5.0,    # Conflict zones → favour strong executive
+        "lga_Federal Control 2058": 0.5,       # Federal control → accept stronger executive
     },
     # 8. Resource Revenue (federal monopoly ↔ local control)
     {
@@ -989,11 +993,12 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
     {
         "intercept": 0.0,
         "is_civil_servant": 2.0, "is_pada": 0.5, "is_hausa_fulani": 1.0,
-        "lga_Conflict History": 0.5 / 5.0, "is_youth": -0.5, "is_tertiary": -1.5,
+        "lga_Conflict History": 0.8 / 5.0, "is_youth": -0.5, "is_tertiary": -1.5,
         "is_kanuri": 2.0,             # Kanuri heavily pro-military (Boko Haram era)
         "is_tiv": -1.0,              # Tiv wary of military (history of military rule)
         "is_igbo": -1.5,             # Igbo anti-military (civil war memory)
         "is_rural_older": 0.5,       # Rural elderly trust military for security
+        "lga_Federal Control 2058": 0.8,  # Federal control zones strongly pro-military
     },
     # 13. Immigration (open borders ↔ restrictionism)
     {
@@ -1004,6 +1009,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_urban_youth": -1.0,       # Urban youth feel competition from migrants
         "is_informal": -0.5,          # Informal workers face migrant competition
         "is_ibibio": 0.5,             # Ibibio: coastal, more open to trade/people
+        "lga_Conflict History": -0.3 / 5.0,  # Conflict zones → more restrictionist
     },
     # 14. Language Policy (vernacular ↔ English supremacy)
     {
@@ -1028,6 +1034,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_igbo": 0.5,               # Igbo moderate feminist (market women tradition)
         "is_pentecostal": -0.5,       # Pentecostal complementarian gender views
         "is_tiv": 0.5,                # Tiv: relatively egalitarian tradition
+        "lga_Al-Shahid Influence": -0.3 / 5.0,  # Al-Shahid areas → more conservative on women
+        "lga_Conflict History": -0.2 / 5.0,      # Conflict zones → conservative retrenchment
     },
     # 16. Traditional Authority (marginalization ↔ formal integration)
     {
@@ -1052,6 +1060,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_mb_minority": 0.5,        # Middle Belt underserved
         "is_nd_minority": 0.5,        # Niger Delta: pipelines but no roads
         "is_urban_youth": -0.5,       # Urban youth prefer targeted investment
+        "lga_Conflict History": 0.3 / 5.0,   # Conflict zones demand reconstruction
+        "lga_Federal Control 2058": 0.3,      # Federal control zones need rebuilding
     },
     # 18. Land Tenure (customary ↔ formalization)
     {
@@ -1128,6 +1138,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_kanuri": -1.0,            # Kanuri: state media tradition
         "is_igbo": 0.5,               # Igbo: pro-free expression
         "is_yoruba": 0.5,             # Yoruba: strong media tradition
+        "lga_Conflict History": -0.3 / 5.0,   # Conflict zones → lean state control (security)
+        "lga_Federal Control 2058": -0.5,      # Federal control → accept media restrictions
     },
     # 25. Healthcare (pure market ↔ universal provision)
     {
@@ -1138,6 +1150,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_female": 0.5,             # Women (maternal health) want universal care
         "is_tiv": 0.5,                # Tiv: underserved area
         "is_kanuri": 0.5,             # Kanuri: health infrastructure poor
+        "lga_Conflict History": 0.3 / 5.0,   # Conflict zones → demand universal healthcare
     },
     # 26. Padà Status (anti-Padà ↔ Padà preservation)
     {
@@ -1173,6 +1186,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_kanuri": 1.5,            # Kanuri prefer current AZ (Borno dominance)
         "is_nupe": -1.0,             # Nupe want distinct identity from HF hegemony
         "is_edo": -1.0,              # Edo want Mid-West recognition
+        "lga_Conflict History": -0.3 / 5.0,  # Conflict areas want restructuring / more states
     },
 ]
 
