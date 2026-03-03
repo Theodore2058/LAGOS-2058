@@ -543,6 +543,24 @@ def compute_all_lga_results(
     _rail = _lga_col("Rail Corridor", 0.0)
     _lga_turnout_mod -= 0.05 * np.clip(_rail / 2.0, 0.0, 1.0)
 
+    # Access deprivation: poor water/healthcare → fatalism, disengagement
+    _water = _lga_col("Access Water Pct", 50.0)
+    _healthcare = _lga_col("Access Healthcare Pct", 50.0)
+    _lga_turnout_mod += 0.1 * np.maximum(0.0, 1.0 - _water / 100.0)    # poor water → abstention
+    _lga_turnout_mod += 0.08 * np.maximum(0.0, 1.0 - _healthcare / 100.0)  # poor healthcare → disengagement
+
+    # Housing affordability: housing stress → political apathy in urban areas
+    _housing = _lga_col("Housing Affordability", 5.0)
+    _lga_turnout_mod += 0.08 * np.clip((10.0 - _housing) / 10.0, 0.0, 1.0)  # low affordability → abstention
+
+    # Out of School Children: high rates indicate disconnection from state systems
+    _osc = _lga_col("Out of School Children Pct", 20.0)
+    _lga_turnout_mod += 0.1 * np.clip(_osc / 60.0, 0.0, 1.0)  # high OSC → community disengagement
+
+    # Secondary Enrollment: educated populations more politically engaged
+    _sec_enr = _lga_col("Secondary Enrollment Pct", 50.0)
+    _lga_turnout_mod -= 0.08 * np.clip(_sec_enr / 100.0, 0.0, 1.0)  # more enrolled → more engaged
+
     lga_turnout_modifier = _lga_turnout_mod.astype(np.float32)
 
     # ---- Identity context modifiers ----

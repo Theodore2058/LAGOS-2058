@@ -271,6 +271,7 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "% Igbo": 0.3 / 100.0,              # Igbo: strong fiscal autonomy tradition
             "% Yoruba": 0.2 / 100.0,            # Yoruba: federalist tradition
             "% Ijaw": 0.3 / 100.0,              # Ijaw: resource control demands
+            "Gini Proxy": 0.5,                   # High inequality → fiscal autonomy debate intensifies
         },
     ),
     # 3. Chinese Relations
@@ -324,6 +325,7 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "population_pressure": 0.3,          # Overstretched areas care about fertility
             "Poverty Rate Pct": 0.2 / 100.0,    # Poor areas more concerned
             "% Muslim": 0.3 / 100.0,            # Muslim areas: fertility is religious/cultural issue
+            "Out of School Children Pct": 0.3 / 100.0,  # High OSC → population pressure is felt
         },
     ),
     # 7. Constitutional Structure
@@ -365,6 +367,8 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "youth_bulge": 0.5,                      # Young populations face acute housing needs
             "population_pressure": 0.3,              # Dense, poor-infra areas
             "Median Age Estimate": -0.02,            # Younger median age → more acute housing needs
+            "Unemployment Rate Pct": 0.3 / 100.0,   # Unemployment → housing insecurity
+            "Poverty Rate Pct": 0.3 / 100.0,        # Poverty → housing deprivation
         },
     ),
     # 10. Education
@@ -449,6 +453,7 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "religious_tension_proxy": 0.5,        # Interfaith zones debate women's rights
             "% Muslim": 0.2 / 100.0,              # Muslim areas: gender norms are politically contested
             "% Christian": 0.15 / 100.0,           # Christian areas: feminist movements engage
+            "Out of School Children Pct": 0.5 / 100.0,  # High OSC → girls' education contested → gender salient
         },
     ),
     # 16. Traditional Authority

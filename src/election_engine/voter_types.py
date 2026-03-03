@@ -938,6 +938,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_ijaw_extraction": 2.5,  # Ijaw in extraction: want resource revenue kept local
         "is_igbo_pentecostal": 1.0,  # Igbo Pentecostals: self-determination + activism
         "lga_Conflict History": 0.2 / 5.0,  # Conflict zones → distrust federal, want local control
+        "lga_Gini Proxy": 1.0,   # High inequality → demand local autonomy to address it
     },
     # 3. Chinese Relations (Western pivot ↔ deepen WAFTA)
     {
@@ -995,6 +996,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_Al-Shahid Influence": 0.3 / 5.0,  # Al-Shahid areas more pro-natalist
         "is_older": 1.0,            # Elderly: pro-natalist (traditional values)
         "is_middle_age": 0.5,       # Middle-aged: moderately pro-natalist
+        "lga_Out of School Children Pct": 0.01,  # High OSC → pro-natalist norms persist
     },
     # 7. Constitutional Structure (parliamentary ↔ presidential)
     {
@@ -1039,6 +1041,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_middle_income": 0.5,      # Squeezed middle also wants state help
         "lga_Planned City": -0.8,     # Planned cities have better housing → less demand for intervention
         "lga_Rail Corridor": -0.2,    # Rail corridors: better connectivity eases housing pressure
+        "lga_Urban Pct": 0.01,        # Urban areas → more housing pressure
+        "lga_Unemployment Rate Pct": 0.01,  # High unemployment → more demand for state housing
     },
     # 10. Education (radical localism ↔ meritocratic centralism)
     {
@@ -1105,6 +1109,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_Youth Unemployment Rate Pct": -0.01,  # Youth joblessness → restrictionism
         "lga_Al-Shahid Influence": -0.15 / 5.0,  # Al-Shahid areas: xenophobic, restrictionist
         "lga_Planned City": 0.5,       # Chinese planned cities: cosmopolitan, pro-open borders
+        "lga_Housing Affordability": 0.05 / 10.0,  # Affordable housing → less anti-immigrant sentiment
+        "lga_Population Density per km2": -0.3 / 55000.0,  # Dense areas → more competition → restrictionist
     },
     # 14. Language Policy (vernacular ↔ English supremacy)
     {
@@ -1140,6 +1146,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_kanuri_rural": -1.0,      # Rural Kanuri: most conservative gender views
         "lga_Almajiri Index": -0.2 / 5.0,  # Almajiri: reinforces patriarchal norms
         "lga_Traditionalist Practice": -0.1 / 5.0,  # Traditionalist areas: patriarchal customs
+        "lga_Out of School Children Pct": -0.01,  # High OSC → girls excluded from education → patriarchal
     },
     # 16. Traditional Authority (marginalization ↔ formal integration)
     {
@@ -1310,6 +1317,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_rural_bottom_income": 1.0,  # Rural poor: desperate for healthcare access
         "lga_Access Water Pct": -0.005, # Poor water access → demand universal healthcare
         "lga_Median Age Estimate": 0.02,  # Older population → healthcare more urgent
+        "lga_Out of School Children Pct": 0.005,  # Areas with high OSC → systemic deprivation → demand universal care
+        "lga_Fertility Rate Est": 0.15,  # High fertility → maternal health demand
     },
     # 26. Padà Status (anti-Padà ↔ Padà preservation)
     {
