@@ -606,6 +606,30 @@ def compute_all_lga_results(
     _market_acc = _lga_col("Market Access Index", 7.0)
     _lga_turnout_mod -= 0.03 * np.clip(_market_acc / 10.0, 0.0, 1.0)  # accessible → integrated → turnout
 
+    # Tertiary Institution: university towns have higher political engagement
+    _tertiary_inst = _lga_col("Tertiary Institution", 0.0)
+    _lga_turnout_mod -= 0.03 * _tertiary_inst  # campus mobilisation, educated populace
+
+    # Service sector: more formal employment → more civic engagement
+    _pct_services = _lga_col("Pct Livelihood Services", 15.0)
+    _lga_turnout_mod -= 0.02 * np.clip(_pct_services / 50.0, 0.0, 1.0)  # service sector → engaged
+
+    # Agricultural livelihood: farmers face logistics barriers (distance, harvest)
+    _pct_ag = _lga_col("Pct Livelihood Agriculture", 30.0)
+    _lga_turnout_mod += 0.03 * np.clip(_pct_ag / 80.0, 0.0, 1.0)  # rural farming → logistics barrier
+
+    # Fertility Rate: large families → childcare burden → lower turnout
+    _fert_turnout = _lga_col("Fertility Rate Est", 5.0)
+    _lga_turnout_mod += 0.03 * np.clip((_fert_turnout - 3.0) / 4.0, 0.0, 1.0)  # high fertility → burden
+
+    # Chinese Economic Presence: foreign economic projects → political salience
+    _chinese_turnout = _lga_col("Chinese Economic Presence", 0.0)
+    _lga_turnout_mod -= 0.015 * np.clip(_chinese_turnout / 10.0, 0.0, 1.0)  # economic issues mobilise
+
+    # Land Formalization: property rights → political engagement
+    _land_formal = _lga_col("Land Formalization Pct", 20.0)
+    _lga_turnout_mod -= 0.015 * np.clip(_land_formal / 100.0, 0.0, 1.0)  # property → civic engagement
+
     lga_turnout_modifier = _lga_turnout_mod.astype(np.float32)
 
     # ---- Identity context modifiers ----
@@ -648,6 +672,8 @@ def compute_all_lga_results(
         - 0.05 * np.clip(_secondary_enr_id / 100.0, 0, 1)  # education: cross-group contact
         - 0.06 * _col_western                              # Western: Yoruba syncretic tradition → less religious voting
         - 0.03 * _col_midwestern                           # Mid-Western: cosmopolitan Benin City dampens religion
+        + 0.06 * np.clip((_lga_col("Fertility Rate Est", 5.0) - 3.0) / 4.0, 0, 1)  # high fertility → traditional norms → religious identity
+        - 0.04 * np.clip(_lga_col("Chinese Economic Presence", 0.0) / 10.0, 0, 1)  # Chinese presence → economic anxiety overrides religious identity
     ).astype(np.float32)
 
     # Ethnic context modifier:
@@ -687,6 +713,9 @@ def compute_all_lga_results(
         - 0.05 * _col_western                              # Western: Yoruba civic tradition dampens ethnic voting
         + 0.03 * _col_eastern                               # Eastern: Igbo solidarity amplifies ethnic identity
         - 0.04 * _col_midwestern                            # Mid-Western: multi-ethnic Edo state → less ethnic
+        + 0.05 * np.clip((_lga_col("Gini Proxy", 0.4) - 0.35) / 0.25, 0, 1)  # inequality → ethnic scapegoating intensifies
+        - 0.03 * np.clip(_lga_col("Land Formalization Pct", 20.0) / 100.0, 0, 1)  # formalized land → modern economy → less ethnic clientelism
+        + 0.04 * np.clip(_lga_col("Fertility Rate Est", 5.0) / 7.0, 0, 1)  # high fertility → kinship bonds → ethnic identity strong
     ).astype(np.float32)
 
     # ---- LGA-modulated gender turnout gap ----
@@ -708,6 +737,8 @@ def compute_all_lga_results(
         - 0.1 * np.clip(_urban_pct_id / 100.0, 0.0, 1.0)   # Urbanisation: narrows gap
         - 0.05 * np.clip(_internet_id / 100.0, 0.0, 1.0)   # Internet: female empowerment
         - 0.04 * np.clip(_mobile_id / 100.0, 0.0, 1.0)     # Mobile phones: female political mobilisation
+        + 0.06 * np.clip((_lga_col("Fertility Rate Est", 5.0) - 3.0) / 4.0, 0.0, 1.0)  # high fertility → childcare burden → wider gender gap
+        - 0.03 * np.clip(_lga_col("Secondary Enrollment Pct", 50.0) / 100.0, 0.0, 1.0)  # schooling → gender awareness → narrower gap
     ).astype(np.float32)
 
     # ---- Religious minority mobilisation (turnout interaction) ----
