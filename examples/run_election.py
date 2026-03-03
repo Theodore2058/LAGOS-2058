@@ -664,6 +664,7 @@ PARTIES = [
         demographic_coefficients={
             "education": {"Tertiary": 0.3},
             "livelihood": {"Public sector": 0.3},
+            "gender": {"Female": 0.1},
         },
         regional_strongholds={
             1: +0.3,   # Lagos: progressive intelligentsia
@@ -679,8 +680,11 @@ PARTIES = [
         religious_alignment="Catholic",
         economic_positioning=0.1,  # centrist catch-all, mild populist lean
         demographic_coefficients={
-            "education": {"Secondary": 0.2},  # Middle-education voters: pragmatic centrists
+            "education": {"Secondary": 0.2},
             "livelihood": {"Public sector": 0.2, "Formal private": 0.1},
+            "income": {"Middle 40%": 0.1},
+            "age_cohort": {"35-49": 0.1},
+            "setting": {"Peri-urban": 0.1},
         },
         # Catch-all party: broad but shallow — mild bonus everywhere
         regional_strongholds={
@@ -699,6 +703,8 @@ PARTIES = [
         demographic_coefficients={
             "livelihood": {"Trade/informal": 0.4, "Formal private": 0.3},
             "income": {"Top 20%": 0.3},
+            "age_cohort": {"25-34": 0.1},
+            "gender": {"Male": 0.1},
         },
         regional_strongholds={
             5: +1.2,   # Eastern Zone: Igbo commercial heartland
@@ -717,6 +723,8 @@ PARTIES = [
             "age_cohort": {"35-49": 0.1, "50+": 0.2},
             "education": {"Below secondary": 0.1},
             "gender": {"Male": 0.1},
+            "income": {"Bottom 40%": 0.1, "Middle 40%": 0.1},
+            "setting": {"Rural": 0.1},
         },
         regional_strongholds={
             6: +0.8,   # Central: Kano is HF stronghold
@@ -737,6 +745,8 @@ PARTIES = [
             "education": {"Below secondary": 0.2},
             "age_cohort": {"18-24": 0.3, "25-34": 0.1},
             "gender": {"Male": 0.2},
+            "livelihood": {"Smallholder": 0.2, "Trade/informal": 0.1},
+            "setting": {"Rural": 0.1, "Peri-urban": 0.1},
         },
         regional_strongholds={
             7: +1.0,   # Chad: Al-Shahid movement heartland (Borno, Yobe)
@@ -777,6 +787,8 @@ PARTIES = [
             "education": {"Tertiary": 0.4},
             "livelihood": {"Formal private": 0.3},
             "income": {"Top 20%": 0.3},
+            "age_cohort": {"25-34": 0.1},
+            "gender": {"Female": 0.1},
         },
         regional_strongholds={
             1: +0.5,   # Lagos: tech-savvy cosmopolitans
@@ -794,6 +806,9 @@ PARTIES = [
             "livelihood": {"Trade/informal": 0.3, "Smallholder": 0.2},
             "income": {"Bottom 40%": 0.2, "Middle 40%": 0.1},
             "education": {"Below secondary": 0.1},
+            "age_cohort": {"35-49": 0.15, "50+": 0.1},
+            "setting": {"Peri-urban": 0.1},
+            "gender": {"Male": 0.15},
         },
         regional_strongholds={
             8: +0.3,   # Savanna: northern traders squeezed by WAFTA
@@ -837,6 +852,7 @@ PARTIES = [
             "age_cohort": {"35-49": 0.1, "50+": 0.2},
             "education": {"Below secondary": 0.1, "Secondary": 0.1},
             "gender": {"Female": 0.1},
+            "setting": {"Rural": 0.15},
         },
         regional_strongholds={
             5: +0.6,   # Eastern: Benue (Tiv) + Christian Middle Belt
@@ -856,6 +872,8 @@ PARTIES = [
             "income": {"Bottom 40%": 0.2},
             "age_cohort": {"35-49": 0.1, "50+": 0.2},
             "education": {"Below secondary": 0.2, "Secondary": 0.1},
+            "setting": {"Rural": 0.15},
+            "gender": {"Male": 0.1},
         },
         regional_strongholds={
             6: +0.8,   # Central: Plateau/Nasarawa heartland

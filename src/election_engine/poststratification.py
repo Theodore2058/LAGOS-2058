@@ -630,6 +630,13 @@ def compute_all_lga_results(
     _land_formal = _lga_col("Land Formalization Pct", 20.0)
     _lga_turnout_mod -= 0.015 * np.clip(_land_formal / 100.0, 0.0, 1.0)  # property → civic engagement
 
+    # Urban saturation: areas with near-100% connectivity + literacy have
+    # voter fatigue, opportunity cost of time, "my vote doesn't matter" apathy
+    _urban_sat = (np.clip(_internet / 100.0, 0, 1)
+                  * np.clip(_mobile / 100.0, 0, 1)
+                  * np.clip(_literacy / 100.0, 0, 1))
+    _lga_turnout_mod += 0.06 * _urban_sat  # saturated areas: comfort → apathy
+
     lga_turnout_modifier = _lga_turnout_mod.astype(np.float32)
 
     # ---- Identity context modifiers ----
