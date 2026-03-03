@@ -197,11 +197,11 @@ html = f"""<!DOCTYPE html>
   * {{ margin: 0; padding: 0; box-sizing: border-box; }}
   body {{
     font-family: 'Rajdhani', 'Segoe UI', sans-serif;
-    background: #FEFDD0; color: #3A2A08; overflow: hidden;
+    background: #F2E2C6; color: #2C1810; overflow: hidden;
   }}
   #map {{
     position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 1;
-    background: radial-gradient(ellipse at 40% 50%, #FEFDD0 0%, #EFE9AB 70%);
+    background: radial-gradient(ellipse at 40% 50%, #F2E2C6 0%, #E0CCA5 70%);
   }}
 
   /* ── Scanline overlay ── */
@@ -212,8 +212,8 @@ html = f"""<!DOCTYPE html>
       0deg,
       transparent,
       transparent 2px,
-      rgba(187,137,14,0.015) 2px,
-      rgba(187,137,14,0.015) 4px
+      rgba(44,24,16,0.018) 2px,
+      rgba(44,24,16,0.018) 4px
     );
   }}
 
@@ -221,20 +221,20 @@ html = f"""<!DOCTYPE html>
   .vignette {{
     position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 999;
     pointer-events: none;
-    background: radial-gradient(ellipse at center, transparent 50%, rgba(187,137,14,0.12) 100%);
+    background: radial-gradient(ellipse at center, transparent 45%, rgba(160,80,20,0.18) 100%);
   }}
 
-  /* ── Panel base — Golden parchment HUD ── */
+  /* ── Panel base — Retrofuturist amber parchment ── */
   .panel {{
     position: relative;
-    background: linear-gradient(135deg, rgba(254,253,210,0.95) 0%, rgba(239,233,171,0.93) 100%);
-    border: 1px solid rgba(187,137,14,0.3);
+    background: linear-gradient(135deg, rgba(242,226,198,0.95) 0%, rgba(224,200,165,0.93) 100%);
+    border: 1px solid rgba(180,90,20,0.22);
     backdrop-filter: blur(20px);
     box-shadow:
-      0 2px 20px rgba(187,137,14,0.1),
-      0 0 10px rgba(205,166,70,0.08),
-      inset 0 1px 0 rgba(255,255,255,0.5),
-      inset 0 0 30px rgba(252,194,1,0.04);
+      0 2px 24px rgba(160,80,20,0.1),
+      0 0 12px rgba(42,139,154,0.04),
+      inset 0 1px 0 rgba(255,245,230,0.5),
+      inset 0 0 30px rgba(232,160,40,0.03);
     clip-path: polygon(
       0 8px, 8px 0, calc(100% - 8px) 0, 100% 8px,
       100% calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 0 calc(100% - 8px)
@@ -248,7 +248,7 @@ html = f"""<!DOCTYPE html>
     position: absolute; width: 20px; height: 20px;
   }}
   .corner::before, .corner::after {{
-    content: ''; position: absolute; background: #BB890E;
+    content: ''; position: absolute; background: #B45A14;
   }}
   .corner-tl {{ top: 0; left: 0; }}
   .corner-tl::before {{ top: 0; left: 0; width: 20px; height: 2px; }}
@@ -268,12 +268,12 @@ html = f"""<!DOCTYPE html>
     height: 1px; margin: 8px 0;
     background: linear-gradient(90deg,
       transparent 0%,
-      rgba(187,137,14,0.15) 15%,
-      rgba(187,137,14,0.4) 50%,
-      rgba(187,137,14,0.15) 85%,
+      rgba(180,90,20,0.12) 15%,
+      rgba(42,139,154,0.35) 50%,
+      rgba(180,90,20,0.12) 85%,
       transparent 100%
     );
-    box-shadow: 0 0 6px rgba(205,166,70,0.15);
+    box-shadow: 0 0 8px rgba(42,139,154,0.1);
   }}
 
   /* ── Search panel ── */
@@ -283,47 +283,47 @@ html = f"""<!DOCTYPE html>
   }}
   .search-panel input {{
     width: 100%; padding: 12px 18px; border: none;
-    background: rgba(254,253,220,0.98); color: #3A2A08;
+    background: rgba(242,230,206,0.98); color: #2C1810;
     font-size: 14px; outline: none;
     font-family: 'Rajdhani', sans-serif; font-weight: 500;
     letter-spacing: 1px;
-    border: 1px solid rgba(187,137,14,0.25);
+    border: 1px solid rgba(180,90,20,0.2);
     clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
     transition: border-color 0.3s, box-shadow 0.3s;
   }}
   .search-panel input:focus {{
-    border-color: rgba(187,137,14,0.6);
-    box-shadow: 0 0 20px rgba(252,194,1,0.15), 0 0 40px rgba(205,166,70,0.08);
+    border-color: rgba(42,139,154,0.6);
+    box-shadow: 0 0 25px rgba(42,139,154,0.12), 0 0 50px rgba(180,90,20,0.06);
   }}
-  .search-panel input::placeholder {{ color: rgba(187,137,14,0.35); letter-spacing: 3px; font-size: 12px; }}
+  .search-panel input::placeholder {{ color: rgba(180,90,20,0.3); letter-spacing: 3px; font-size: 12px; }}
   .search-results {{
     max-height: 340px; overflow-y: auto; display: none;
-    background: rgba(254,253,220,0.98);
-    border: 1px solid rgba(187,137,14,0.15); border-top: none;
+    background: rgba(242,230,206,0.98);
+    border: 1px solid rgba(180,90,20,0.12); border-top: none;
   }}
   .search-results::-webkit-scrollbar {{ width: 3px; }}
-  .search-results::-webkit-scrollbar-thumb {{ background: rgba(187,137,14,0.5); }}
+  .search-results::-webkit-scrollbar-thumb {{ background: rgba(180,90,20,0.4); }}
   .search-item {{
     padding: 9px 18px; cursor: pointer;
-    border-bottom: 1px solid rgba(187,137,14,0.08);
+    border-bottom: 1px solid rgba(180,90,20,0.06);
     display: flex; justify-content: space-between; align-items: center;
     transition: all 0.2s;
   }}
   .search-item:hover {{
-    background: rgba(252,194,1,0.1);
-    border-left: 2px solid rgba(187,137,14,0.5);
+    background: rgba(42,139,154,0.06);
+    border-left: 2px solid rgba(42,139,154,0.5);
     padding-left: 16px;
   }}
-  .search-item .name {{ font-weight: 600; color: #3A2A08; letter-spacing: 0.3px; }}
+  .search-item .name {{ font-weight: 600; color: #2C1810; letter-spacing: 0.3px; }}
   .search-item .type {{
     font-size: 8px; padding: 3px 8px;
     text-transform: uppercase; letter-spacing: 2px; font-weight: 700;
     flex-shrink: 0; font-family: 'Orbitron', monospace;
   }}
-  .type-lga {{ background: rgba(34,139,34,0.1); color: #1a7a1a; border: 1px solid rgba(34,139,34,0.2); }}
-  .type-district {{ background: rgba(0,120,180,0.1); color: #0078b4; border: 1px solid rgba(0,120,180,0.2); }}
-  .type-state {{ background: rgba(187,137,14,0.1); color: #BB890E; border: 1px solid rgba(187,137,14,0.2); }}
-  .type-zone {{ background: rgba(140,50,200,0.1); color: #8c32c8; border: 1px solid rgba(140,50,200,0.2); }}
+  .type-lga {{ background: rgba(42,139,154,0.1); color: #1E7A85; border: 1px solid rgba(42,139,154,0.2); }}
+  .type-district {{ background: rgba(74,111,165,0.1); color: #3D6098; border: 1px solid rgba(74,111,165,0.2); }}
+  .type-state {{ background: rgba(180,90,20,0.1); color: #B45A14; border: 1px solid rgba(180,90,20,0.2); }}
+  .type-zone {{ background: rgba(200,56,56,0.1); color: #B83030; border: 1px solid rgba(200,56,56,0.2); }}
 
   /* ── Layer control ── */
   .layer-control {{
@@ -333,32 +333,32 @@ html = f"""<!DOCTYPE html>
   .layer-control h3 {{
     font-family: 'Orbitron', monospace;
     font-size: 8px; text-transform: uppercase; letter-spacing: 4px;
-    color: rgba(187,137,14,0.6); margin-bottom: 12px;
+    color: rgba(42,139,154,0.6); margin-bottom: 12px;
   }}
   .layer-control .lc-header {{
     display: grid; grid-template-columns: 1fr 50px 50px; gap: 0; align-items: center;
     margin-bottom: 6px; padding-bottom: 4px;
-    border-bottom: 1px solid rgba(187,137,14,0.15);
+    border-bottom: 1px solid rgba(180,90,20,0.12);
   }}
   .layer-control .lc-header span {{
     font-family: 'Orbitron', monospace; font-size: 7px;
     text-transform: uppercase; letter-spacing: 2px;
-    color: rgba(187,137,14,0.4); text-align: center;
+    color: rgba(180,90,20,0.35); text-align: center;
   }}
   .layer-control .lc-row {{
     display: grid; grid-template-columns: 1fr 50px 50px; gap: 0; align-items: center;
     padding: 4px 0;
   }}
   .layer-control .lc-row .lc-name {{
-    color: rgba(58,42,8,0.6); font-weight: 500; letter-spacing: 0.5px;
+    color: rgba(44,24,16,0.6); font-weight: 500; letter-spacing: 0.5px;
   }}
   .layer-control label {{
     display: flex; align-items: center; justify-content: center; cursor: pointer;
-    color: rgba(58,42,8,0.6); transition: all 0.2s;
+    color: rgba(44,24,16,0.5); transition: all 0.2s;
   }}
-  .layer-control label:hover {{ color: #BB890E; text-shadow: 0 0 8px rgba(187,137,14,0.2); }}
+  .layer-control label:hover {{ color: #2A8B9A; text-shadow: 0 0 8px rgba(42,139,154,0.2); }}
   .layer-control input[type=checkbox] {{
-    accent-color: #BB890E; width: 13px; height: 13px;
+    accent-color: #2A8B9A; width: 13px; height: 13px;
   }}
 
   /* ── Info panel ── */
@@ -369,47 +369,47 @@ html = f"""<!DOCTYPE html>
   }}
   .info-panel h2 {{
     font-family: 'Orbitron', monospace;
-    font-size: 14px; color: #BB890E; margin-bottom: 2px;
+    font-size: 14px; color: #B45A14; margin-bottom: 2px;
     letter-spacing: 2px; font-weight: 700;
-    text-shadow: 0 1px 2px rgba(187,137,14,0.15);
+    text-shadow: 0 1px 2px rgba(180,90,20,0.12);
   }}
   .info-panel .subtitle {{
     font-family: 'Orbitron', monospace;
-    font-size: 8px; color: rgba(187,137,14,0.55);
+    font-size: 8px; color: rgba(42,139,154,0.65);
     margin-bottom: 4px; text-transform: uppercase; letter-spacing: 4px;
   }}
   .info-panel .info-row {{
     display: flex; justify-content: space-between; padding: 4px 0;
-    border-bottom: 1px solid rgba(187,137,14,0.08);
+    border-bottom: 1px solid rgba(180,90,20,0.06);
   }}
-  .info-panel .info-label {{ color: rgba(58,42,8,0.5); font-weight: 400; letter-spacing: 0.3px; }}
-  .info-panel .info-value {{ color: #3A2A08; font-weight: 600; text-align: right; }}
+  .info-panel .info-label {{ color: rgba(44,24,16,0.45); font-weight: 400; letter-spacing: 0.3px; }}
+  .info-panel .info-value {{ color: #2C1810; font-weight: 600; text-align: right; }}
   .nav-link {{
-    cursor: pointer; color: #BB890E;
-    border-bottom: 1px dotted rgba(187,137,14,0.35);
+    cursor: pointer; color: #2A8B9A;
+    border-bottom: 1px dotted rgba(42,139,154,0.35);
     transition: all 0.2s;
   }}
   .nav-link:hover {{
-    color: #FCC201;
-    text-shadow: 0 0 6px rgba(252,194,1,0.3);
-    border-bottom-color: rgba(187,137,14,0.6);
+    color: #38B0C4;
+    text-shadow: 0 0 8px rgba(42,139,154,0.25);
+    border-bottom-color: rgba(42,139,154,0.6);
   }}
   .info-panel .close-btn {{
     position: absolute; top: 12px; right: 16px; cursor: pointer;
-    color: rgba(187,137,14,0.35); font-size: 18px; line-height: 1;
+    color: rgba(180,90,20,0.3); font-size: 18px; line-height: 1;
     font-family: 'Orbitron', monospace;
     transition: all 0.2s;
   }}
-  .info-panel .close-btn:hover {{ color: #BB890E; text-shadow: 0 0 8px rgba(187,137,14,0.3); }}
+  .info-panel .close-btn:hover {{ color: #B45A14; text-shadow: 0 0 8px rgba(180,90,20,0.25); }}
 
   /* ── Title cartouche ── */
   .map-title {{
     position: absolute; bottom: 14px; right: 14px; z-index: 1000;
     padding: 16px 24px; text-align: center;
-    background: linear-gradient(135deg, rgba(254,253,210,0.96) 0%, rgba(239,233,171,0.94) 100%);
-    border: 1px solid rgba(187,137,14,0.35);
+    background: linear-gradient(135deg, rgba(242,226,198,0.96) 0%, rgba(224,200,165,0.94) 100%);
+    border: 1px solid rgba(180,90,20,0.25);
     backdrop-filter: blur(20px);
-    box-shadow: 0 2px 30px rgba(187,137,14,0.1), 0 0 20px rgba(205,166,70,0.06);
+    box-shadow: 0 2px 30px rgba(160,80,20,0.1), 0 0 20px rgba(42,139,154,0.04);
     clip-path: polygon(
       0 10px, 10px 0, calc(100% - 10px) 0, 100% 10px,
       100% calc(100% - 10px), calc(100% - 10px) 100%, 10px 100%, 0 calc(100% - 10px)
@@ -419,23 +419,23 @@ html = f"""<!DOCTYPE html>
     font-family: 'Orbitron', monospace;
     font-size: 24px; font-weight: 900;
     letter-spacing: 10px; text-transform: uppercase;
-    background: linear-gradient(180deg, #FCC201 0%, #BB890E 40%, #8A6200 100%);
+    background: linear-gradient(180deg, #E89030 0%, #B45A14 40%, #7A3A08 100%);
     -webkit-background-clip: text; -webkit-text-fill-color: transparent;
     background-clip: text;
-    filter: drop-shadow(0 1px 3px rgba(187,137,14,0.25));
+    filter: drop-shadow(0 1px 3px rgba(180,90,20,0.2));
   }}
   .map-title .year {{
     font-family: 'Orbitron', monospace;
-    font-size: 10px; color: rgba(187,137,14,0.5);
+    font-size: 10px; color: rgba(42,139,154,0.55);
     letter-spacing: 10px; margin-top: 4px;
   }}
   .map-title p {{
-    font-size: 11px; color: rgba(58,42,8,0.4);
+    font-size: 11px; color: rgba(44,24,16,0.4);
     letter-spacing: 2px; margin-top: 8px;
   }}
   .map-title .adinkra {{
     font-size: 16px; letter-spacing: 6px; margin: 4px 0;
-    color: rgba(187,137,14,0.25);
+    color: rgba(180,90,20,0.2);
   }}
 
   /* ── Legend ── */
@@ -446,11 +446,11 @@ html = f"""<!DOCTYPE html>
   .legend h3 {{
     font-family: 'Orbitron', monospace;
     font-size: 7px; text-transform: uppercase; letter-spacing: 4px;
-    color: rgba(187,137,14,0.5); margin-bottom: 10px;
+    color: rgba(42,139,154,0.5); margin-bottom: 10px;
   }}
   .legend-item {{
     display: flex; align-items: center; gap: 10px; padding: 3px 0;
-    color: rgba(58,42,8,0.65); font-weight: 500; font-size: 11px;
+    color: rgba(44,24,16,0.6); font-weight: 500; font-size: 11px;
   }}
   .legend-swatch {{
     width: 12px; height: 14px;
@@ -460,26 +460,26 @@ html = f"""<!DOCTYPE html>
 
   /* ── Leaflet overrides ── */
   .leaflet-control-zoom a {{
-    background: rgba(254,253,220,0.95) !important;
-    color: #BB890E !important;
-    border-color: rgba(187,137,14,0.25) !important;
+    background: rgba(242,230,206,0.95) !important;
+    color: #B45A14 !important;
+    border-color: rgba(180,90,20,0.2) !important;
     font-family: 'Orbitron', monospace !important;
   }}
   .leaflet-control-zoom a:hover {{
-    background: rgba(252,194,1,0.15) !important;
-    box-shadow: 0 2px 10px rgba(187,137,14,0.15) !important;
+    background: rgba(42,139,154,0.1) !important;
+    box-shadow: 0 2px 10px rgba(42,139,154,0.12) !important;
   }}
   .leaflet-control-attribution {{
-    background: rgba(254,253,220,0.7) !important;
-    color: rgba(58,42,8,0.3) !important;
+    background: rgba(242,226,198,0.7) !important;
+    color: rgba(44,24,16,0.3) !important;
     font-size: 9px !important;
   }}
-  .leaflet-control-attribution a {{ color: rgba(187,137,14,0.4) !important; }}
+  .leaflet-control-attribution a {{ color: rgba(180,90,20,0.35) !important; }}
 
   /* ── Animated ambient glow ── */
   @keyframes glow-pulse {{
     0%, 100% {{ opacity: 0.2; }}
-    50% {{ opacity: 0.4; }}
+    50% {{ opacity: 0.45; }}
   }}
   .ambient-glow {{
     position: fixed; pointer-events: none; z-index: 0;
@@ -489,17 +489,17 @@ html = f"""<!DOCTYPE html>
   }}
   .glow-1 {{
     top: -200px; left: -100px;
-    background: rgba(252,194,1,0.06);
+    background: rgba(42,139,154,0.06);
   }}
   .glow-2 {{
     bottom: -200px; right: -100px;
-    background: rgba(187,137,14,0.05);
+    background: rgba(200,70,40,0.05);
     animation-delay: -6s;
   }}
   .glow-3 {{
     top: 30%; left: 40%;
     width: 400px; height: 400px;
-    background: rgba(205,166,70,0.04);
+    background: rgba(232,144,48,0.05);
     animation-delay: -3s;
   }}
 
@@ -510,10 +510,10 @@ html = f"""<!DOCTYPE html>
   }}
   .holo-grid {{
     position: fixed; inset: 0; z-index: 998; pointer-events: none;
-    opacity: 0.012;
+    opacity: 0.015;
     background-image:
-      linear-gradient(rgba(187,137,14,1) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(187,137,14,1) 1px, transparent 1px);
+      linear-gradient(rgba(42,139,154,0.8) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(42,139,154,0.8) 1px, transparent 1px);
     background-size: 80px 80px;
     animation: grid-drift 20s linear infinite;
   }}
@@ -587,21 +587,21 @@ const stateCenters = {state_centers_json};
 const districtCenters = {district_centers_json};
 const zoneCenters = {zone_centers_json};
 
-// ── Zone colors — warm earth-tone palette for cream theme ──
+// ── Zone colors — 70s afro-retrofuturist palette ──
 const ZC = {{
-  1: '#BB890E', // Federal Capital — Dark Amber
-  2: '#C85A10', // Niger — Burnt Sienna
-  3: '#8B3AA0', // Confluence — Rich Plum
-  4: '#1A8A50', // Littoral — Forest Emerald
-  5: '#1878A8', // Eastern — Deep Teal
-  6: '#C42040', // Central — Crimson
-  7: '#D07010', // Chad — Copper Sun
-  8: '#5B3DC8', // Savanna — Royal Indigo
+  1: '#D4870A', // Federal Capital — Amber Gold
+  2: '#B45A14', // Niger — Burnt Terracotta
+  3: '#4A6FA5', // Confluence — Chrome Blue
+  4: '#C83838', // Littoral — Coral Vermilion
+  5: '#2A8B9A', // Eastern — Teal Cyan
+  6: '#6A8A5A', // Central — Sage Green
+  7: '#7B4EC8', // Chad — Deep Indigo
+  8: '#D06A10', // Savanna — Warm Copper
 }};
-// Brighter versions for zone borders
+// Brighter glow versions for zone borders
 const ZG = {{
-  1: '#FCC201', 2: '#E87830', 3: '#A855C8', 4: '#28A868',
-  5: '#2098C8', 6: '#E83858', 7: '#E89030', 8: '#7B5DE8',
+  1: '#F0A820', 2: '#D07828', 3: '#6A90C0', 4: '#E05050',
+  5: '#38B0C4', 6: '#88AA78', 7: '#9A70E0', 8: '#E88830',
 }};
 
 // ── Build legend ──
@@ -621,9 +621,9 @@ L.tileLayer('https://{{s}}.basemaps.cartocdn.com/light_nolabels/{{z}}/{{x}}/{{y}
   opacity: 1,
 }}).addTo(map);
 
-// Nigeria-shaped mask: opaque cream fill hides basemap rivers/terrain under the country
+// Nigeria-shaped mask: opaque warm parchment fill hides basemap under the country
 L.geoJSON(maskData, {{
-  style: {{ fillColor: '#FEFDD0', fillOpacity: 1, stroke: false }},
+  style: {{ fillColor: '#F2E2C6', fillOpacity: 1, stroke: false }},
   interactive: false,
 }}).addTo(map);
 
@@ -646,7 +646,7 @@ const lgaLayer = L.geoJSON(lgaData, {{
       mouseover: function() {{
         if (hlActive) return;
         if (hlLGA && hlLGA !== layer) lgaLayer.resetStyle(hlLGA);
-        const c = ZG[f.properties.z] || '#BB890E';
+        const c = ZG[f.properties.z] || '#B45A14';
         layer.setStyle({{ fillOpacity: 0.4, weight: 2, color: c, opacity: 0.8 }});
         layer.bringToFront();
         if (map.hasLayer(districtLayer)) districtLayer.bringToFront();
@@ -686,7 +686,7 @@ const districtLayer = L.geoJSON(districtGeo, {{
 // ── State layer — amber filigree (display only) ──
 const stateLayer = L.geoJSON(stateData, {{
   interactive: false,
-  style: {{ fillColor: 'transparent', fillOpacity: 0, color: 'rgba(187,137,14,0.4)', weight: 1.5, dashArray: '1,4' }},
+  style: {{ fillColor: 'transparent', fillOpacity: 0, color: 'rgba(180,90,20,0.3)', weight: 1.5, dashArray: '1,4' }},
 }}).addTo(map);
 
 // ── Zone layer — heavy glowing borders (display only) ──
@@ -724,18 +724,18 @@ function makeLabel(lat, lon, text, style) {{
   }});
 }}
 
-const labelBase = 'font-family:Rajdhani,sans-serif;white-space:nowrap;pointer-events:none;text-shadow:0 0 6px rgba(254,253,208,0.9),0 0 3px rgba(254,253,208,0.95),0 1px 3px rgba(254,253,208,0.8);display:inline-block;transform:translate(-50%,-50%);';
+const labelBase = 'font-family:Rajdhani,sans-serif;white-space:nowrap;pointer-events:none;text-shadow:0 0 6px rgba(242,226,198,0.9),0 0 3px rgba(242,226,198,0.95),0 1px 3px rgba(242,226,198,0.8);display:inline-block;transform:translate(-50%,-50%);';
 
 // Zone labels (AZ name + full name)
 const zoneLabels = L.layerGroup(zoneCenters.map(c =>
   makeLabel(c.lat, c.lon, c.n + '<br><span style="font-size:11px;opacity:0.7;letter-spacing:1px">' + c.fn + '</span>',
-    labelBase + 'font-family:Orbitron,monospace;font-size:16px;font-weight:900;color:' + (ZC[c.z] || '#BB890E') + ';letter-spacing:4px;text-align:center;line-height:1.5;filter:drop-shadow(0 0 4px rgba(254,253,208,0.8))')
+    labelBase + 'font-family:Orbitron,monospace;font-size:16px;font-weight:900;color:' + (ZC[c.z] || '#B45A14') + ';letter-spacing:4px;text-align:center;line-height:1.5;filter:drop-shadow(0 0 4px rgba(242,226,198,0.8))')
 ));
 
 // State labels
 const stateLabels = L.layerGroup(stateCenters.map(c =>
   makeLabel(c.lat, c.lon, c.n,
-    labelBase + 'font-size:12px;font-weight:700;color:rgba(58,42,8,0.7);letter-spacing:2px;text-transform:uppercase')
+    labelBase + 'font-size:12px;font-weight:700;color:rgba(44,24,16,0.65);letter-spacing:2px;text-transform:uppercase')
 ));
 
 // District labels
@@ -747,7 +747,7 @@ const districtLabels = L.layerGroup(districtCenters.map(c =>
 // LGA labels
 const lgaLabels = L.layerGroup(lgaCenters.map(c =>
   makeLabel(c.lat, c.lon, c.n,
-    labelBase + 'font-size:9px;font-weight:500;color:rgba(58,42,8,0.55);letter-spacing:0.5px')
+    labelBase + 'font-size:9px;font-weight:500;color:rgba(44,24,16,0.5);letter-spacing:0.5px')
 ));
 
 // Zoom thresholds per label layer
@@ -791,10 +791,10 @@ function highlightLGAs(pred) {{
   lgaLayer.eachLayer(l => {{
     const f = l.feature;
     if (pred(f)) {{
-      const gc = ZG[f.properties.z] || '#BB890E';
+      const gc = ZG[f.properties.z] || '#B45A14';
       l.setStyle({{ fillOpacity: 0.5, weight: 1.8, color: gc, opacity: 0.9 }});
     }} else {{
-      l.setStyle({{ fillOpacity: 0.03, weight: 0.3, color: '#CDA646', opacity: 0.12 }});
+      l.setStyle({{ fillOpacity: 0.03, weight: 0.3, color: '#C8B090', opacity: 0.12 }});
     }}
   }});
 }}
@@ -803,7 +803,7 @@ function highlightBorder(layerGroup, pred) {{
   // Brighten matching border, dim others
   layerGroup.eachLayer(l => {{
     if (pred(l.feature)) {{
-      l.setStyle({{ weight: 4, opacity: 1, color: '#BB890E', dashArray: '' }});
+      l.setStyle({{ weight: 4, opacity: 1, color: '#B45A14', dashArray: '' }});
       l.bringToFront();
       hlBorderLayer = l;
       hlBorderRef = layerGroup;
@@ -884,7 +884,7 @@ function showDistrictInfo(did) {{
   h += row('2nd Group', d.top2_group + ' (' + d.top2_pct + '%)');
   h += row('3rd Group', d.top3_group + ' (' + d.top3_pct + '%)');
   h += row('Religion', d.pct_muslim + '% M / ' + d.pct_christian + '% C / ' + d.pct_trad + '% T');
-  h += '<div style="margin-top:8px;font-size:11px;color:rgba(58,42,8,0.35)">LGAs: ' + d.lga_list + '</div>';
+  h += '<div style="margin-top:8px;font-size:11px;color:rgba(44,24,16,0.35)">LGAs: ' + d.lga_list + '</div>';
   showPanel(h);
 }}
 
@@ -898,7 +898,7 @@ function showStateInfo(name) {{
   h += row('LGAs', lgas.length);
   h += row('Voting Districts', dists.size);
   h += row('Admin Zones', [...zones].map(z => link('AZ' + z, 'selectZone(' + z + ')')).join(', '));
-  h += '<div style="margin-top:8px;font-size:11px;color:rgba(58,42,8,0.35)">Districts: ' + [...dists].sort().map(d => link(d, "selectDistrict('" + esc(d) + "')")).join(', ') + '</div>';
+  h += '<div style="margin-top:8px;font-size:11px;color:rgba(44,24,16,0.35)">Districts: ' + [...dists].sort().map(d => link(d, "selectDistrict('" + esc(d) + "')")).join(', ') + '</div>';
   showPanel(h);
 }}
 
@@ -949,7 +949,7 @@ sInput.addEventListener('input', function() {{
   if (q.length < 2) {{ sResults.style.display = 'none'; return; }}
   const matches = SI.filter(i => i.name.toLowerCase().includes(q) || i.detail.toLowerCase().includes(q)).slice(0, 20);
   if (!matches.length) {{
-    sResults.innerHTML = '<div style="padding:10px 14px;color:rgba(58,42,8,0.35)">No results found</div>';
+    sResults.innerHTML = '<div style="padding:10px 14px;color:rgba(44,24,16,0.35)">No results found</div>';
   }} else {{
     sResults.innerHTML = matches.map(m => '<div class="search-item" data-i="' + SI.indexOf(m) + '"><span class="name">' + m.name + '</span><span class="type type-' + m.type + '">' + m.type + '</span></div>').join('');
   }}
