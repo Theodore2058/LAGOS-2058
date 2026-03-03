@@ -429,14 +429,23 @@ def compute_all_lga_results(
     _candidate_buf = np.empty(N_types, dtype=np.float32)
 
     # Turnout buffers (reused across all LGA iterations)
-    _turnout_bufs = {
-        "exp_NJ": np.empty((N_types, J), dtype=np.float32),
-        "top1": np.empty(N_types, dtype=np.float32),
-        "row_sum": np.empty(N_types, dtype=np.float32),
-        "sum_exp": np.empty(N_types, dtype=np.float32),
-        "tmp": np.empty(N_types, dtype=np.float32),
-        "v_abstain": np.empty(N_types, dtype=np.float32),
-    }
+    _exp_NJ = np.empty((N_types, J), dtype=np.float32)
+    _top1 = np.empty(N_types, dtype=np.float32)
+    _row_sum = np.empty(N_types, dtype=np.float32)
+    _sum_exp = np.empty(N_types, dtype=np.float32)
+    _tmp = np.empty(N_types, dtype=np.float32)
+    _v_abstain = np.empty(N_types, dtype=np.float32)
+
+    # Cache scalar params as float32 to avoid repeated conversion
+    _tau_0 = np.float32(params.tau_0)
+    _tau_1 = np.float32(params.tau_1)
+    _tau_2 = np.float32(params.tau_2)
+    _scale_f32 = np.float32(params.scale)
+    _inv_Jm1 = np.float32(1.0 / (J - 1)) if J >= 2 else np.float32(1.0)
+    _EPSILON_F32 = np.float32(1e-6)
+    _ONE_F32 = np.float32(1.0)
+    _ZERO_F32 = np.float32(0.0)
+    _TURNOUT_EPS = np.float32(1e-30)
 
     # Pre-compute transposed party positions for fast matmul
     pp_T = np.ascontiguousarray(party_positions_f32.T)  # (D, J) contiguous
@@ -469,17 +478,13 @@ def compute_all_lga_results(
         np.clip(active_ideals, -5.0, 5.0, out=active_ideals)
 
         # Step 4: Spatial utility (inlined with pre-allocated buffers)
-        # wx = ideals * salience  → (n_active, D)
         wx = _wx_buf[:n_active]
         np.multiply(active_ideals, salience_w, out=wx)
-        # dot_products = wx @ pp.T  → (n_active, J)  [UNSCALED for alienation]
         dot_products = _dot_buf[:n_active]
         np.dot(wx, pp_T, out=dot_products)
-        # sq_norms = (pp ** 2) @ salience  → (J,)
         sq_norms = (party_positions_f32 ** 2) @ salience_w
 
-        # Step 5: Alienation from UNSCALED dot products (before spatial scaling)
-        # dist_sq_j(i) = voter_wsq_i + sq_norms_j - 2 * dot_ij
+        # Step 5: Alienation from UNSCALED dot products
         voter_wsq = _voter_wsq_buf[:n_active]
         np.einsum("nd,nd->n", wx, active_ideals, out=voter_wsq)
         min_dist_sq = _min_dist_buf[:n_active]
@@ -491,33 +496,82 @@ def compute_all_lga_results(
             candidate += sq_norms[j_al]
             np.minimum(min_dist_sq, candidate, out=min_dist_sq)
 
-        # Now convert dot_products to spatial utility in-place
-        # u_spatial = beta_s * (dot - q/2 * sq_norms)
-        dot_products -= _q_half * sq_norms  # in-place
-        dot_products *= _beta_s              # in-place
-        u_spatial = dot_products             # alias
+        # Convert dot_products to spatial utility in-place
+        dot_products -= _q_half * sq_norms
+        dot_products *= _beta_s
 
         # Step 6: Total utility = spatial + fixed (ethnic+religious+valence)
-        u_spatial += fixed_type_utility[active_idx]
+        dot_products += fixed_type_utility[active_idx]
+        u_total = dot_products  # alias — (n_active, J) total utilities
 
-        # Step 7: Turnout (with pre-allocated buffers)
-        active_vote_probs, active_turnout = batch_compute_vote_probs_with_turnout(
-            utilities_matrix=u_spatial,
-            voter_ideals=active_ideals,
-            party_positions=party_positions_f32,
-            params=params,
-            educations=_idx_edu[active_idx],
-            age_cohorts=_idx_age[active_idx],
-            settings=_idx_set[active_idx],
-            party_sq_norms_uniform=party_sq_norms_uniform,
-            precomputed_min_dist_sq=min_dist_sq,
-            precomputed_demo_adjust=turnout_demo_adjust[active_idx],
-            _buffers=_turnout_bufs,
-        )
+        # Step 7: Inlined turnout computation (eliminates function call +
+        # 3 wasted fancy-index ops + intermediate array allocations)
+        exp_parties = _exp_NJ[:n_active]
+        top1 = _top1[:n_active]
+        row_sum = _row_sum[:n_active]
+        sum_exp = _sum_exp[:n_active]
+        tmp = _tmp[:n_active]
+        v_abstain = _v_abstain[:n_active]
+
+        # 7a. Indifference gap (in-place, reuses row_sum for gap)
+        np.copyto(top1, u_total[:, 0])
+        np.copyto(row_sum, u_total[:, 0])
+        for j_gap in range(1, J):
+            col = u_total[:, j_gap]
+            np.maximum(top1, col, out=top1)
+            row_sum += col
+        row_sum -= top1
+        row_sum *= _inv_Jm1       # row_sum = mean(rest)
+        np.subtract(top1, row_sum, out=row_sum)
+        np.abs(row_sum, out=row_sum)
+        np.maximum(row_sum, _EPSILON_F32, out=row_sum)
+        # row_sum = gap
+
+        # 7b. Abstention utility
+        np.multiply(min_dist_sq, _tau_1, out=v_abstain)
+        v_abstain += _tau_0
+        np.divide(_tau_2, row_sum, out=tmp)
+        v_abstain += tmp
+
+        # 7c. Demographic adjustment
+        v_abstain += turnout_demo_adjust[active_idx]
+
+        # 7d. Softmax over [party utils, abstention]
+        np.maximum(top1, v_abstain, out=top1)  # top1 = row_max
+        top1 *= _scale_f32                      # top1 = scaled row_max (rm32)
+
+        sum_exp[:] = _ZERO_F32
+        for j_exp in range(J):
+            np.multiply(u_total[:, j_exp], _scale_f32, out=tmp)
+            tmp -= top1
+            np.exp(tmp, out=tmp)
+            exp_parties[:, j_exp] = tmp
+            sum_exp += tmp
+
+        # Abstention exp
+        np.multiply(v_abstain, _scale_f32, out=tmp)
+        tmp -= top1
+        np.exp(tmp, out=tmp)
+        sum_exp += tmp
+        # tmp = exp_abstain
+
+        # 7e. Turnout & conditional probs (all in-place, zero allocations)
+        np.divide(_ONE_F32, sum_exp, out=sum_exp)     # sum_exp = inv_sum
+        np.multiply(tmp, sum_exp, out=tmp)             # tmp = p_abstain
+        np.subtract(_ONE_F32, tmp, out=tmp)            # tmp = turnout
+        np.clip(tmp, _ZERO_F32, _ONE_F32, out=tmp)
+        # tmp = turnout_probs
+
+        # Conditional: exp_parties *= inv_sum / max(turnout, eps)
+        np.copyto(row_sum, tmp)                        # row_sum = turnout copy
+        np.maximum(row_sum, _TURNOUT_EPS, out=row_sum)
+        np.divide(sum_exp, row_sum, out=row_sum)       # row_sum = scale_factor
+        for j_cond in range(J):
+            exp_parties[:, j_cond] *= row_sum
 
         # Step 8: Aggregate
         vote_shares, turnout = aggregate_to_lga(
-            tw[active_idx], active_vote_probs, active_turnout)
+            tw[active_idx], exp_parties, tmp)
 
         all_vote_shares[idx] = vote_shares
         all_turnout[idx] = turnout
