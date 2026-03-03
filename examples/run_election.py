@@ -707,6 +707,9 @@ PARTIES = [
         economic_positioning=0.2,  # paternalist-populist, patronage economy
         demographic_coefficients={
             "livelihood": {"Smallholder": 0.3, "Public sector": 0.2},
+            "age_cohort": {"35-49": 0.1, "50+": 0.2},
+            "education": {"Below secondary": 0.1},
+            "gender": {"Male": 0.1},
         },
         regional_strongholds={
             6: +0.8,   # Central: Kano is HF stronghold
@@ -725,6 +728,8 @@ PARTIES = [
         demographic_coefficients={
             "income": {"Bottom 40%": 0.3},
             "education": {"Below secondary": 0.2},
+            "age_cohort": {"18-24": 0.3, "25-34": 0.1},
+            "gender": {"Male": 0.2},
         },
         regional_strongholds={
             7: +1.0,   # Chad: Al-Shahid movement heartland (Borno, Yobe)
@@ -742,11 +747,16 @@ PARTIES = [
             "livelihood": {"Trade/informal": 0.5, "Formal private": 0.3,
                            "Unemployed/student": 0.3},
             "income": {"Bottom 40%": 0.3},
+            "education": {"Below secondary": 0.2, "Secondary": 0.1, "Tertiary": -0.2},
+            "age_cohort": {"18-24": 0.3, "25-34": 0.2, "35-49": 0.1, "50+": -0.1},
+            "gender": {"Female": 0.1},
         },
         regional_strongholds={
             1: +0.4,   # Lagos: urban factory & gig workers
             6: +0.3,   # Central: Kano industrial zone
             4: +0.3,   # Littoral: Port Harcourt industrial workers
+            5: +0.2,   # Eastern: Cross River/Akwa Ibom — Ibibio core, industrial
+            3: +0.1,   # Confluence: Kogi industrial workers
         },
     ),
     Party(
@@ -796,6 +806,8 @@ PARTIES = [
             "livelihood": {"Public sector": 0.4},
             "education": {"Tertiary": 0.2},  # Military officers, security professionals
             "income": {"Middle 40%": 0.1},
+            "age_cohort": {"35-49": 0.2, "50+": 0.3},
+            "gender": {"Male": 0.2},
         },
         regional_strongholds={
             7: +0.5,   # Chad: conflict-zone security demand
@@ -813,6 +825,9 @@ PARTIES = [
         demographic_coefficients={
             "livelihood": {"Smallholder": 0.3, "Commercial ag": 0.2},
             "income": {"Bottom 40%": 0.1, "Middle 40%": 0.1},
+            "age_cohort": {"35-49": 0.1, "50+": 0.2},
+            "education": {"Below secondary": 0.1, "Secondary": 0.1},
+            "gender": {"Female": 0.1},
         },
         regional_strongholds={
             5: +0.6,   # Eastern: Benue (Tiv) + Christian Middle Belt
@@ -830,6 +845,8 @@ PARTIES = [
         demographic_coefficients={
             "livelihood": {"Smallholder": 0.4, "Commercial ag": 0.3},
             "income": {"Bottom 40%": 0.2},
+            "age_cohort": {"35-49": 0.1, "50+": 0.2},
+            "education": {"Below secondary": 0.2, "Secondary": 0.1},
         },
         regional_strongholds={
             6: +0.8,   # Central: Plateau/Nasarawa heartland
@@ -847,10 +864,16 @@ PARTIES = [
         demographic_coefficients={
             "livelihood": {"Trade/informal": 0.5, "Unemployed/student": 0.5},
             "income": {"Bottom 40%": 0.5},
+            "education": {"Below secondary": 0.3, "Tertiary": -0.3},
+            "age_cohort": {"18-24": 0.4, "25-34": 0.2, "50+": -0.2},
+            "gender": {"Male": 0.2},
+            "setting": {"Rural": 0.2},
         },
         regional_strongholds={
             4: +1.0,   # Littoral: Niger Delta resource activism core
             1: +0.2,   # Lagos: slum organizing presence
+            5: +0.3,   # Eastern: Cross River militant base
+            3: +0.1,   # Confluence: marginalized communities
         },
     ),
     Party(
@@ -861,9 +884,15 @@ PARTIES = [
         religious_alignment="Traditionalist",
         economic_positioning=0.1,  # mildly statist, traditionalist economics
         demographic_coefficients={
-            "livelihood": {"Public sector": 0.3},
+            "livelihood": {"Public sector": 0.3, "Smallholder": 0.2},
+            "age_cohort": {"50+": 0.3, "35-49": 0.1},
+            "setting": {"Rural": 0.3},
+            "education": {"Below secondary": 0.2},
         },
-        # No strong regional base — fringe party with dispersed appeal
+        regional_strongholds={
+            2: +0.3,   # Niger Zone: Nupe heartland
+            3: +0.2,   # Confluence: traditionalist communities
+        },
     ),
 ]
 

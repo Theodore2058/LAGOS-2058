@@ -395,6 +395,47 @@ class VoterType:
     def is_mainline_protestant(self) -> bool:
         return self.religion == "Mainline Protestant"
 
+    # --- Triple interaction terms ---
+    @property
+    def is_hf_muslim_civil_servant(self) -> bool:
+        """Hausa-Fulani Muslim in public sector: core northern establishment (NDC)."""
+        return self.is_hausa_fulani and self.is_muslim and self.is_civil_servant
+
+    @property
+    def is_yoruba_christian_urban(self) -> bool:
+        """Yoruba Christians in cities: cosmopolitan swing voters (CND/NRP base)."""
+        return self.is_yoruba and self.is_christian and self.is_urban
+
+    @property
+    def is_igbo_pentecostal_formal(self) -> bool:
+        """Igbo Pentecostals in formal sector: prosperity gospel entrepreneurs."""
+        return self.is_igbo and self.is_pentecostal and self.is_formal_sector
+
+    @property
+    def is_kanuri_muslim_youth(self) -> bool:
+        """Kanuri Muslim youth: Al-Shahid recruitment pool, radicalization risk."""
+        return self.is_kanuri and self.is_muslim and self.is_youth
+
+    @property
+    def is_ijaw_christian_unemployed(self) -> bool:
+        """Ijaw Christian unemployed: Niger Delta radical base (PLF)."""
+        return self.is_ijaw and self.is_christian and self.is_unemployed
+
+    @property
+    def is_hf_rural_older(self) -> bool:
+        """Hausa-Fulani rural elderly: deeply traditional, NDC base."""
+        return self.is_hausa_fulani and self.is_rural and self.is_older
+
+    @property
+    def is_yoruba_muslim_trader(self) -> bool:
+        """Yoruba Muslim traders: unique cross-cutting identity, SNM target."""
+        return self.is_yoruba and self.is_muslim and self.livelihood == "Trade/informal"
+
+    @property
+    def is_minority_urban_youth(self) -> bool:
+        """Minority urban youth: pan-ethnic progressive coalition base."""
+        return self.is_minority and self.is_urban and self.is_youth
+
 
 @lru_cache(maxsize=1)
 def generate_all_voter_types() -> list[VoterType]:
@@ -982,6 +1023,9 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_kanuri_rural": 1.0,    # Rural Kanuri: deeply Islamist, Al-Shahid influence
         "is_muslim_trader": 0.5,   # Muslim traders: lean pro-Sharia (Sharia commercial courts)
         "is_tijaniyya_trader": -0.5,  # Tijaniyya traders (Yoruba): moderate, less pro-Sharia
+        "is_hf_muslim_civil_servant": 0.8,  # HF Muslim civil servants: northern establishment, pro-Sharia framework
+        "is_kanuri_muslim_youth": 1.5,  # Kanuri Muslim youth: radicalized, strongly pro-Sharia
+        "is_yoruba_muslim_trader": -1.0,  # Yoruba Muslim traders: pragmatic, moderate on Sharia
     },
     # 2. Fiscal Autonomy (centralism ↔ confederalism)
     {
@@ -1003,6 +1047,9 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_Conflict History": 0.2 / 5.0,  # Conflict zones → distrust federal, want local control
         "lga_Gini Proxy": 1.0,   # High inequality → demand local autonomy to address it
         "lga_Refinery Present": 0.5,  # Refinery zones: want revenue kept locally
+        "is_hf_muslim_civil_servant": -1.5,  # HF Muslim civil servants: benefit from federal centralism
+        "is_igbo_pentecostal_formal": 1.5,  # Igbo Pentecostal business: strongly confederalist
+        "is_ijaw_christian_unemployed": 2.0,  # Ijaw Christian unemployed: resource federalism radicals
     },
     # 3. Chinese Relations (Western pivot ↔ deepen WAFTA)
     {
@@ -1048,6 +1095,9 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_hf_smallholder": 1.5,     # HF smallholders: benefit from northern quotas
         "is_yoruba_muslim": -0.5,     # Yoruba Muslims: less pro-quota than northern Muslims
         "lga_Trad Authority Index": 0.15 / 5.0,  # Trad authority areas: favour communal distribution
+        "is_hf_muslim_civil_servant": 1.0,  # HF Muslim civil servants: benefit most from northern quotas
+        "is_igbo_pentecostal_formal": -1.5,  # Igbo Pentecostal formal: extreme meritocrats
+        "is_minority_urban_youth": -1.0,  # Minority urban youth: reject both quotas and ethnic politics
     },
     # 6. Fertility Policy (population control ↔ pro-natalism)
     {
@@ -1069,6 +1119,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_pentecostal_formal": -0.5,  # Pentecostal formal: more pragmatic family planning
         "is_mainline_protestant": -0.5, # Mainline Protestants: accept family planning
         "lga_Primary Enrollment Pct": -0.005,  # High primary enrollment → more exposure to family planning education
+        "is_hf_rural_older": 1.5,  # HF rural elderly: strongest pro-natalist constituency
+        "is_yoruba_christian_urban": -1.0,  # Yoruba Christian urban: modern family planning
     },
     # 7. Constitutional Structure (parliamentary ↔ presidential)
     {
@@ -1173,6 +1225,9 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_rural_older": 0.5,       # Rural elderly trust military for security
         "lga_Federal Control 2058": 0.8,  # Federal control zones strongly pro-military
         "lga_Al-Shahid Influence": 0.4 / 5.0,  # Al-Shahid zones: demand military response
+        "is_hf_muslim_civil_servant": 1.0,  # HF Muslim civil servants: military-state nexus, pro-guardianship
+        "is_kanuri_muslim_youth": 1.5,  # Kanuri Muslim youth: complex — want security but also militant sympathy
+        "is_ijaw_christian_unemployed": -1.5,  # Ijaw Christian unemployed: anti-military (Delta repression)
     },
     # 13. Immigration (open borders ↔ restrictionism)
     {
@@ -1232,6 +1287,9 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_catholic": 0.5,             # Catholics: more progressive than Pentecostals on gender
         "is_mainline_protestant": 0.8,  # Mainline Protestants: most progressive Christian denomination
         "is_catholic_smallholder": -0.5,  # Catholic smallholder women: rural Catholic conservatism
+        "is_yoruba_christian_urban": 1.0,  # Yoruba Christian urban women: progressive feminist base
+        "is_hf_rural_older": -1.5,  # HF rural elderly: deeply patriarchal
+        "is_kanuri_muslim_youth": -1.0,  # Kanuri Muslim youth: conservative gender views
     },
     # 16. Traditional Authority (marginalization ↔ formal integration)
     {
@@ -1250,6 +1308,9 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_kanuri_rural": 1.0,       # Rural Kanuri: strong traditional Shehu system
         "lga_Traditionalist Practice": 0.2 / 5.0,  # Active traditionalist practice → integrationist
         "lga_Traditional Authority": 1.0,  # Binary: LGA has active traditional authority → everyone leans integrationist
+        "is_hf_rural_older": 1.5,  # HF rural elderly: strongest emirate system supporters
+        "is_minority_urban_youth": -1.5,  # Minority urban youth: reject traditional authority entirely
+        "is_yoruba_christian_urban": -0.5,  # Yoruba Christian urbanites: modern governance preference
     },
     # 17. Infrastructure (targeted ↔ universal provision)
     {
@@ -1305,6 +1366,9 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_muslim_trader": -0.5,      # Muslim traders: low tax (Islamic zakat replaces secular tax)
         "is_pentecostal_formal": -0.8, # Pentecostal formal: prosperity gospel, anti-redistribution
         "is_muslim_civil_servant": 0.5,  # Muslim civil servants: pro-redistribution (Islamic welfare)
+        "is_igbo_pentecostal_formal": -1.5,  # Igbo Pentecostal formal: prosperity gospel, anti-tax
+        "is_ijaw_christian_unemployed": 2.0,  # Ijaw Christian unemployed: strongly pro-redistribution
+        "is_yoruba_muslim_trader": -0.5,  # Yoruba Muslim traders: low-tax, zakat over secular tax
     },
     # 20. Agricultural Policy (free market ↔ protectionist smallholder)
     {
@@ -1344,6 +1408,9 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_pentecostal_formal": -1.0,  # Pentecostal formal: strongest "playing God" opposition
         "is_catholic": -0.8,           # Catholics: cautious (Vatican bioethics) but less extreme than Pentecostal
         "is_mainline_protestant": 0.3, # Mainline Protestants: more accepting of science/medicine
+        "is_igbo_pentecostal_formal": -1.5,  # Igbo Pentecostal formal: prosperity gospel but anti-enhancement
+        "is_yoruba_christian_urban": 0.8,  # Yoruba Christian urban: cosmopolitan, pro-science
+        "is_kanuri_muslim_youth": -1.5,  # Kanuri Muslim youth: deeply conservative, anti-enhancement
     },
     # 22. Trade Policy (autarky ↔ full openness)
     {
@@ -1371,6 +1438,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_muslim_trader": -0.5,    # Muslim traders: protective of local market networks
         "is_tijaniyya_trader": 0.5,  # Tijaniyya traders (Yoruba): historically cosmopolitan, pro-trade
         "lga_Major Urban Center": 0.8,  # Major cities: trade-connected, pro-openness
+        "is_yoruba_muslim_trader": 0.8,  # Yoruba Muslim traders: Tijaniyya trade networks, pro-open
+        "is_igbo_pentecostal_formal": 1.5,  # Igbo Pentecostal formal: entrepreneurial, pro-free trade
     },
     # 23. Environmental Regulation (growth first ↔ strong regulation)
     {
@@ -1480,6 +1549,9 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_yoruba_muslim": 0.5,      # Yoruba Muslims: less anti-AZ than Yoruba Christians
         "is_ibibio": -1.5,            # Ibibio: want Akwa Ibom/Cross River recognition
         "is_ijaw": -1.0,             # Ijaw: want own Niger Delta state/AZ
+        "is_hf_muslim_civil_servant": 0.8,  # HF Muslim civil servants: benefit from current AZ structure
+        "is_minority_urban_youth": -2.0,  # Minority urban youth: strongly pro-restructuring
+        "is_ijaw_christian_unemployed": -1.5,  # Ijaw Christian unemployed: want Delta restructuring
     },
 ]
 
@@ -1752,6 +1824,23 @@ def _build_voter_feature_matrix(voter_types: list[VoterType],
             mat[:, fi] = (rel_idx == _catholic).astype(np.float32)
         elif feat == "is_mainline_protestant":
             mat[:, fi] = (rel_idx == _mainline_prot).astype(np.float32)
+        # --- Triple interaction terms (batch 11) ---
+        elif feat == "is_hf_muslim_civil_servant":
+            mat[:, fi] = (_is_hf & _is_muslim & (liv_idx == 4)).astype(np.float32)
+        elif feat == "is_yoruba_christian_urban":
+            mat[:, fi] = ((eth_idx == _yoruba) & _is_christian & _is_urban).astype(np.float32)
+        elif feat == "is_igbo_pentecostal_formal":
+            mat[:, fi] = ((eth_idx == _igbo) & (rel_idx == _pentecostal) & (liv_idx == 3)).astype(np.float32)
+        elif feat == "is_kanuri_muslim_youth":
+            mat[:, fi] = ((eth_idx == _kanuri) & _is_muslim & _is_youth).astype(np.float32)
+        elif feat == "is_ijaw_christian_unemployed":
+            mat[:, fi] = ((eth_idx == _ijaw) & _is_christian & (liv_idx == 5)).astype(np.float32)
+        elif feat == "is_hf_rural_older":
+            mat[:, fi] = (_is_hf & _is_rural & (age_idx == 3)).astype(np.float32)
+        elif feat == "is_yoruba_muslim_trader":
+            mat[:, fi] = ((eth_idx == _yoruba) & _is_muslim & (liv_idx == 2)).astype(np.float32)
+        elif feat == "is_minority_urban_youth":
+            mat[:, fi] = (~np.isin(eth_idx, list(_majority_set)) & _is_urban & _is_youth).astype(np.float32)
         else:
             # Fallback for any unknown feature — use getattr (shouldn't happen
             # for the default table, but supports custom coefficient tables)
