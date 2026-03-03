@@ -1654,8 +1654,19 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_yoruba": 0.5,             # Yoruba tolerant of Padà presence
         "is_tiv": -0.5,              # Tiv mild suspicion
         "is_edo": 0.5,                # Edo: cosmopolitan, tolerant
+        "is_tertiary": 0.5,           # Educated: more accepting of Padà
+        "is_youth": 0.3,              # Youth: less anti-Padà prejudice
+        "is_urban": 0.3,              # Urban: exposed to Padà, cosmopolitan
+        "is_rural": -0.3,             # Rural: more traditional, suspicious
+        "is_muslim": -0.5,            # Muslim: theological objections to enhancement
+        "is_pentecostal": -0.8,       # Pentecostal: "playing God" objection
+        "is_traditional": -1.0,       # Traditionalists: deepest anti-Padà sentiment
+        "is_formal_sector": 0.3,      # Formal sector: work alongside Padà
+        "is_middle_age": -0.2,        # Middle-aged: mild anxiety about Padà
         "lga_Biological Enhancement Pct": 0.01,  # Bio-enhancement linked to Padà identity
         "lga_BIC Effectiveness": 0.15 / 10.0,    # Effective BIC → Padà more accepted
+        "lga_Internet Access Pct": 0.003,         # Connected areas: more Padà discourse
+        "lga_Urban Pct": 0.005,                   # Urban areas: Padà communities concentrate
     },
     # 27. Energy Policy (fossil status quo ↔ green transition)
     {
