@@ -649,10 +649,10 @@ PARTIES = [
             "gender": {"Female": 0.15},
         },
         regional_strongholds={
-            1: +1.0,   # Lagos: cosmopolitan Padà heartland
-            2: +0.3,   # Niger Zone: Ogun/Oyo spillover from Lagos, Ibadan elite
-            3: +0.3,   # Confluence: Ekiti/Ondo professional class
-            5: +0.2,   # Eastern: Igbo business-professional overlap
+            1: +0.5,   # Lagos: cosmopolitan Padà heartland (first elections: less consolidation)
+            2: +0.15,  # Niger Zone: Ogun/Oyo spillover from Lagos, Ibadan elite
+            3: +0.15,  # Confluence: Ekiti/Ondo professional class
+            5: +0.1,   # Eastern: Igbo business-professional overlap
         },
     ),
     Party(
@@ -671,11 +671,11 @@ PARTIES = [
             "gender": {"Female": 0.1},
         },
         regional_strongholds={
-            1: +0.3,   # Lagos: progressive intelligentsia
-            2: +0.6,   # Niger Zone: Yoruba heartland (Oyo, Ogun)
-            3: +0.5,   # Confluence: Ekiti, Ondo, Osun
-            4: +0.1,   # Littoral: educated Yoruba diaspora in Delta/Rivers
-            6: +0.1,   # Central: civil servants, progressive professionals in FCT
+            1: +0.2,   # Lagos: progressive intelligentsia (first elections: less consolidation)
+            2: +0.3,   # Niger Zone: Yoruba heartland (Oyo, Ogun)
+            3: +0.25,  # Confluence: Ekiti, Ondo, Osun
+            4: +0.05,  # Littoral: educated Yoruba diaspora in Delta/Rivers
+            6: +0.05,  # Central: civil servants, progressive professionals in FCT
         },
     ),
     Party(
@@ -719,10 +719,10 @@ PARTIES = [
             "gender": {"Male": 0.1},
         },
         regional_strongholds={
-            5: +1.2,   # Eastern Zone: Igbo commercial heartland
-            1: +0.2,   # Lagos: Igbo diaspora traders
-            4: +0.15,  # Littoral: Igbo communities in Port Harcourt, Calabar
-            3: +0.1,   # Confluence: Igbo traders in Benin City, Kogi towns
+            5: +0.6,   # Eastern Zone: Igbo commercial heartland (first elections: less consolidation)
+            1: +0.1,   # Lagos: Igbo diaspora traders
+            4: +0.1,   # Littoral: Igbo communities in Port Harcourt, Calabar
+            3: +0.05,  # Confluence: Igbo traders in Benin City, Kogi towns
         },
     ),
     Party(
@@ -742,10 +742,10 @@ PARTIES = [
             "setting": {"Rural": 0.15, "Peri-urban": 0.05},
         },
         regional_strongholds={
-            6: +0.8,   # Central: Kano is HF stronghold
-            7: +0.6,   # Chad: northern establishment networks, Bauchi/Gombe emirate tradition
-            8: +1.0,   # Savanna: Arewa core — deepest party machinery
-            2: +0.3,   # Niger Zone: northern extension (Niger, Kwara)
+            6: +0.4,   # Central: Kano is HF stronghold (first elections: less consolidation)
+            7: +0.3,   # Chad: northern establishment networks, Bauchi/Gombe emirate tradition
+            8: +0.5,   # Savanna: Arewa core — deepest party machinery
+            2: +0.15,  # Niger Zone: northern extension (Niger, Kwara)
         },
     ),
     Party(
@@ -833,10 +833,10 @@ PARTIES = [
             "gender": {"Male": 0.2},
         },
         regional_strongholds={
-            8: +0.3,   # Savanna: northern traders squeezed by WAFTA
-            6: +0.2,   # Central: Kano market traders
-            7: +0.2,   # Chad: anti-WAFTA sentiment
-            2: +0.1,   # Niger Zone: market town traders
+            8: +0.4,   # Savanna: northern traders squeezed by WAFTA
+            6: +0.3,   # Central: Kano market traders
+            7: +0.25,  # Chad: anti-WAFTA sentiment
+            2: +0.15,  # Niger Zone: market town traders
         },
     ),
     Party(
