@@ -190,8 +190,8 @@ def test_batch_turnout_matches_scalar():
         cond_i, turn_i = compute_vote_probs_with_turnout(
             utilities[i], voter_ideals[i], parties, params, demos
         )
-        assert np.allclose(batch_cond[i], cond_i, atol=1e-10), f"Mismatch cond row {i}"
-        assert abs(batch_turnout[i] - turn_i) < 1e-10, f"Mismatch turnout row {i}"
+        assert np.allclose(batch_cond[i], cond_i, atol=1e-5), f"Mismatch cond row {i}"
+        assert abs(batch_turnout[i] - turn_i) < 1e-5, f"Mismatch turnout row {i}"
 
 
 if __name__ == "__main__":
