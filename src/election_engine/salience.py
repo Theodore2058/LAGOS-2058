@@ -135,6 +135,33 @@ def youth_bulge(lga_row: pd.Series) -> float:
     return min(1.0, max(0.0, float(lga_row.get("% Population Under 30", 50)) / 100.0))
 
 
+def modernization_clash(lga_row: pd.Series) -> float:
+    """Measures tension between traditional and modern forces in an LGA.
+    High internet + traditional authority = cultural clash zone.
+    Returns 0-1 scale."""
+    internet = float(lga_row.get("Internet Access Pct", 20))
+    trad = float(lga_row.get("Trad Authority Index", 0))
+    pent = float(lga_row.get("Pentecostal Growth", 0))
+    # Peaks where all three are high (internet × trad_auth × religious_dynamism)
+    return min(1.0, (internet / 100.0) * (trad / 5.0) * max(1.0, pent / 2.0))
+
+
+def literacy_fertility_tension(lga_row: pd.Series) -> float:
+    """High fertility + low female literacy = demographic-education mismatch.
+    Returns 0-1 scale; high values where fertility is high and literacy is low."""
+    fertility = float(lga_row.get("Fertility Rate Est", 5))
+    fem_lit = float(lga_row.get("Female Literacy Rate Pct", 50))
+    return min(1.0, max(0.0, (fertility / 7.0) * (1.0 - fem_lit / 100.0)))
+
+
+def inequality_extraction_mismatch(lga_row: pd.Series) -> float:
+    """Resource-rich LGAs with high inequality = 'resource curse' anger.
+    Returns 0-2 scale."""
+    gini = float(lga_row.get("Gini Proxy", 0.36))
+    extraction = float(lga_row.get("Extraction Intensity", 0))
+    return min(2.0, max(0.0, (gini - 0.35) / 0.25) * (extraction / 5.0))
+
+
 # ---------------------------------------------------------------------------
 # SalienceRule dataclass
 # ---------------------------------------------------------------------------
@@ -188,6 +215,9 @@ DERIVED_FEATURE_KEYS: dict[str, Callable[[pd.Series], float]] = {
     "is_colonial_western": is_colonial_western,
     "is_colonial_eastern": is_colonial_eastern,
     "is_colonial_midwestern": is_colonial_midwestern,
+    "modernization_clash": modernization_clash,
+    "literacy_fertility_tension": literacy_fertility_tension,
+    "inequality_extraction_mismatch": inequality_extraction_mismatch,
 }
 
 
@@ -528,6 +558,8 @@ def _language_policy_conditional(lga_row: pd.Series) -> float:
     english = _safe_float(lga_row.get("English Prestige", 5), 5)
     mandarin = _safe_float(lga_row.get("Mandarin Presence", 0), 0)
     almajiri = _safe_float(lga_row.get("Almajiri Index", 0), 0)
+    fem_lit = _safe_float(lga_row.get("Female Literacy Rate Pct", 50), 50)
+    osc = _safe_float(lga_row.get("Out of School Children Pct", 20), 20)
     extra = 0.0
     # Arabic-English interface = language politics inflamed
     if arabic > 3 and english > 3:
@@ -538,6 +570,12 @@ def _language_policy_conditional(lga_row: pd.Series) -> float:
     # High almajiri = Arabic vs secular education language debate
     if almajiri > 3:
         extra += 0.15 * min(almajiri, 5) / 5.0
+    # Low female literacy + high OSC = language of instruction controversy
+    if fem_lit < 40 and osc > 30:
+        extra += 0.2 * (1.0 - fem_lit / 100.0)
+    # High out-of-school + Arabic prestige = Quranic vs Western school debate
+    if osc > 40 and arabic > 3:
+        extra += 0.15 * min(osc, 80) / 80.0
     return extra
 
 
@@ -598,6 +636,8 @@ def _traditional_authority_conditional(lga_row: pd.Series) -> float:
     trad_present = _safe_float(lga_row.get("Traditional Authority", 0), 0)
     urban = _safe_float(lga_row.get("Urban Pct", 50), 50)
     internet = _safe_float(lga_row.get("Internet Access Pct", 30), 30)
+    conflict = _safe_float(lga_row.get("Conflict History", 0), 0)
+    land_form = _safe_float(lga_row.get("Land Formalization Pct", 0), 0)
     extra = 0.0
     # Strong trad authority + urbanization = institutional clash
     if trad_auth > 3 and urban > 40:
@@ -605,6 +645,12 @@ def _traditional_authority_conditional(lga_row: pd.Series) -> float:
     # Traditional authority present + internet access = online debate
     if trad_present > 0 and internet > 30:
         extra += 0.2
+    # Conflict zones where traditional mediation is needed
+    if conflict >= 2 and trad_auth > 2:
+        extra += 0.2 * (conflict / 5.0)
+    # Land formalization threatens customary authority over land allocation
+    if land_form > 30 and trad_auth > 3:
+        extra += 0.15 * min(land_form, 80) / 80.0
     return extra
 
 
@@ -631,6 +677,8 @@ def _media_freedom_conditional(lga_row: pd.Series) -> float:
     mobile = _safe_float(lga_row.get("Mobile Phone Penetration Pct", 50), 50)
     conflict = _safe_float(lga_row.get("Conflict History", 0), 0)
     fed_control = _safe_float(lga_row.get("Federal Control 2058", 0), 0)
+    al_shahid = _safe_float(lga_row.get("Al-Shahid Influence", 0), 0)
+    pent_growth = _safe_float(lga_row.get("Pentecostal Growth", 0), 0)
     extra = 0.0
     # High connectivity + conflict = censorship vs information freedom
     if internet > 40 and conflict > 2:
@@ -638,6 +686,12 @@ def _media_freedom_conditional(lga_row: pd.Series) -> float:
     # Federal control zones + mobile access = media suppression debate
     if fed_control > 0 and mobile > 50:
         extra += 0.2
+    # Al-Shahid zones + internet = religious censorship vs free expression
+    if al_shahid > 2 and internet > 20:
+        extra += 0.2 * (al_shahid / 5.0)
+    # Pentecostal growth + connectivity = moral censorship debate
+    if pent_growth > 1.5 and internet > 40:
+        extra += 0.15 * min(pent_growth, 3) / 3.0
     return extra
 
 
@@ -755,6 +809,7 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "% Muslim": 0.3 / 100.0,            # Muslim areas: fertility is religious/cultural issue
             "Out of School Children Pct": 0.3 / 100.0,  # High OSC → population pressure is felt
             "Gender Parity Index": -0.5,              # Gender parity gap → fertility norms politically contested
+            "literacy_fertility_tension": 0.5,         # Low female literacy + high fertility = demographic crisis salience
         },
         conditional=_fertility_policy_conditional,
     ),
@@ -786,6 +841,7 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Poverty Rate Pct": 0.3 / 100.0,     # Poor extraction areas: "resource curse" anger
             "% Ijaw": 0.5 / 100.0,               # Ijaw: Niger Delta resource control core
             "% Edo": 0.2 / 100.0,                 # Edo: Benin region extraction proximity
+            "inequality_extraction_mismatch": 0.5,  # Resource-rich + high inequality = resource curse anger
         },
         conditional=_resource_conflict_conditional,
     ),
@@ -826,6 +882,7 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Mobile Phone Penetration Pct": 0.15 / 100.0,  # Mobile learning → education debates amplified
             "English Prestige": 0.2 / 10.0,       # English prestige → language-of-instruction debates → education salient
             "Female Literacy Rate Pct": -0.01,    # Low female literacy → girls' education as political issue
+            "literacy_fertility_tension": 0.4,       # Low literacy + high fertility = education system overwhelmed
         },
         conditional=_education_deprivation_conditional,
     ),
@@ -932,6 +989,7 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Traditional Authority": 0.5,          # Binary: presence of active trad authority amplifies debate
             "is_colonial_western": 0.3,             # Western: Oba institution deeply embedded → debate
             "is_colonial_midwestern": 0.2,          # Mid-Western: Oba of Benin → trad authority relevant
+            "modernization_clash": 0.5,              # Internet + trad authority + Pentecostal growth = cultural clash
         },
         conditional=_traditional_authority_conditional,
     ),
@@ -1071,6 +1129,7 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Pentecostal Growth": 0.15 / 3.0,     # Pentecostal media empires → media freedom matters
             "% Christian": 0.1 / 100.0,            # Christian areas: media-savvy, free press tradition
             "is_colonial_western": 0.3,             # Western: Lagos media culture, Yoruba press tradition
+            "modernization_clash": 0.3,              # Internet + trad authority + Pentecostal = censorship debates
         },
         conditional=_media_freedom_conditional,
     ),
