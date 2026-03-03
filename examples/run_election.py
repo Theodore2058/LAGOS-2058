@@ -131,7 +131,7 @@ CND_POSITIONS = np.array([
     +1.0,  # 16  infrastructure: mildly universal
     +2.0,  # 17  land_tenure: formalization
     +0.5,  # 18  taxation: mild redistribution
-    +0.0,  # 19  agriculture: neutral
+    -0.5,  # 19  agriculture: mildly free-market — Yoruba urban elite, consumer prices matter
     +1.5,  # 20  bio_enhancement: moderate pro
     +3.0,  # 21  trade: open
     +2.5,  # 22  environment: regulatory
@@ -326,7 +326,7 @@ NWF_POSITIONS = np.array([
     +4.0,  # 24  healthcare: universal
     -2.0,  # 25  pada_status: mildly anti-Padà
     +1.0,  # 26  energy: mild green
-    +0.0,  # 27  az_restructuring: neutral
+    -1.0,  # 27  az_restructuring: mildly pro-restructure — smaller states help workers organise
 ])
 
 # NHA — New Horizon Alliance
@@ -494,7 +494,7 @@ CDA_POSITIONS = np.array([
 MBPP_POSITIONS = np.array([
     -2.5,  #  0  sharia: secular
     +2.0,  #  1  fiscal: autonomy
-    +0.0,  #  2  chinese: neutral
+    -0.5,  #  2  chinese: slight anti-WAFTA — wary of foreign land grabs
     -2.0,  #  3  bic: anti-BIC
     +4.0,  #  4  ethnic_quotas: strong affirmative action
     +1.5,  #  5  fertility: mildly pro-natalist
@@ -513,7 +513,7 @@ MBPP_POSITIONS = np.array([
     +2.5,  # 18  taxation: redistribution
     +3.0,  # 19  agriculture: protectionist
     +0.5,  # 20  bio_enhancement: mildly pro
-    +0.0,  # 21  trade: neutral
+    -1.0,  # 21  trade: mildly protectionist — protect local farmers from imports
     +3.0,  # 22  environment: strong regulation
     +3.0,  # 23  media: press freedom
     +3.5,  # 24  healthcare: universal
@@ -640,12 +640,13 @@ PARTIES = [
         religious_alignment="Secular",
         economic_positioning=-0.6,  # pro-market liberal, appeals to prosperous areas
         demographic_coefficients={
-            "education": {"Tertiary": 0.5, "Secondary": 0.1},
-            "livelihood": {"Formal private": 0.5, "Public sector": 0.2},
-            "income": {"Top 20%": 0.4, "Middle 40%": 0.1},
-            "age_cohort": {"25-34": 0.2, "35-49": 0.1},
-            "setting": {"Urban": 0.3},
-            "gender": {"Female": 0.1},
+            "education": {"Tertiary": 0.5, "Secondary": 0.15},
+            "livelihood": {"Formal private": 0.5, "Public sector": 0.25,
+                           "Trade/informal": 0.1},
+            "income": {"Top 20%": 0.4, "Middle 40%": 0.15},
+            "age_cohort": {"25-34": 0.25, "35-49": 0.15, "50+": -0.1},
+            "setting": {"Urban": 0.35, "Peri-urban": 0.1},
+            "gender": {"Female": 0.15},
         },
         regional_strongholds={
             1: +1.0,   # Lagos: cosmopolitan Padà heartland
@@ -685,12 +686,13 @@ PARTIES = [
         religious_alignment="Catholic",
         economic_positioning=0.1,  # centrist catch-all, mild populist lean
         demographic_coefficients={
-            "education": {"Secondary": 0.2, "Tertiary": 0.1},
-            "livelihood": {"Public sector": 0.2, "Formal private": 0.1},
-            "income": {"Middle 40%": 0.1},
-            "age_cohort": {"35-49": 0.1, "25-34": 0.05},
-            "setting": {"Peri-urban": 0.1},
-            "gender": {"Female": 0.05},
+            "education": {"Secondary": 0.2, "Tertiary": 0.1, "Below secondary": 0.05},
+            "livelihood": {"Public sector": 0.2, "Formal private": 0.1,
+                           "Trade/informal": 0.1, "Smallholder": 0.05},
+            "income": {"Middle 40%": 0.15, "Bottom 40%": 0.05},
+            "age_cohort": {"35-49": 0.15, "25-34": 0.1, "50+": 0.05},
+            "setting": {"Peri-urban": 0.15, "Urban": 0.05},
+            "gender": {"Female": 0.1, "Male": 0.05},
         },
         # Catch-all party: broad but shallow — mild bonus everywhere
         regional_strongholds={
@@ -731,12 +733,13 @@ PARTIES = [
         religious_alignment="Mainstream Sunni",
         economic_positioning=0.2,  # paternalist-populist, patronage economy
         demographic_coefficients={
-            "livelihood": {"Smallholder": 0.3, "Public sector": 0.2},
-            "age_cohort": {"35-49": 0.1, "50+": 0.2},
-            "education": {"Below secondary": 0.1},
-            "gender": {"Male": 0.1},
-            "income": {"Bottom 40%": 0.1, "Middle 40%": 0.1},
-            "setting": {"Rural": 0.1},
+            "livelihood": {"Smallholder": 0.3, "Public sector": 0.25,
+                           "Trade/informal": 0.1, "Commercial ag": 0.1},
+            "age_cohort": {"35-49": 0.15, "50+": 0.25, "25-34": 0.05},
+            "education": {"Below secondary": 0.15, "Secondary": 0.05},
+            "gender": {"Male": 0.15},
+            "income": {"Bottom 40%": 0.15, "Middle 40%": 0.1},
+            "setting": {"Rural": 0.15, "Peri-urban": 0.05},
         },
         regional_strongholds={
             6: +0.8,   # Central: Kano is HF stronghold
@@ -798,12 +801,13 @@ PARTIES = [
         religious_alignment="Secular",
         economic_positioning=-0.5,  # tech-elite, globalist, pro-market
         demographic_coefficients={
-            "education": {"Tertiary": 0.4, "Secondary": 0.1},
-            "livelihood": {"Formal private": 0.3, "Public sector": 0.1},
-            "income": {"Top 20%": 0.3, "Middle 40%": 0.1},
-            "age_cohort": {"18-24": 0.15, "25-34": 0.2},
-            "setting": {"Urban": 0.4},
-            "gender": {"Female": 0.1},
+            "education": {"Tertiary": 0.4, "Secondary": 0.15},
+            "livelihood": {"Formal private": 0.35, "Public sector": 0.15,
+                           "Trade/informal": 0.1},
+            "income": {"Top 20%": 0.35, "Middle 40%": 0.15},
+            "age_cohort": {"18-24": 0.2, "25-34": 0.25, "35-49": -0.05},
+            "setting": {"Urban": 0.4, "Peri-urban": 0.1},
+            "gender": {"Female": 0.15, "Male": 0.05},
         },
         regional_strongholds={
             1: +0.5,   # Lagos: tech-savvy cosmopolitans
@@ -843,12 +847,14 @@ PARTIES = [
         religious_alignment="Mainstream Sunni",
         economic_positioning=-0.1,  # mildly technocratic, pragmatic
         demographic_coefficients={
-            "livelihood": {"Public sector": 0.4, "Formal private": 0.3},
-            "education": {"Tertiary": 0.3, "Secondary": 0.1},
-            "income": {"Middle 40%": 0.2},
-            "age_cohort": {"35-49": 0.3, "50+": 0.3},
-            "gender": {"Male": 0.3},
-            "setting": {"Urban": 0.1, "Rural": 0.1},
+            "livelihood": {"Public sector": 0.4, "Formal private": 0.3,
+                           "Smallholder": 0.1},
+            "education": {"Tertiary": 0.3, "Secondary": 0.15,
+                           "Below secondary": 0.05},
+            "income": {"Middle 40%": 0.2, "Bottom 40%": 0.1},
+            "age_cohort": {"35-49": 0.3, "50+": 0.3, "25-34": 0.1},
+            "gender": {"Male": 0.35},
+            "setting": {"Urban": 0.15, "Rural": 0.15, "Peri-urban": 0.05},
         },
         regional_strongholds={
             7: +0.7,   # Chad Zone: Borno/Yobe Kanuri heartland, insurgency frontline
