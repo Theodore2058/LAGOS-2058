@@ -362,6 +362,14 @@ def compute_all_lga_results(
     # Pre-bake valence (broadcasts (J,) over rows)
     fixed_type_utility += valences
 
+    # Separate identity utility tables for LGA-level context modifiers.
+    # These allow per-LGA amplification/dampening of ethnic and religious
+    # voting based on local conditions (fragmentation, tension, urbanization).
+    # The base identity effect is already in fixed_type_utility; these tables
+    # carry the raw identity utility so modifiers can scale them per LGA.
+    eth_only_utility = eth_table[0][all_eth_indices].astype(np.float32)  # (N_types, J)
+    rel_only_utility = rel_table[0][all_rel_indices].astype(np.float32)  # (N_types, J)
+
     # Precompute turnout demographic adjustment per voter type (replaces
     # boolean-mask operations per LGA with a single fancy-index + add).
     turnout_demo_adjust = np.zeros(len(voter_types), dtype=np.float32)
@@ -474,6 +482,63 @@ def compute_all_lga_results(
 
     lga_turnout_modifier = _lga_turnout_mod.astype(np.float32)
 
+    # ---- Identity context modifiers ----
+    # Per-LGA scalars that amplify/dampen ethnic and religious voting
+    # based on local conditions. Applied as:
+    #   u_total += rel_context_mod[c] * rel_only_utility[active_types]
+    #   u_total += eth_context_mod[c] * eth_only_utility[active_types]
+    # This makes identity voting context-dependent: stronger in contested
+    # areas, weaker in homogeneous/cosmopolitan ones.
+
+    # Religious context modifier:
+    #   (+) Mixed Muslim-Christian areas → religious identity more salient
+    #   (+) Al-Shahid influence → polarisation amplifies religious voting
+    #   (+) Pentecostal growth → evangelical mobilisation amplifies religious voting
+    #   (-) Urbanisation → secularisation dampens religious voting
+    _pct_muslim = _lga_col("% Muslim", 30.0)
+    _pct_christian = _lga_col("% Christian", 30.0)
+    _al_shahid_inf = _lga_col("Al-Shahid Influence", 0.0)
+    _pent_growth = _lga_col("Pentecostal Growth", 0.0)
+    _urban_pct_id = _lga_col("Urban Pct", 30.0)
+
+    _rel_tension = (_pct_muslim * _pct_christian) / 2500.0  # 0-1 scale, peaks at 50/50
+    rel_context_modifier = (
+        0.3 * _rel_tension                              # mixed areas: religion more salient
+        + 0.15 * np.clip(_al_shahid_inf / 5.0, 0, 1)   # Al-Shahid: polarises
+        + 0.1 * np.clip(_pent_growth / 3.0, 0, 1)       # Pentecostal growth: mobilises
+        - 0.15 * np.clip(_urban_pct_id / 100.0, 0, 1)   # urban: religion less salient
+    ).astype(np.float32)
+
+    # Ethnic context modifier:
+    #   (+) Ethnic fragmentation → more competition, ethnicity more salient
+    #   (+) Conflict zones → ethnic mobilisation
+    #   (-) Urbanisation → cosmopolitan, ethnicity less salient
+    _eth_share_cols = [
+        "Hausa", "Fulani", "Yoruba", "Igbo", "Ijaw", "Kanuri",
+        "Tiv", "Nupe", "Edo", "Ibibio", "Pada", "Naijin",
+    ]
+    _eth_shares_sq_sum = np.zeros(n_lgas)
+    _eth_shares_total = np.zeros(n_lgas)
+    for g in _eth_share_cols:
+        col_name = f"% {g}"
+        if col_name in lga_data.columns:
+            s = lga_data[col_name].fillna(0).values.astype(float) / 100.0
+        else:
+            s = np.zeros(n_lgas)
+        _eth_shares_sq_sum += s ** 2
+        _eth_shares_total += s
+    # "Other ethnic" residual
+    _other_eth = np.clip(1.0 - _eth_shares_total, 0.0, 1.0)
+    _eth_shares_sq_sum += _other_eth ** 2
+    _eth_frag = 1.0 - _eth_shares_sq_sum  # 0 = homogeneous, ~0.9 = very fragmented
+
+    _conflict_id = _lga_col("Conflict History", 0.0)
+    eth_context_modifier = (
+        0.25 * np.clip(_eth_frag, 0, 1)                 # fragmented: ethnicity more salient
+        + 0.1 * np.clip(_conflict_id / 5.0, 0, 1)       # conflict: ethnic mobilisation
+        - 0.1 * np.clip(_urban_pct_id / 100.0, 0, 1)    # urban: ethnicity less salient
+    ).astype(np.float32)
+
     # Pre-allocate output arrays for vote shares and turnout
     all_vote_shares = np.empty((n_lgas, J))
     all_turnout = np.empty(n_lgas)
@@ -505,6 +570,9 @@ def compute_all_lga_results(
     _voter_wsq_buf = np.empty(N_types, dtype=np.float32)
     _min_dist_buf = np.empty(N_types, dtype=np.float32)
     _candidate_buf = np.empty(N_types, dtype=np.float32)
+
+    # Identity context buffers (reused across LGA iterations)
+    _id_buf = np.empty((N_types, J), dtype=np.float32)
 
     # Turnout buffers (reused across all LGA iterations)
     _exp_NJ = np.empty((N_types, J), dtype=np.float32)
@@ -586,6 +654,19 @@ def compute_all_lga_results(
         # Add economic voting modifier (pro-poor parties boosted in distressed LGAs)
         if econ_bonus_matrix is not None:
             dot_products += econ_bonus_matrix[idx]  # broadcasts (J,) over rows
+
+        # Identity context modifiers: amplify/dampen ethnic and religious
+        # utility based on local LGA conditions. The base identity effect is
+        # already in fixed_type_utility; these add a context-dependent delta.
+        # Uses pre-allocated buffer and np.take to avoid per-LGA allocations.
+        id_buf = _id_buf[:n_active]
+        np.take(rel_only_utility, active_idx, axis=0, out=id_buf)
+        id_buf *= rel_context_modifier[idx]
+        dot_products += id_buf
+        np.take(eth_only_utility, active_idx, axis=0, out=id_buf)
+        id_buf *= eth_context_modifier[idx]
+        dot_products += id_buf
+
         u_total = dot_products  # alias — (n_active, J) total utilities
 
         # Step 7: Inlined turnout computation (eliminates function call +
