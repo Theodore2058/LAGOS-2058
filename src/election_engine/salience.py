@@ -580,7 +580,7 @@ def compute_all_lga_salience(
     national_median_gdp: Optional[float] = None,
 ) -> np.ndarray:
     """
-    Compute salience weights for all LGAs at once.
+    Compute salience weights for all LGAs at once (vectorised).
 
     Parameters
     ----------
@@ -599,12 +599,139 @@ def compute_all_lga_salience(
     if national_median_gdp is None:
         national_median_gdp = float(lga_data["GDP Per Capita Est"].median())
 
+    if rules is None:
+        rules = DEFAULT_SALIENCE_RULES
+
     n_lga = len(lga_data)
-    n_issues = len(rules) if rules else len(DEFAULT_SALIENCE_RULES)
+    n_issues = len(rules)
+
+    # --- Helper: safely extract a column as (N,) float array ---
+    def _col(name: str, default: float = 0.0) -> np.ndarray:
+        if name in lga_data.columns:
+            s = lga_data[name]
+            arr = pd.to_numeric(s, errors="coerce").fillna(default).values.astype(float)
+            np.nan_to_num(arr, copy=False, nan=default)
+            return arr
+        return np.full(n_lga, default)
+
+    # --- Pre-compute all derived features as (N,) arrays ---
+    # ethnic_fragmentation: 1 - sum(share_k^2)
+    ethnic_cols = [c for c in lga_data.columns if c.startswith("% ") and c not in
+                   ("% Muslim", "% Christian", "% Traditionalist")]
+    if ethnic_cols:
+        eth_vals = lga_data[ethnic_cols].fillna(0.0).values.astype(float) / 100.0
+        eth_frag = 1.0 - np.sum(eth_vals ** 2, axis=1)
+    else:
+        eth_frag = np.zeros(n_lga)
+
+    # access_deficit: (100-elec) + (100-water) + (100-health)
+    elec = _col("Access Electricity Pct")
+    water = _col("Access Water Pct")
+    health = _col("Access Healthcare Pct")
+    acc_deficit = (100.0 - elec) + (100.0 - water) + (100.0 - health)
+
+    # female_literacy_gap: max(0, male - female)
+    male_lit = _col("Male Literacy Rate Pct")
+    fem_lit = _col("Female Literacy Rate Pct")
+    fem_gap = np.maximum(0.0, male_lit - fem_lit)
+
+    # gender_parity_gap: max(0, 1 - GPI)
+    gpi = _col("Gender Parity Index", 1.0)
+    gp_gap = np.maximum(0.0, 1.0 - gpi)
+
+    # conflict_severity: raw column
+    conflict = _col("Conflict History")
+
+    # border_proximity: 1 if north/border/sahel in Colonial Era Region
+    if "Colonial Era Region" in lga_data.columns:
+        regions = lga_data["Colonial Era Region"].fillna("").astype(str).str.lower()
+        border_prox = ((regions.str.contains("north", na=False)) |
+                       (regions.str.contains("border", na=False)) |
+                       (regions.str.contains("sahel", na=False))).astype(float).values
+    else:
+        border_prox = np.zeros(n_lga)
+
+    # land_formalization_gap: max(0, 100 - LandFormalPct)
+    land_form = _col("Land Formalization Pct")
+    land_gap = np.maximum(0.0, 100.0 - land_form)
+
+    # rural_pct: max(0, 100 - Urban Pct)
+    urban = _col("Urban Pct")
+    r_pct = np.maximum(0.0, 100.0 - urban)
+
+    # gdp_deviation: |GDP - median|
+    gdp = _col("GDP Per Capita Est", national_median_gdp)
+    gdp_dev = np.abs(gdp - national_median_gdp)
+
+    # fertility_deviation: |FertRate - 2.1|
+    fert = _col("Fertility Rate Est", 2.1)
+    fert_dev = np.abs(fert - 2.1)
+
+    # Map derived feature keys → precomputed arrays
+    derived_arrays = {
+        "ethnic_fragmentation": eth_frag,
+        "access_deficit": acc_deficit,
+        "female_literacy_gap": fem_gap,
+        "gender_parity_gap": gp_gap,
+        "conflict_severity": conflict,
+        "border_proximity": border_prox,
+        "land_formalization_gap": land_gap,
+        "rural_pct": r_pct,
+        "gdp_deviation": gdp_dev,
+    }
+
+    # --- Build salience matrix ---
     result = np.zeros((n_lga, n_issues))
 
-    for idx in range(n_lga):
-        row = lga_data.iloc[idx]
-        result[idx] = compute_salience(row, rules=rules,
-                                       national_median_gdp=national_median_gdp)
+    for i, rule in enumerate(rules):
+        w = np.full(n_lga, rule.base_weight)
+
+        for feat_key, coeff in rule.feature_coefficients.items():
+            if feat_key in derived_arrays:
+                w += coeff * derived_arrays[feat_key]
+            else:
+                w += coeff * _col(feat_key)
+
+        # Special case: fertility deviation
+        if rule.issue_name == "fertility_policy":
+            w += 0.8 * fert_dev
+            raw_fert_coeff = rule.feature_coefficients.get("Fertility Rate Est", 0.0)
+            if raw_fert_coeff != 0.0:
+                w -= raw_fert_coeff * fert
+
+        # Constant corrections for inverted features
+        if rule.issue_name == "housing":
+            w += 1.5
+        if rule.issue_name == "infrastructure":
+            w += 1.0
+        if rule.issue_name == "healthcare":
+            w += 2.0
+        if rule.issue_name == "energy_policy":
+            w += 2.0
+        if rule.issue_name == "immigration":
+            w += 0.5
+
+        # Conditional term (sharia)
+        if rule.conditional is not None:
+            if rule.issue_name == "sharia_jurisdiction":
+                # Vectorise sharia conditional
+                muslim = _col("% Muslim")
+                christian = _col("% Christian")
+                pent_col = _col("Pentecostal Growth")
+                mask = (muslim > 30) & (christian > 10)
+                cond_val = np.where(mask, (pent_col / 3.0) * 0.6, 0.0)
+                w += cond_val
+            else:
+                # Generic fallback for custom conditionals
+                for idx in range(n_lga):
+                    w[idx] += rule.conditional(lga_data.iloc[idx])
+
+        np.maximum(w, 0.0, out=w)
+        result[:, i] = w
+
+    # Normalize each row to sum to 1
+    row_sums = result.sum(axis=1, keepdims=True)
+    nonzero = row_sums > 0
+    result = np.where(nonzero, result / np.maximum(row_sums, 1e-30), result)
+
     return result
