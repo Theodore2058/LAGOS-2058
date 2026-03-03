@@ -539,6 +539,58 @@ def compute_all_lga_results(
         - 0.1 * np.clip(_urban_pct_id / 100.0, 0, 1)    # urban: ethnicity less salient
     ).astype(np.float32)
 
+    # ---- Religious minority mobilisation (turnout interaction) ----
+    # Per-LGA, per-religion turnout adjustment. Religious minorities
+    # in an LGA are more politically mobilised (defensive voting:
+    # "we must turn out or the other side dominates"), while comfortable
+    # majorities have slight complacency.
+    # Shape: (n_lga, 9) — one value per religious sub-category per LGA.
+    # Applied to abstention utility: negative = lower abstention = higher turnout.
+    #
+    # Religion codes: Muslim=0-3, Christian=4-6, Trad=7, Secular=8
+    minority_mobilisation = np.zeros((n_lgas, 9), dtype=np.float32)
+
+    # Muslim voters in Christian-dominant areas → mobilised
+    _muslim_minority = (_pct_muslim < 40) & (_pct_christian > 40)
+    # Stronger mobilisation for larger minorities (they feel competitive)
+    _muslim_mob = np.where(
+        _muslim_minority,
+        -0.25 * np.clip(_pct_muslim / 30.0, 0.0, 1.0),
+        0.0,
+    )
+    # Muslim voters in Muslim-dominant areas → slight complacency
+    _muslim_mob += np.where(_pct_muslim > 60, 0.1, 0.0)
+    # Mixed areas (neither dominant): mild mobilisation on both sides
+    _muslim_mixed = ~_muslim_minority & (_pct_muslim <= 60) & (_pct_muslim > 10)
+    _muslim_mob += np.where(_muslim_mixed, -0.1, 0.0)
+
+    for _code in range(4):  # Tijaniyya, Qadiriyya, Al-Shahid, Mainstream Sunni
+        minority_mobilisation[:, _code] = _muslim_mob
+
+    # Christian voters in Muslim-dominant areas → mobilised
+    _christian_minority = (_pct_christian < 40) & (_pct_muslim > 40)
+    _christian_mob = np.where(
+        _christian_minority,
+        -0.25 * np.clip(_pct_christian / 30.0, 0.0, 1.0),
+        0.0,
+    )
+    # Christian voters in Christian-dominant areas → slight complacency
+    _christian_mob += np.where(_pct_christian > 60, 0.1, 0.0)
+    # Mixed areas
+    _christian_mixed = ~_christian_minority & (_pct_christian <= 60) & (_pct_christian > 10)
+    _christian_mob += np.where(_christian_mixed, -0.1, 0.0)
+
+    for _code in range(4, 7):  # Pentecostal, Catholic, Mainline Protestant
+        minority_mobilisation[:, _code] = _christian_mob
+
+    # Traditionalists: generally marginalised small group
+    _pct_trad = _lga_col("% Traditionalist", 5.0)
+    minority_mobilisation[:, 7] = np.where(
+        _pct_trad > 5, np.float32(-0.05), np.float32(0.05)
+    )
+    # Secular: mostly unaffected by religious mobilisation
+    # (already captured in education/urban turnout adjustments)
+
     # Pre-allocate output arrays for vote shares and turnout
     all_vote_shares = np.empty((n_lgas, J))
     all_turnout = np.empty(n_lgas)
@@ -556,6 +608,7 @@ def compute_all_lga_results(
     _idx_edu = type_indices["edu"]
     _idx_age = type_indices["age"]
     _idx_set = type_indices["set"]
+    _idx_rel = type_indices["rel"]
 
     # Cache frequently-used scalars
     _beta_s = np.float32(params.beta_s)
@@ -703,6 +756,11 @@ def compute_all_lga_results(
 
         # 7c2. LGA-level turnout adjustment (same for all types in this LGA)
         v_abstain += lga_turnout_modifier[idx]
+
+        # 7c3. Religious minority mobilisation (per-LGA, per-religion)
+        # Uses religion code of each active voter type to look up the
+        # minority mobilisation adjustment for this LGA.
+        v_abstain += minority_mobilisation[idx, _idx_rel[active_idx]]
 
         # 7d. Softmax over [party utils, abstention]
         np.maximum(top1, v_abstain, out=top1)  # top1 = row_max
