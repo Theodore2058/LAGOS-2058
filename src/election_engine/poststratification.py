@@ -465,9 +465,12 @@ def compute_all_lga_results(
             return lga_data[name].fillna(default).values.astype(float)
         return np.full(n_lgas, default)
 
+    # Universal voting friction: queuing, opportunity cost, registration hassle
+    _lga_turnout_mod = np.full(n_lgas, 0.12, dtype=np.float64)
+
     # Poor road quality makes it harder to reach polling stations
     _road_qi = _lga_col("Road Quality Index", 5.0)
-    _lga_turnout_mod = 0.3 * np.maximum(0.0, 1.0 - _road_qi / 10.0)  # max +0.3
+    _lga_turnout_mod += 0.3 * np.maximum(0.0, 1.0 - _road_qi / 10.0)  # max +0.3
 
     # Conflict zones: insecurity deters turnout
     _conflict = _lga_col("Conflict History", 0.0)
@@ -660,7 +663,10 @@ def compute_all_lga_results(
     _urban_sat = (np.clip(_internet / 100.0, 0, 1)
                   * np.clip(_mobile / 100.0, 0, 1)
                   * np.clip(_literacy / 100.0, 0, 1))
-    _lga_turnout_mod += 0.16 * _urban_sat  # saturated areas: comfort → apathy
+    _lga_turnout_mod += 0.25 * _urban_sat  # saturated areas: comfort → apathy
+
+    # Floor: every LGA has at least minimal abstention pressure (logistics, apathy)
+    _lga_turnout_mod = np.maximum(_lga_turnout_mod, 0.06)
 
     lga_turnout_modifier = _lga_turnout_mod.astype(np.float32)
 

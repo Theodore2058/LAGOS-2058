@@ -1083,6 +1083,10 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_Colonial Western": -0.5,  # Western Region: Yoruba Islam is moderate, less pro-Sharia
         "is_tiv": -0.5,              # Tiv: Christian Middle Belt, anti-Sharia
         "is_nupe": 0.5,              # Nupe: Muslim but moderate, pragmatic Sharia
+        "lga_Trad Authority Index": 0.15 / 5.0,  # Trad authority → customary/Islamic justice → pro-Sharia
+        "lga_Female Literacy Rate Pct": -0.01,  # Female literacy → secularism → anti-Sharia
+        "lga_Internet Access Pct": -0.005,  # Internet exposure → secular influences → anti-Sharia
+        "lga_Conflict History": 0.2 / 5.0,  # Conflict zones: Sharia courts as alternative justice
     },
     # 2. Fiscal Autonomy (centralism ↔ confederalism)
     {
@@ -1193,6 +1197,9 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_older": 0.5,                 # Older: established patronage networks, support quotas
         "is_female": 0.5,               # Women: benefit from gender quotas in practice
         "lga_Poverty Rate Pct": 0.005,   # Poorer areas: quotas = redistribution mechanism
+        "lga_Youth Unemployment Rate Pct": 0.01,  # High youth unemployment → demand quotas as jobs pathway
+        "lga_Gini Proxy": 1.5,           # High inequality → demand redistributive quotas
+        "lga_Urban Pct": -0.005,          # Urban areas: more meritocratic, less quota support
     },
     # 6. Fertility Policy (population control ↔ pro-natalism)
     {
@@ -1388,6 +1395,9 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_Urban Pct": -0.005,     # Urban LGAs: pro-civilian governance
         "is_ibibio": -0.5,           # Ibibio: southern, civilian governance preference
         "is_edo": -0.5,              # Edo: Benin civic tradition, anti-military
+        "lga_Poverty Rate Pct": 0.01,  # Poorer areas: military as employer/provider → pro-guardianship
+        "lga_Border LGA": 0.5,        # Border LGAs: need military presence → pro-guardianship
+        "lga_Youth Unemployment Rate Pct": 0.01,  # Jobless youth → security vacuum → pro-military
     },
     # 13. Immigration (open borders ↔ restrictionism)
     {
@@ -1806,6 +1816,10 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_older": -0.5,            # Older: generational anxiety about post-human identity
         "is_female_tertiary": 0.5,   # Educated women: progressive, accepting of Padà
         "is_bottom_income": -0.5,    # Bottom income: resentment of enhanced elite
+        "lga_Mandarin Presence": 0.02 / 10.0,  # Chinese tech presence → enhancement normalization → pro-Padà
+        "lga_GDP Per Capita Est": 0.3 / 90000.0,  # Wealthy areas: more accepting of bio-enhancement elite
+        "lga_Planned City": 0.8,     # Planned cities: tech-oriented, Padà communities concentrate
+        "lga_Conflict History": -0.2 / 5.0,  # Conflict zones: scapegoating outsiders → anti-Padà
     },
     # 27. Energy Policy (fossil status quo ↔ green transition)
     {
