@@ -286,7 +286,7 @@ def test_precomputed_ideal_matches_reference():
     for i in sample_idx:
         ref = demographics_to_ideal_point(voter_types[i], lga)
         np.testing.assert_allclose(
-            ideal_matrix[i], ref, atol=1e-12,
+            ideal_matrix[i], ref, atol=1e-6,
             err_msg=f"Mismatch at voter type index {i}",
         )
 

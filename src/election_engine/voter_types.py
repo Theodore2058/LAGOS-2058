@@ -365,6 +365,36 @@ class VoterType:
     def is_yoruba_formal(self) -> bool:
         return self.is_yoruba and self.is_formal_sector
 
+    # --- Religion-livelihood interaction terms ---
+    @property
+    def is_muslim_trader(self) -> bool:
+        return self.is_muslim and self.livelihood == "Trade/informal"
+
+    @property
+    def is_pentecostal_formal(self) -> bool:
+        return self.is_pentecostal and self.is_formal_sector
+
+    @property
+    def is_catholic_smallholder(self) -> bool:
+        return self.religion == "Catholic" and self.is_smallholder
+
+    @property
+    def is_muslim_civil_servant(self) -> bool:
+        return self.is_muslim and self.is_civil_servant
+
+    @property
+    def is_tijaniyya_trader(self) -> bool:
+        return self.is_tijaniyya and self.livelihood == "Trade/informal"
+
+    # --- Additional religion properties ---
+    @property
+    def is_catholic(self) -> bool:
+        return self.religion == "Catholic"
+
+    @property
+    def is_mainline_protestant(self) -> bool:
+        return self.religion == "Mainline Protestant"
+
 
 @lru_cache(maxsize=1)
 def generate_all_voter_types() -> list[VoterType]:
@@ -950,6 +980,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_Al-Shahid Influence": 0.3 / 5.0,  # Al-Shahid areas push all voters slightly pro-Sharia
         "is_yoruba_muslim": -1.5,  # Yoruba Muslims less pro-Sharia than northern Muslims
         "is_kanuri_rural": 1.0,    # Rural Kanuri: deeply Islamist, Al-Shahid influence
+        "is_muslim_trader": 0.5,   # Muslim traders: lean pro-Sharia (Sharia commercial courts)
+        "is_tijaniyya_trader": -0.5,  # Tijaniyya traders (Yoruba): moderate, less pro-Sharia
     },
     # 2. Fiscal Autonomy (centralism ↔ confederalism)
     {
@@ -1033,6 +1065,9 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_older": 1.0,            # Elderly: pro-natalist (traditional values)
         "is_middle_age": 0.5,       # Middle-aged: moderately pro-natalist
         "lga_Out of School Children Pct": 0.01,  # High OSC → pro-natalist norms persist
+        "is_catholic": 0.8,             # Catholics: anti-contraception, pro-natalist doctrine
+        "is_pentecostal_formal": -0.5,  # Pentecostal formal: more pragmatic family planning
+        "is_mainline_protestant": -0.5, # Mainline Protestants: accept family planning
     },
     # 7. Constitutional Structure (parliamentary ↔ presidential)
     {
@@ -1100,6 +1135,9 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_Num Secondary Schools": 0.05,   # More schools → more invested in centralist education system
         "lga_Traditionalist Practice": -0.1 / 5.0,  # Traditional practice → localist education
         "lga_Primary Enrollment Pct": 0.005,  # Higher primary enrollment → centralist education buy-in
+        "is_muslim_civil_servant": -0.5,  # Muslim civil servants: prefer Islamic education elements
+        "is_pentecostal_formal": 0.5,     # Pentecostal formal: favour faith-based but centralized schools
+        "is_mainline_protestant": 0.8,    # Mainline Protestants: strongly pro-meritocratic centralism
     },
     # 11. Labor & Automation (pro-capital ↔ pro-labor)
     {
@@ -1117,6 +1155,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_Chinese Economic Presence": 0.1 / 10.0,  # Chinese presence → automation threat
         "lga_Cobalt Extraction Active": 0.5,  # Cobalt mining areas: battery supply chain → automation anxiety
         "lga_Poverty Rate Pct": 0.01,         # Poorer areas → more worried about job displacement
+        "is_pentecostal_formal": -0.5,  # Pentecostal formal sector: pro-capital, entrepreneurial prosperity gospel
+        "is_muslim_trader": 0.5,        # Muslim traders: pro-labor (guild/bazaar solidarity)
     },
     # 12. Military Role (civilian control ↔ military guardianship)
     {
@@ -1186,6 +1226,10 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_Almajiri Index": -0.2 / 5.0,  # Almajiri: reinforces patriarchal norms
         "lga_Traditionalist Practice": -0.1 / 5.0,  # Traditionalist areas: patriarchal customs
         "lga_Out of School Children Pct": -0.01,  # High OSC → girls excluded from education → patriarchal
+        "is_pentecostal_formal": -0.5,  # Pentecostal formal sector: complementarian, prosperity-wife model
+        "is_catholic": 0.5,             # Catholics: more progressive than Pentecostals on gender
+        "is_mainline_protestant": 0.8,  # Mainline Protestants: most progressive Christian denomination
+        "is_catholic_smallholder": -0.5,  # Catholic smallholder women: rural Catholic conservatism
     },
     # 16. Traditional Authority (marginalization ↔ formal integration)
     {
@@ -1254,6 +1298,9 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_igbo_bottom_income": 0.5,  # Even poor Igbo want some redistribution (cross-pressure)
         "is_urban_bottom_income": 1.0,  # Urban poor: cost of living → demand redistribution
         "is_yoruba_formal": -0.5,      # Yoruba formal sector: tax-conscious, low-redistribution
+        "is_muslim_trader": -0.5,      # Muslim traders: low tax (Islamic zakat replaces secular tax)
+        "is_pentecostal_formal": -0.8, # Pentecostal formal: prosperity gospel, anti-redistribution
+        "is_muslim_civil_servant": 0.5,  # Muslim civil servants: pro-redistribution (Islamic welfare)
     },
     # 20. Agricultural Policy (free market ↔ protectionist smallholder)
     {
@@ -1271,6 +1318,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_yoruba": -0.5,           # Yoruba: more commercially oriented
         "is_yoruba_trader": -1.0,    # Yoruba traders: prefer free market ag
         "is_christian_rural": 0.5,   # Rural Christians in Middle Belt: smallholder base
+        "is_catholic_smallholder": 1.5,  # Catholic smallholders: deeply agrarian, strongly protectionist
     },
     # 21. Biological Enhancement (prohibition ↔ universal access)
     {
@@ -1289,6 +1337,9 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_Al-Shahid Influence": -0.2 / 5.0,  # Al-Shahid areas: religious opposition to enhancement
         "is_older": -1.5,             # Elderly: conservative, anti-enhancement
         "is_middle_age": -0.5,        # Middle-aged: cautious about enhancement
+        "is_pentecostal_formal": -1.0,  # Pentecostal formal: strongest "playing God" opposition
+        "is_catholic": -0.8,           # Catholics: cautious (Vatican bioethics) but less extreme than Pentecostal
+        "is_mainline_protestant": 0.3, # Mainline Protestants: more accepting of science/medicine
     },
     # 22. Trade Policy (autarky ↔ full openness)
     {
@@ -1313,6 +1364,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_Pct Livelihood Services": 0.01,  # Service economy → pro-open trade
         "lga_Cobalt Extraction Active": 0.8,  # Cobalt extraction → global battery supply chain → pro-open trade
         "lga_Refinery Present": 0.3,           # Refinery zones: export-oriented economy
+        "is_muslim_trader": -0.5,    # Muslim traders: protective of local market networks
+        "is_tijaniyya_trader": 0.5,  # Tijaniyya traders (Yoruba): historically cosmopolitan, pro-trade
     },
     # 23. Environmental Regulation (growth first ↔ strong regulation)
     {
@@ -1368,6 +1421,9 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_Median Age Estimate": 0.02,  # Older population → healthcare more urgent
         "lga_Out of School Children Pct": 0.005,  # Areas with high OSC → systemic deprivation → demand universal care
         "lga_Fertility Rate Est": 0.15,  # High fertility → maternal health demand
+        "is_pentecostal_formal": -0.5,   # Pentecostal formal: faith-healing tradition, less state healthcare
+        "is_catholic": 0.5,              # Catholics: social doctrine, pro-universal healthcare
+        "is_catholic_smallholder": 0.8,  # Catholic smallholders: underserved, strongly pro-universal care
     },
     # 26. Padà Status (anti-Padà ↔ Padà preservation)
     {
@@ -1664,6 +1720,33 @@ def _build_voter_feature_matrix(voter_types: list[VoterType],
             mat[:, fi] = ((eth_idx == _kanuri) & (liv_idx == 5)).astype(np.float32)
         elif feat == "is_ijaw_extraction":
             mat[:, fi] = ((eth_idx == _ijaw) & np.isin(liv_idx, [2, 3])).astype(np.float32)
+        # --- Additional cross-pressure terms (batch 7) ---
+        elif feat == "is_igbo_bottom_income":
+            mat[:, fi] = ((eth_idx == _igbo) & _is_bottom).astype(np.float32)
+        elif feat == "is_fulani_smallholder":
+            mat[:, fi] = ((eth_idx == _fulani) & (liv_idx == 0)).astype(np.float32)
+        elif feat == "is_urban_bottom_income":
+            mat[:, fi] = (_is_urban & _is_bottom).astype(np.float32)
+        elif feat == "is_christian_rural":
+            mat[:, fi] = (_is_christian & _is_rural).astype(np.float32)
+        elif feat == "is_yoruba_formal":
+            mat[:, fi] = ((eth_idx == _yoruba) & (liv_idx == 3)).astype(np.float32)
+        # --- Religion-livelihood interactions (batch 8) ---
+        elif feat == "is_muslim_trader":
+            mat[:, fi] = (_is_muslim & (liv_idx == 2)).astype(np.float32)
+        elif feat == "is_pentecostal_formal":
+            mat[:, fi] = ((rel_idx == _pentecostal) & (liv_idx == 3)).astype(np.float32)
+        elif feat == "is_catholic_smallholder":
+            mat[:, fi] = ((rel_idx == _catholic) & (liv_idx == 0)).astype(np.float32)
+        elif feat == "is_muslim_civil_servant":
+            mat[:, fi] = (_is_muslim & (liv_idx == 4)).astype(np.float32)
+        elif feat == "is_tijaniyya_trader":
+            mat[:, fi] = ((rel_idx == _tijaniyya) & (liv_idx == 2)).astype(np.float32)
+        # --- Additional religion properties (batch 8) ---
+        elif feat == "is_catholic":
+            mat[:, fi] = (rel_idx == _catholic).astype(np.float32)
+        elif feat == "is_mainline_protestant":
+            mat[:, fi] = (rel_idx == _mainline_prot).astype(np.float32)
         else:
             # Fallback for any unknown feature — use getattr (shouldn't happen
             # for the default table, but supports custom coefficient tables)
