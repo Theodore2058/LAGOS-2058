@@ -541,11 +541,24 @@ def compute_all_lga_results(
     _urban_pct_id = _lga_col("Urban Pct", 30.0)
 
     _rel_tension = (_pct_muslim * _pct_christian) / 2500.0  # 0-1 scale, peaks at 50/50
+    _internet_id = _lga_col("Internet Access Pct", 60.0)
+    _literacy_id = _lga_col("Adult Literacy Rate Pct", 50.0)
+    _almajiri_id = _lga_col("Almajiri Index", 0.0)
+    _trad_auth_id = _lga_col("Trad Authority Index", 0.0)
+    _market_access_id = _lga_col("Market Access Index", 5.0)
+    _pop_density_id = _lga_col("Population Density per km2", 200.0)
+    _secondary_enr_id = _lga_col("Secondary Enrollment Pct", 50.0)
+
     rel_context_modifier = (
         0.3 * _rel_tension                              # mixed areas: religion more salient
         + 0.15 * np.clip(_al_shahid_inf / 5.0, 0, 1)   # Al-Shahid: polarises
         + 0.1 * np.clip(_pent_growth / 3.0, 0, 1)       # Pentecostal growth: mobilises
-        - 0.15 * np.clip(_urban_pct_id / 100.0, 0, 1)   # urban: religion less salient
+        + 0.12 * np.clip(_almajiri_id / 5.0, 0, 1)      # Almajiri: amplifies religious identity
+        + 0.08 * np.clip(_trad_auth_id / 5.0, 0, 1)     # Traditional authority reinforces religious norms
+        - 0.15 * np.clip(_urban_pct_id / 100.0, 0, 1)   # urban: secularisation
+        - 0.1 * np.clip(_internet_id / 100.0, 0, 1)     # internet: cosmopolitan exposure
+        - 0.08 * np.clip(_literacy_id / 100.0, 0, 1)    # literacy: reduces identity politics
+        - 0.05 * np.clip(_secondary_enr_id / 100.0, 0, 1)  # education: cross-group contact
     ).astype(np.float32)
 
     # Ethnic context modifier:
@@ -575,7 +588,13 @@ def compute_all_lga_results(
     eth_context_modifier = (
         0.25 * np.clip(_eth_frag, 0, 1)                 # fragmented: ethnicity more salient
         + 0.1 * np.clip(_conflict_id / 5.0, 0, 1)       # conflict: ethnic mobilisation
-        - 0.1 * np.clip(_urban_pct_id / 100.0, 0, 1)    # urban: ethnicity less salient
+        + 0.1 * np.clip(_trad_auth_id / 5.0, 0, 1)      # traditional authority reinforces ethnic identity
+        + 0.08 * np.clip(_almajiri_id / 5.0, 0, 1)      # Almajiri networks reinforce ethnic bonds
+        - 0.1 * np.clip(_urban_pct_id / 100.0, 0, 1)    # urban: Allport contact hypothesis
+        - 0.08 * np.clip(_internet_id / 100.0, 0, 1)    # internet: exposure to cosmopolitan norms
+        - 0.06 * np.clip(_literacy_id / 100.0, 0, 1)    # literacy: reduces ethnic voting
+        - 0.05 * np.clip(_market_access_id / 10.0, 0, 1)  # connected areas: less insular
+        - 0.04 * np.clip(np.log1p(_pop_density_id) / 8.0, 0, 1)  # dense areas: more cross-group contact
     ).astype(np.float32)
 
     # ---- Religious minority mobilisation (turnout interaction) ----

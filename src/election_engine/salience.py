@@ -252,6 +252,9 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "% Christian": 0.5 / 100.0,
             "religious_tension_proxy": 0.8,     # Muslim-Christian interface amplifies
             "conflict_severity": 0.2 / 5.0,    # Conflict zones debate Sharia more
+            "% Hausa": 0.3 / 100.0,            # Hausa heartland: Sharia tradition
+            "% Fulani": 0.3 / 100.0,           # Fulani: historically Sharia-supporting
+            "% Kanuri": 0.2 / 100.0,           # Kanuri: Borno Sharia tradition
         },
         conditional=_sharia_conditional,
     ),
@@ -265,6 +268,9 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Extraction Intensity": 0.5 / 5.0,
             "extraction_diversity": 0.3,         # Multiple resource types = more autonomy demand
             "Poverty Rate Pct": 0.3 / 100.0,    # Poor LGAs want more from federal
+            "% Igbo": 0.3 / 100.0,              # Igbo: strong fiscal autonomy tradition
+            "% Yoruba": 0.2 / 100.0,            # Yoruba: federalist tradition
+            "% Ijaw": 0.3 / 100.0,              # Ijaw: resource control demands
         },
     ),
     # 3. Chinese Relations
@@ -302,6 +308,9 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Tertiary Institution": 0.3,
             "youth_unemployment_ratio": 0.3,     # Youth-specific job crisis → quota demands
             "conflict_severity": 0.2 / 5.0,     # Conflict areas debate ethnic distribution
+            "% Tiv": 0.3 / 100.0,               # Tiv: Middle Belt quota politics
+            "% Nupe": 0.2 / 100.0,              # Nupe: minority quota concerns
+            "% Ibibio": 0.2 / 100.0,            # Ibibio: quota representation demands
         },
     ),
     # 6. Fertility Policy
@@ -339,6 +348,8 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Refinery Present": 0.5,
             "extraction_diversity": 0.5,          # Multiple extraction → more revenue politics
             "Poverty Rate Pct": 0.3 / 100.0,     # Poor extraction areas: "resource curse" anger
+            "% Ijaw": 0.5 / 100.0,               # Ijaw: Niger Delta resource control core
+            "% Edo": 0.2 / 100.0,                 # Edo: Benin region extraction proximity
         },
         conditional=_resource_conflict_conditional,
     ),
@@ -388,6 +399,8 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Al-Shahid Influence": 1.0 / 5.0,
             "Federal Control 2058": 0.5,
             "border_proximity": 0.3,              # Border areas care about military
+            "% Kanuri": 0.3 / 100.0,             # Kanuri: Borno insurgency experience
+            "% Tiv": 0.15 / 100.0,               # Tiv: Middle Belt security concerns
         },
         conditional=_military_conflict_conditional,
     ),
@@ -439,6 +452,10 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "land_formalization_gap": 0.01 / 100.0,
             "conflict_severity": 0.2 / 5.0,       # Conflict areas re-evaluate trad authority
             "ethnic_fragmentation": 0.3,            # Diverse areas debate whose chiefs matter
+            "% Hausa": 0.2 / 100.0,               # Hausa: strong emirate tradition
+            "% Fulani": 0.15 / 100.0,             # Fulani: emirate/lamido system
+            "% Yoruba": 0.15 / 100.0,             # Yoruba: Oba institution
+            "% Kanuri": 0.15 / 100.0,             # Kanuri: Shehu tradition
         },
     ),
     # 17. Infrastructure
@@ -488,6 +505,9 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Poverty Rate Pct": 0.5 / 100.0,
             "Fertility Rate Est": 0.2,             # High-fertility rural areas = food security
             "Market Access Index": -0.3 / 10.0,   # Poor market access raises ag salience
+            "% Hausa": 0.15 / 100.0,              # Hausa: agrarian heartland
+            "% Fulani": 0.2 / 100.0,              # Fulani: pastoralist/herder-farmer conflicts
+            "% Tiv": 0.15 / 100.0,                # Tiv: Middle Belt farming communities
         },
     ),
     # 21. Biological Enhancement
@@ -514,6 +534,8 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Pct Livelihood Informal": 0.3 / 100.0,  # Informal traders affected by trade policy
             "Market Access Index": 0.1,             # Well-connected LGAs: trade matters more
             "Pct Livelihood Services": 0.3 / 100.0,  # Service economy cares about trade openness
+            "% Igbo": 0.2 / 100.0,                 # Igbo: entrepreneurial/trade culture
+            "% Yoruba": 0.15 / 100.0,              # Yoruba: commercial tradition
         },
     ),
     # 23. Environmental Regulation
@@ -526,6 +548,8 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Cobalt Extraction Active": 1.0,
             "conflict_severity": 0.2 / 5.0,        # Extraction + conflict → environmental anger
             "Urban Pct": 0.2 / 100.0,              # Urban areas more environmentally aware
+            "% Ijaw": 0.3 / 100.0,                 # Ijaw: oil spill devastation in Delta
+            "% Edo": 0.15 / 100.0,                 # Edo: Benin environmental concerns
         },
     ),
     # 24. Media Freedom
