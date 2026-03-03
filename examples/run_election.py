@@ -740,7 +740,7 @@ PARTIES = [
         },
         regional_strongholds={
             6: +0.8,   # Central: Kano is HF stronghold
-            7: +0.5,   # Chad: northern establishment networks
+            7: +0.6,   # Chad: northern establishment networks, Bauchi/Gombe emirate tradition
             8: +1.0,   # Savanna: Arewa core — deepest party machinery
             2: +0.3,   # Niger Zone: northern extension (Niger, Kwara)
         },
@@ -753,12 +753,13 @@ PARTIES = [
         religious_alignment="Al-Shahid",
         economic_positioning=0.7,  # Islamist welfare state, strongly pro-poor
         demographic_coefficients={
-            "income": {"Bottom 40%": 0.3},
-            "education": {"Below secondary": 0.2},
-            "age_cohort": {"18-24": 0.3, "25-34": 0.1},
-            "gender": {"Male": 0.2},
-            "livelihood": {"Smallholder": 0.2, "Trade/informal": 0.1},
-            "setting": {"Rural": 0.1, "Peri-urban": 0.1},
+            "income": {"Bottom 40%": 0.35, "Middle 40%": 0.05},
+            "education": {"Below secondary": 0.3, "Secondary": 0.05},
+            "age_cohort": {"18-24": 0.35, "25-34": 0.15, "35-49": 0.05},
+            "gender": {"Male": 0.25},
+            "livelihood": {"Smallholder": 0.25, "Trade/informal": 0.15,
+                           "Unemployed/student": 0.2},
+            "setting": {"Rural": 0.15, "Peri-urban": 0.1},
         },
         regional_strongholds={
             7: +1.0,   # Chad: Al-Shahid movement heartland (Borno, Yobe)
@@ -819,12 +820,13 @@ PARTIES = [
         religious_alignment="Tijaniyya",
         economic_positioning=0.5,  # protectionist, defends small traders
         demographic_coefficients={
-            "livelihood": {"Trade/informal": 0.3, "Smallholder": 0.2},
-            "income": {"Bottom 40%": 0.2, "Middle 40%": 0.1},
-            "education": {"Below secondary": 0.1},
-            "age_cohort": {"35-49": 0.15, "50+": 0.1},
-            "setting": {"Peri-urban": 0.1},
-            "gender": {"Male": 0.15},
+            "livelihood": {"Trade/informal": 0.4, "Smallholder": 0.3,
+                           "Formal private": 0.1},
+            "income": {"Bottom 40%": 0.2, "Middle 40%": 0.15},
+            "education": {"Below secondary": 0.15, "Secondary": 0.1},
+            "age_cohort": {"35-49": 0.2, "50+": 0.15, "25-34": 0.05},
+            "setting": {"Peri-urban": 0.15, "Rural": 0.1},
+            "gender": {"Male": 0.2},
         },
         regional_strongholds={
             8: +0.3,   # Savanna: northern traders squeezed by WAFTA
@@ -863,12 +865,13 @@ PARTIES = [
         religious_alignment="Catholic",
         economic_positioning=0.4,  # agrarian-populist, pro-smallholder
         demographic_coefficients={
-            "livelihood": {"Smallholder": 0.3, "Commercial ag": 0.2},
-            "income": {"Bottom 40%": 0.1, "Middle 40%": 0.1},
-            "age_cohort": {"35-49": 0.1, "50+": 0.2},
-            "education": {"Below secondary": 0.1, "Secondary": 0.1},
-            "gender": {"Female": 0.1},
-            "setting": {"Rural": 0.15},
+            "livelihood": {"Smallholder": 0.35, "Commercial ag": 0.25,
+                           "Public sector": 0.1},
+            "income": {"Bottom 40%": 0.15, "Middle 40%": 0.15},
+            "age_cohort": {"35-49": 0.15, "50+": 0.25, "25-34": 0.05},
+            "education": {"Below secondary": 0.15, "Secondary": 0.15},
+            "gender": {"Female": 0.15, "Male": 0.05},
+            "setting": {"Rural": 0.2, "Peri-urban": 0.1},
         },
         regional_strongholds={
             5: +0.6,   # Eastern: Benue (Tiv) + Christian Middle Belt
@@ -885,12 +888,13 @@ PARTIES = [
         religious_alignment="Mainline Protestant",
         economic_positioning=0.6,  # agrarian-redistributive, pro-poor farmer
         demographic_coefficients={
-            "livelihood": {"Smallholder": 0.4, "Commercial ag": 0.3},
-            "income": {"Bottom 40%": 0.2},
-            "age_cohort": {"35-49": 0.1, "50+": 0.2},
-            "education": {"Below secondary": 0.2, "Secondary": 0.1},
-            "setting": {"Rural": 0.15},
-            "gender": {"Male": 0.1},
+            "livelihood": {"Smallholder": 0.45, "Commercial ag": 0.3,
+                           "Extraction": 0.15},
+            "income": {"Bottom 40%": 0.25, "Middle 40%": 0.1},
+            "age_cohort": {"35-49": 0.15, "50+": 0.25, "25-34": 0.05},
+            "education": {"Below secondary": 0.2, "Secondary": 0.15},
+            "setting": {"Rural": 0.2, "Peri-urban": 0.1},
+            "gender": {"Male": 0.15},
         },
         regional_strongholds={
             6: +0.8,   # Central: Plateau/Nasarawa heartland
@@ -907,12 +911,13 @@ PARTIES = [
         religious_alignment="Secular",
         economic_positioning=0.9,  # radical left, strongest pro-poor positioning
         demographic_coefficients={
-            "livelihood": {"Trade/informal": 0.5, "Unemployed/student": 0.5},
+            "livelihood": {"Trade/informal": 0.5, "Unemployed/student": 0.5,
+                           "Extraction": 0.3, "Smallholder": 0.15},
             "income": {"Bottom 40%": 0.5},
-            "education": {"Below secondary": 0.3, "Tertiary": -0.3},
-            "age_cohort": {"18-24": 0.4, "25-34": 0.2, "50+": -0.2},
-            "gender": {"Male": 0.2},
-            "setting": {"Rural": 0.2},
+            "education": {"Below secondary": 0.3, "Secondary": 0.1, "Tertiary": -0.3},
+            "age_cohort": {"18-24": 0.4, "25-34": 0.25, "35-49": 0.05, "50+": -0.2},
+            "gender": {"Male": 0.2, "Female": 0.1},
+            "setting": {"Rural": 0.2, "Peri-urban": 0.15},
         },
         regional_strongholds={
             4: +1.0,   # Littoral: Niger Delta resource activism core

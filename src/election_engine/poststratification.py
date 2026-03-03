@@ -466,7 +466,7 @@ def compute_all_lga_results(
         return np.full(n_lgas, default)
 
     # Universal voting friction: queuing, opportunity cost, registration hassle
-    _lga_turnout_mod = np.full(n_lgas, 0.12, dtype=np.float64)
+    _lga_turnout_mod = np.full(n_lgas, 0.20, dtype=np.float64)
 
     # Poor road quality makes it harder to reach polling stations
     _road_qi = _lga_col("Road Quality Index", 5.0)
