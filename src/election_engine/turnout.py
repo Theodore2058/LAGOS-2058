@@ -48,6 +48,7 @@ def compute_abstention_utility(
     setting: str = "",
     livelihood: str = "",
     income: str = "",
+    gender: str = "",
 ) -> float:
     """
     Compute the utility of the abstention option for one voter type.
@@ -73,6 +74,8 @@ def compute_abstention_utility(
         'Formal private', 'Public sector', 'Unemployed/student'.
     income : str
         One of: 'Bottom 40%', 'Middle 40%', 'Top 20%'.
+    gender : str
+        'Male' or 'Female'.
 
     Returns
     -------
@@ -133,6 +136,12 @@ def compute_abstention_utility(
     elif income == "Bottom 40%":
         v_abstain += 0.2  # poor voters: logistic barriers, fatalism
 
+    # Gender adjustment — women face additional participation barriers
+    # in many contexts (security concerns, household duties, social norms).
+    # This is the base effect; it interacts with education and setting.
+    if gender == "Female":
+        v_abstain += 0.15  # mild female participation gap
+
     return float(v_abstain)
 
 
@@ -177,6 +186,7 @@ def compute_turnout_probability(
         setting=voter_demographics.get("setting", ""),
         livelihood=voter_demographics.get("livelihood", ""),
         income=voter_demographics.get("income", ""),
+        gender=voter_demographics.get("gender", ""),
     )
 
     # Softmax over [party utilities..., abstention] with the election-level scale λ.
@@ -255,6 +265,7 @@ def batch_compute_vote_probs_with_turnout(
     _buffers: dict | None = None,
     livelihoods: np.ndarray | None = None,
     incomes: np.ndarray | None = None,
+    genders: np.ndarray | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     """
     Vectorised vote probabilities and turnout for N voter types at once.
@@ -279,6 +290,8 @@ def batch_compute_vote_probs_with_turnout(
         3 = Formal private, 4 = Public sector, 5 = Unemployed/student
     incomes : np.ndarray of int, shape (N,), optional
         0 = Bottom 40%, 1 = Middle 40%, 2 = Top 20%
+    genders : np.ndarray of int, shape (N,), optional
+        0 = Male, 1 = Female
     _buffers : dict, optional
         Pre-allocated buffers for hot-loop reuse. Keys:
         'exp_NJ' (N_max, J), 'top1' (N_max,), 'row_sum' (N_max,),
@@ -365,6 +378,9 @@ def batch_compute_vote_probs_with_turnout(
         if incomes is not None:
             v_abstain[incomes == 2] -= 0.3       # Top 20%: more stake, more resources
             v_abstain[incomes == 0] += 0.2       # Bottom 40%: logistic barriers
+        # Gender adjustments
+        if genders is not None:
+            v_abstain[genders == 1] += 0.15      # Female: participation gap
 
     # --- Softmax over [party utilities..., abstention] ---
     row_max = np.maximum(top1, v_abstain)

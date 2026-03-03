@@ -381,6 +381,8 @@ def compute_all_lga_results(
     # Income
     turnout_demo_adjust[type_indices["inc"] == 2] -= 0.3   # Top 20%: more stake
     turnout_demo_adjust[type_indices["inc"] == 0] += 0.2   # Bottom 40%: barriers
+    # Gender
+    turnout_demo_adjust[type_indices["gen"] == 1] += 0.15  # Female: participation gap
 
     # Use pre-computed salience if provided; otherwise compute here
     if precomputed_salience is not None:
@@ -440,6 +442,37 @@ def compute_all_lga_results(
         econ_bonus_matrix = np.float32(params.beta_econ) * np.outer(grievance_z, econ_positions)
     else:
         econ_bonus_matrix = None
+
+    # Precompute LGA-level turnout modifier: (n_lga,) float32.
+    # Adjusts abstention utility based on local conditions that affect
+    # ALL voter types in that LGA (infrastructure, conflict, literacy, etc.).
+    # Positive = more abstention, negative = less abstention.
+    def _lga_col(name, default=0.0):
+        if name in lga_data.columns:
+            return lga_data[name].fillna(default).values.astype(float)
+        return np.full(n_lgas, default)
+
+    # Poor road quality makes it harder to reach polling stations
+    _road_qi = _lga_col("Road Quality Index", 5.0)
+    _lga_turnout_mod = 0.3 * np.maximum(0.0, 1.0 - _road_qi / 10.0)  # max +0.3
+
+    # Conflict zones: insecurity deters turnout
+    _conflict = _lga_col("Conflict History", 0.0)
+    _lga_turnout_mod += 0.15 * np.clip(_conflict / 5.0, 0.0, 1.0)  # max +0.15
+
+    # Low literacy: less political engagement
+    _literacy = _lga_col("Adult Literacy Rate Pct", 50.0)
+    _lga_turnout_mod += 0.3 * np.maximum(0.0, 1.0 - _literacy / 100.0)  # max +0.3
+
+    # High mobile penetration: better information, easier logistics
+    _mobile = _lga_col("Mobile Phone Penetration Pct", 50.0)
+    _lga_turnout_mod -= 0.2 * np.clip(_mobile / 100.0, 0.0, 1.0)  # max -0.2
+
+    # Federal control zones: military presence may suppress or boost turnout
+    _fed_ctrl = _lga_col("Federal Control 2058", 0.0)
+    _lga_turnout_mod += 0.1 * _fed_ctrl  # federal control zones have slightly lower turnout
+
+    lga_turnout_modifier = _lga_turnout_mod.astype(np.float32)
 
     # Pre-allocate output arrays for vote shares and turnout
     all_vote_shares = np.empty((n_lgas, J))
@@ -584,8 +617,11 @@ def compute_all_lga_results(
         np.divide(_tau_2, row_sum, out=tmp)
         v_abstain += tmp
 
-        # 7c. Demographic adjustment
+        # 7c. Demographic adjustment (per voter type)
         v_abstain += turnout_demo_adjust[active_idx]
+
+        # 7c2. LGA-level turnout adjustment (same for all types in this LGA)
+        v_abstain += lga_turnout_modifier[idx]
 
         # 7d. Softmax over [party utils, abstention]
         np.maximum(top1, v_abstain, out=top1)  # top1 = row_max
