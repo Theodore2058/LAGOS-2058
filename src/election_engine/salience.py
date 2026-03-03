@@ -346,6 +346,7 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Poverty Rate Pct": 0.2 / 100.0,    # Poor areas more concerned
             "% Muslim": 0.3 / 100.0,            # Muslim areas: fertility is religious/cultural issue
             "Out of School Children Pct": 0.3 / 100.0,  # High OSC → population pressure is felt
+            "Gender Parity Index": -0.5,              # Gender parity gap → fertility norms politically contested
         },
     ),
     # 7. Constitutional Structure
@@ -390,6 +391,8 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Unemployment Rate Pct": 0.3 / 100.0,   # Unemployment → housing insecurity
             "Poverty Rate Pct": 0.3 / 100.0,        # Poverty → housing deprivation
             "Major Urban Center": 0.8,               # Major cities: housing is top political issue
+            "Gini Proxy": 0.5,                        # High inequality → housing becomes politically contested
+            "Land Formalization Pct": 0.3 / 100.0,   # Formalized land → housing market issues politically salient
         },
     ),
     # 10. Education
@@ -407,6 +410,9 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Num Secondary Schools": 0.01,        # More schools → education policy more salient locally
             "Median Age Estimate": -0.015,        # Younger population → education more salient
             "Internet Access Pct": 0.2 / 100.0,   # Connected areas: education policy debates online
+            "Mobile Phone Penetration Pct": 0.15 / 100.0,  # Mobile learning → education debates amplified
+            "English Prestige": 0.2 / 10.0,       # English prestige → language-of-instruction debates → education salient
+            "Female Literacy Rate Pct": -0.01,    # Low female literacy → girls' education as political issue
         },
     ),
     # 11. Labor & Automation
@@ -423,6 +429,7 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Cobalt Extraction Active": 0.3,       # Cobalt mining: automation disruption in extraction
             "Poverty Rate Pct": 0.2 / 100.0,      # Poverty → more anxious about job displacement
             "Major Urban Center": 0.4,             # Major cities: industrial base, automation anxiety
+            "Road Quality Index": 0.1 / 10.0,       # Good roads → manufacturing corridor → labor politics
         },
     ),
     # 12. Military Role
@@ -582,6 +589,7 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "border_proximity": 0.3,               # Border areas engaged with trade issues
             "Pct Livelihood Informal": 0.3 / 100.0,  # Informal traders affected by trade policy
             "Market Access Index": 0.1,             # Well-connected LGAs: trade matters more
+            "Road Quality Index": 0.1 / 10.0,       # Good roads → trade-connected → trade policy matters
             "Pct Livelihood Services": 0.3 / 100.0,  # Service economy cares about trade openness
             "% Igbo": 0.2 / 100.0,                 # Igbo: entrepreneurial/trade culture
             "% Yoruba": 0.15 / 100.0,              # Yoruba: commercial tradition
@@ -599,6 +607,8 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Extraction Intensity": 1.5 / 5.0,
             "Oil Producing": 1.0,
             "Cobalt Extraction Active": 1.0,
+            "Oil Extraction Active": 0.8,            # Active oil → environmental concern amplified
+            "Other Mining Active": 0.5,              # Active mining → environmental degradation
             "conflict_severity": 0.2 / 5.0,        # Extraction + conflict → environmental anger
             "Urban Pct": 0.2 / 100.0,              # Urban areas more environmentally aware
             "% Ijaw": 0.3 / 100.0,                 # Ijaw: oil spill devastation in Delta
@@ -661,6 +671,8 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "population_pressure": 0.3,               # Dense without power → energy salient
             "GDP Per Capita Est": 0.2 / 10000.0,     # Wealthier areas more engaged with energy transition
             "Pct Livelihood Manufacturing": 0.3 / 100.0,  # Manufacturing needs reliable power
+            "Oil Extraction Active": 0.8,         # Active oil → energy politics salient
+            "Other Mining Active": 0.3,           # Mining → energy infrastructure demands
         },
     ),
     # 28. AZ Restructuring
