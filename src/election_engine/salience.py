@@ -306,6 +306,70 @@ def _immigration_border_conditional(lga_row: pd.Series) -> float:
     return extra
 
 
+def _bic_reform_conditional(lga_row: pd.Series) -> float:
+    """BIC reform salience spikes where Pada population is significant but BIC
+    effectiveness is poor — people feel the system isn't serving its purpose."""
+    pada = float(lga_row.get("% Pada", 0))
+    bic_eff = float(lga_row.get("BIC Effectiveness", 5))
+    urban = float(lga_row.get("Urban Pct", 0))
+    extra = 0.0
+    # Pada present but BIC failing → reform demands
+    if pada > 5 and bic_eff < 4:
+        extra += 0.3 * min(pada, 30) / 30.0
+    # Urban areas with Pada → more vocal reform advocacy
+    if pada > 3 and urban > 60:
+        extra += 0.15
+    return extra
+
+
+def _constitutional_conflict_conditional(lga_row: pd.Series) -> float:
+    """Constitutional debates spike where ethnic fragmentation meets conflict —
+    people blame the constitution for failing to manage diversity."""
+    frag = float(lga_row.get("ethnic_fragmentation", 0))
+    conflict = float(lga_row.get("Conflict History", 0))
+    trad = float(lga_row.get("Trad Authority Index", 0))
+    extra = 0.0
+    # High fragmentation + conflict = constitutional crisis narrative
+    if frag > 0.6 and conflict >= 2:
+        extra += 0.3 * min(conflict, 5) / 5.0
+    # Traditional authority areas with fragmentation → restructuring debates
+    if trad > 3 and frag > 0.5:
+        extra += 0.15 * (trad / 5.0)
+    return extra
+
+
+def _taxation_inequality_conditional(lga_row: pd.Series) -> float:
+    """Taxation becomes salient where inequality is high AND extraction is
+    happening — people feel resources are extracted but not redistributed."""
+    gini = float(lga_row.get("Gini Proxy", 0.36))
+    extraction = float(lga_row.get("Extraction Intensity", 0))
+    poverty = float(lga_row.get("Poverty Rate Pct", 30))
+    extra = 0.0
+    # High inequality + extraction = tax justice demands
+    if gini > 0.45 and extraction > 2:
+        extra += 0.25 * min(extraction, 5) / 5.0
+    # Extreme poverty + any Gini above average = redistribution demands
+    if poverty > 50 and gini > 0.40:
+        extra += 0.2 * min(poverty, 80) / 80.0
+    return extra
+
+
+def _pada_tension_conditional(lga_row: pd.Series) -> float:
+    """Pada status becomes charged where Pada population is growing rapidly
+    alongside traditional populations — a demographic friction point."""
+    pada = float(lga_row.get("% Pada", 0))
+    bio = float(lga_row.get("Biological Enhancement Pct", 0))
+    trad = float(lga_row.get("Traditionalist Practice", 0))
+    extra = 0.0
+    # Pada growth near traditional communities = friction
+    if pada > 5 and trad > 2:
+        extra += 0.25 * min(pada, 25) / 25.0
+    # High bio-enhancement + Pada = identity politics intensifies
+    if bio > 15 and pada > 10:
+        extra += 0.2 * min(bio, 50) / 50.0
+    return extra
+
+
 DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
     # 1. Sharia Jurisdiction
     SalienceRule(
@@ -364,7 +428,10 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Internet Access Pct": 0.3 / 100.0,
             "% Pada": 0.5 / 100.0,              # Padà communities care about BIC
             "% Naijin": 0.3 / 100.0,            # Naijin also invested in BIC reform
+            "Tertiary Institution": 0.15,        # Educated areas debate BIC reform
+            "English Prestige": 0.1 / 10.0,     # Anglophone areas more BIC-aware
         },
+        conditional=_bic_reform_conditional,
     ),
     # 5. Ethnic Quotas
     SalienceRule(
@@ -406,7 +473,10 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Adult Literacy Rate Pct": 0.3 / 100.0,
             "ethnic_fragmentation": 0.5,          # Diverse areas debate structure more
             "Trad Authority Index": 0.2 / 5.0,   # Traditional areas prefer presidential
+            "is_colonial_eastern": 0.15,          # Eastern: federalist constitutional tradition
+            "is_colonial_midwestern": 0.12,       # Mid-Western: minority-rights constitutional tradition
         },
+        conditional=_constitutional_conflict_conditional,
     ),
     # 8. Resource Revenue
     SalienceRule(
@@ -599,7 +669,10 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "GDP Per Capita Est": 0.3 / 10000.0,
             "Urban Pct": 0.2 / 100.0,             # Urban areas more tax-aware
             "Pct Livelihood Informal": 0.3 / 100.0,  # Informal economy = tax evasion debates
+            "Extraction Intensity": 0.2 / 5.0,    # Extraction → "where do our taxes go?"
+            "border_proximity": 0.15,              # Border areas: customs/tariff debates
         },
+        conditional=_taxation_inequality_conditional,
     ),
     # 20. Agricultural Policy
     SalienceRule(
@@ -709,7 +782,10 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Urban Pct": 0.3 / 100.0,
             "% Naijin": 0.5 / 100.0,               # Naijin presence amplifies Padà-politics
             "Biological Enhancement Pct": 0.3 / 100.0,  # Bio-enh linked to Padà identity
+            "Internet Access Pct": 0.15 / 100.0,   # Online Pada identity discourse
+            "Tertiary Institution": 0.1,            # University campuses: Pada rights movements
         },
+        conditional=_pada_tension_conditional,
     ),
     # 27. Energy Policy
     SalienceRule(
