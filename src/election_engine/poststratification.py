@@ -646,6 +646,8 @@ def compute_all_lga_results(
         - 0.1 * np.clip(_internet_id / 100.0, 0, 1)     # internet: cosmopolitan exposure
         - 0.08 * np.clip(_literacy_id / 100.0, 0, 1)    # literacy: reduces identity politics
         - 0.05 * np.clip(_secondary_enr_id / 100.0, 0, 1)  # education: cross-group contact
+        - 0.06 * _col_western                              # Western: Yoruba syncretic tradition → less religious voting
+        - 0.03 * _col_midwestern                           # Mid-Western: cosmopolitan Benin City dampens religion
     ).astype(np.float32)
 
     # Ethnic context modifier:
@@ -682,6 +684,9 @@ def compute_all_lga_results(
         - 0.06 * np.clip(_literacy_id / 100.0, 0, 1)    # literacy: reduces ethnic voting
         - 0.05 * np.clip(_market_access_id / 10.0, 0, 1)  # connected areas: less insular
         - 0.04 * np.clip(np.log1p(_pop_density_id) / 8.0, 0, 1)  # dense areas: more cross-group contact
+        - 0.05 * _col_western                              # Western: Yoruba civic tradition dampens ethnic voting
+        + 0.03 * _col_eastern                               # Eastern: Igbo solidarity amplifies ethnic identity
+        - 0.04 * _col_midwestern                            # Mid-Western: multi-ethnic Edo state → less ethnic
     ).astype(np.float32)
 
     # ---- LGA-modulated gender turnout gap ----
@@ -694,6 +699,7 @@ def compute_all_lga_results(
     _lit_gap = np.maximum(0.0, _male_lit - _fem_lit)  # male-female literacy gap
     _gpi = _lga_col("Gender Parity Index", 1.0)
 
+    _mobile_id = _lga_col("Mobile Phone Penetration Pct", 80.0)
     gender_turnout_gap = (
         0.15 * np.clip(_almajiri_id / 5.0, 0.0, 1.0)      # Almajiri: female exclusion
         + 0.1 * np.clip(_al_shahid_inf / 5.0, 0.0, 1.0)   # Al-Shahid: purdah enforcement
@@ -701,6 +707,7 @@ def compute_all_lga_results(
         + 0.05 * np.maximum(0.0, 1.0 - _gpi)                # Gender parity gap
         - 0.1 * np.clip(_urban_pct_id / 100.0, 0.0, 1.0)   # Urbanisation: narrows gap
         - 0.05 * np.clip(_internet_id / 100.0, 0.0, 1.0)   # Internet: female empowerment
+        - 0.04 * np.clip(_mobile_id / 100.0, 0.0, 1.0)     # Mobile phones: female political mobilisation
     ).astype(np.float32)
 
     # ---- Religious minority mobilisation (turnout interaction) ----
