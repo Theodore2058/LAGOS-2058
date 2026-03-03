@@ -902,6 +902,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "intercept": 0.0,
         "is_civil_servant": -2.0, "is_top_income": 1.5,
         "lga_Oil Producing": 3.0, "lga_Poverty Rate Pct": -1.5 / 100.0,
+        "lga_GDP Per Capita Est": 0.5 / 90000.0,  # Wealthy LGAs lean confederalist (keep revenue local)
         "is_hausa_fulani": 0.5, "is_pada": -1.5,
         "is_ijaw": 2.5,           # Niger Delta wants resource federalism
         "is_nd_minority": 2.0,    # Other Delta groups also want local control
@@ -920,6 +921,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_youth_unemployed": -1.0,  # Jobless youth blame Chinese competition
         "is_informal": -0.5,          # Informal traders hurt by Chinese imports
         "is_nupe": 0.5,               # Nupe traders pragmatically pro-trade
+        "lga_Unemployment Rate Pct": -0.02,  # High unemployment → anti-WAFTA sentiment
     },
     # 4. BIC Reform (abolish ↔ preserve BIC)
     {
@@ -988,6 +990,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "intercept": 1.0,
         "is_urban": 1.0, "is_bottom_income": 2.5, "is_top_income": -2.5,
         "lga_Housing Affordability": -0.3 / 10.0, "is_youth": 1.5, "is_pada": -1.5,
+        "lga_GDP Per Capita Est": 0.5 / 90000.0,  # Wealthy LGAs: higher housing prices → more demand for intervention
         "is_urban_youth": 1.0,        # Urban youth face acute housing crisis
         "is_informal": 0.5,           # Informal workers need housing support
         "is_middle_income": 0.5,      # Squeezed middle also wants state help
@@ -998,6 +1001,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_tertiary": 2.0, "is_muslim": -1.0, "is_rural": -1.5,
         "is_female": 0.5, "is_naijin": 1.5,
         "lga_Out of School Children Pct": -0.2 / 100.0,
+        "lga_Youth Unemployment Rate Pct": 0.01,  # High youth unemployment → demand centralized education
+        "lga_GDP Per Capita Est": 0.3 / 90000.0,   # Wealthier LGAs → more meritocratic orientation
         "is_igbo": 1.0,               # Igbo strongly pro-education/meritocracy
         "is_kanuri": -1.5,            # Kanuri prefer Quranic/local education
         "is_rural_muslim": -1.0,      # Rural Muslims prefer almajiri/local
@@ -1010,6 +1015,9 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_informal": 2.0, "is_formal_sector": 1.0, "is_unemployed": 0.5,
         "is_top_income": -3.0, "is_smallholder": -0.5,
         "lga_Pct Livelihood Manufacturing": 0.2 / 100.0,
+        "lga_Unemployment Rate Pct": 0.02,      # High unemployment → pro-labor protection
+        "lga_Youth Unemployment Rate Pct": 0.01, # Youth joblessness → automation anxiety
+        "lga_Pct Livelihood Informal": 0.02,     # Informal economy → pro-labor regulation
         "is_youth_unemployed": 1.5,   # Jobless youth very pro-labor protection
         "is_nupe": 0.5,               # Nupe: artisan/trader tradition
         "is_middle_income": 0.5,      # Middle class worried about automation
@@ -1035,6 +1043,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_informal": -0.5,          # Informal workers face migrant competition
         "is_ibibio": 0.5,             # Ibibio: coastal, more open to trade/people
         "lga_Conflict History": -0.3 / 5.0,  # Conflict zones → more restrictionist
+        "lga_Unemployment Rate Pct": -0.02,  # High unemployment → anti-immigration
+        "lga_Youth Unemployment Rate Pct": -0.01,  # Youth joblessness → restrictionism
     },
     # 14. Language Policy (vernacular ↔ English supremacy)
     {
@@ -1112,6 +1122,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "intercept": 0.5,
         "is_top_income": -3.5, "is_bottom_income": 2.5, "is_unemployed": 2.0,
         "lga_Gini Proxy": 2.0, "is_pada": -1.0, "lga_Poverty Rate Pct": 0.02 / 100.0,
+        "lga_GDP Per Capita Est": -1.0 / 90000.0,  # Wealthy LGAs → lower appetite for redistribution
+        "lga_Unemployment Rate Pct": 0.02,          # High unemployment → demand redistribution
         "is_hf_bottom_income": 0.5,  # Poor northerners want redistribution
         "is_informal": 0.5,          # Informal workers want better services
         "is_youth_unemployed": 1.0,  # Unemployed youth strongly pro-redistribution
@@ -1123,6 +1135,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "intercept": 0.5,
         "is_smallholder": 3.0, "is_commercial_ag": -3.0, "is_rural": 1.0,
         "is_top_income": -1.5, "lga_Pct Livelihood Agriculture": 0.02 / 100.0,
+        "lga_Poverty Rate Pct": 0.01,            # Poorer LGAs → protectionist for food security
+        "lga_Pct Livelihood Services": -0.01,     # Service economy → less interest in ag protection
         "is_tiv": 1.5,               # Tiv: breadbasket, smallholder heartland
         "is_nupe": 1.0,              # Nupe: farming tradition
         "is_mb_minority": 0.5,       # Middle Belt agricultural communities
@@ -1147,6 +1161,9 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_formal_sector": 1.5, "lga_Pct Livelihood Manufacturing": 0.3 / 100.0,
         "is_smallholder": -1.5, "is_top_income": 2.0, "is_unemployed": -2.0,
         "lga_Rail Corridor": 0.5,
+        "lga_Pct Livelihood Services": 0.02,  # Service economy → pro-open trade
+        "lga_Pct Livelihood Informal": -0.02,  # Informal economy → protectionist (fear imports)
+        "lga_GDP Per Capita Est": 0.5 / 90000.0,  # Wealthy LGAs benefit from open trade
         "is_igbo": 1.0,               # Igbo: entrepreneurial, pro-open trade
         "is_yoruba": 0.5,             # Yoruba: commercial culture
         "is_nupe": 0.5,               # Nupe: historic trans-Saharan trade routes
@@ -1159,6 +1176,9 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_formal_sector": -2.0,
         "is_tertiary": 1.5, "lga_Oil Producing": 1.0,
         "is_top_income": -1.5, "is_ijaw": 2.0, "is_bottom_income": -1.0,
+        "lga_Extraction Intensity": 0.3 / 5.0,  # Extraction areas → pro-regulation (pollution)
+        "lga_Pct Livelihood Extraction": -0.02,  # Extraction workers → anti-regulation (livelihood)
+        "lga_GDP Per Capita Est": 0.3 / 90000.0,  # Wealthier LGAs → post-materialist green values
         "is_nd_minority": 1.5,        # Niger Delta minorities: pollution victims
         "is_edo": 1.0,                # Edo: oil zone environmental awareness
         "is_tertiary_youth": 1.0,     # Educated youth pro-environment
@@ -1183,6 +1203,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "intercept": 1.0,
         "is_bottom_income": 2.5, "is_top_income": -2.0,
         "lga_Access Healthcare Pct": -0.05 / 100.0, "is_rural": 1.0, "is_older": 0.5,
+        "lga_Poverty Rate Pct": 0.015,            # Poorer LGAs → demand universal healthcare
+        "lga_GDP Per Capita Est": -0.5 / 90000.0,  # Wealthy LGAs can afford private → less demand
         "is_middle_income": 0.5,      # Middle class also wants accessible healthcare
         "is_female": 0.5,             # Women (maternal health) want universal care
         "is_tiv": 0.5,                # Tiv: underserved area
@@ -1207,6 +1229,9 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_formal_sector": -2.0,
         "is_rural": 2.0, "lga_Access Electricity Pct": -0.05 / 100.0,
         "is_tertiary": 1.0, "is_top_income": -1.0,
+        "lga_Pct Livelihood Extraction": -0.03,  # Extraction-dependent LGAs → resist green transition
+        "lga_Extraction Intensity": -0.3 / 5.0,  # Extraction zones → fossil status quo
+        "lga_GDP Per Capita Est": 0.3 / 90000.0,  # Wealthier LGAs → can afford green transition
         "is_ijaw": -0.5,              # Ijaw: complex — want transition but depend on oil
         "is_nd_minority": -0.5,       # Niger Delta: oil-dependent economies
         "is_tertiary_youth": 1.0,     # Educated youth pro-green
