@@ -885,22 +885,30 @@ def precompute_all_lga_marginals(
     informal = _col("Pct Livelihood Informal", 20.0) / 100.0
     other = np.maximum(0.0, 1.0 - agric - manuf - extract - service - informal)
 
+    # Youth unemployment boosts unemployed/student fraction
+    youth_unemp = np.clip(_col("Youth Unemployment Rate Pct", 46.0) / 100.0, 0.0, 0.8)
+    unemp_boost = np.maximum(0.0, (youth_unemp - 0.46) * 0.15)  # above-avg → more unemployed weight
+
     liv_raw = np.column_stack([
         agric * 0.80,                           # Smallholder
         agric * 0.20,                           # Commercial ag
         informal,                               # Trade/informal
         manuf + extract + service * 0.6,        # Formal private
         service * 0.4,                          # Public sector
-        other + 0.05,                           # Unemployed/student
+        other + 0.05 + unemp_boost,            # Unemployed/student
     ])
     liv_totals = liv_raw.sum(axis=1, keepdims=True)
     liv_frac = liv_raw / np.maximum(liv_totals, 1e-30)
 
-    # ----- Income fractions (N, 3) — LGA-dependent via poverty rate -----
+    # ----- Income fractions (N, 3) — LGA-dependent via poverty rate + Gini -----
     poverty = np.clip(_col("Poverty Rate Pct", 30.0), 0.0, 80.0) / 100.0
+    gini = np.clip(_col("Gini Proxy", 0.36), 0.20, 0.65)
+    # Poverty shifts weight from top to bottom; Gini stretches the extremes
     deviation = poverty - 0.30
-    bottom = np.clip(0.40 + deviation * 0.50, 0.20, 0.65)
-    top = np.clip(0.20 - deviation * 0.30, 0.05, 0.35)
+    gini_effect = (gini - 0.36) / 0.30  # normalised: 0 at avg, +1 at high inequality
+    # High Gini → more bottom AND more top (hollowed-out middle class)
+    bottom = np.clip(0.40 + deviation * 0.50 + gini_effect * 0.08, 0.20, 0.65)
+    top = np.clip(0.20 - deviation * 0.30 + gini_effect * 0.05, 0.05, 0.35)
     middle = np.clip(1.0 - bottom - top, 0.15, 0.55)
     inc_raw = np.column_stack([bottom, middle, top])
     inc_totals = inc_raw.sum(axis=1, keepdims=True)
