@@ -225,6 +225,7 @@ def batch_compute_vote_probs_with_turnout(
     party_sq_norms_uniform: np.ndarray | None = None,
     precomputed_min_dist_sq: np.ndarray | None = None,
     precomputed_demo_adjust: np.ndarray | None = None,
+    _buffers: dict | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     """
     Vectorised vote probabilities and turnout for N voter types at once.
@@ -244,6 +245,10 @@ def batch_compute_vote_probs_with_turnout(
         0 = 18-24, 1 = 25-34, 2 = 35-49, 3 = 50+
     settings : np.ndarray of int, shape (N,)
         0 = Urban, 1 = Peri-urban, 2 = Rural
+    _buffers : dict, optional
+        Pre-allocated buffers for hot-loop reuse. Keys:
+        'exp_NJ' (N_max, J), 'top1' (N_max,), 'row_sum' (N_max,),
+        'sum_exp' (N_max,), 'tmp' (N_max,), 'v_abstain' (N_max,).
 
     Returns
     -------
@@ -256,28 +261,39 @@ def batch_compute_vote_probs_with_turnout(
 
     # --- Alienation: min mean-sq-distance to any party ---
     if precomputed_min_dist_sq is not None:
-        # Salience-weighted alienation already computed during spatial utility
         min_dist_sq = precomputed_min_dist_sq
     else:
-        # Fallback: uniform-weighted alienation via BLAS matmul
         inv_D = 1.0 / D
-        voter_sq_norms = np.einsum("nd,nd->n", voter_ideals, voter_ideals) * inv_D  # (N,)
+        voter_sq_norms = np.einsum("nd,nd->n", voter_ideals, voter_ideals) * inv_D
         if party_sq_norms_uniform is None:
-            party_sq_norms_uniform = np.sum(party_positions ** 2, axis=1) * inv_D  # (J,)
-        cross_terms = (voter_ideals @ party_positions.T) * (2.0 * inv_D)  # (N, J)
-        # Compute min without allocating full (N, J) — loop over J
+            party_sq_norms_uniform = np.sum(party_positions ** 2, axis=1) * inv_D
+        cross_terms = (voter_ideals @ party_positions.T) * (2.0 * inv_D)
         min_dist_sq = voter_sq_norms + party_sq_norms_uniform[0] - cross_terms[:, 0]
         for j_al in range(1, J):
             candidate = voter_sq_norms + party_sq_norms_uniform[j_al] - cross_terms[:, j_al]
             np.minimum(min_dist_sq, candidate, out=min_dist_sq)
-        del cross_terms  # Free (N, J) early
+        del cross_terms
+
+    # --- Use pre-allocated buffers if provided ---
+    if _buffers is not None:
+        exp_parties = _buffers["exp_NJ"][:N]
+        top1 = _buffers["top1"][:N]
+        row_sum = _buffers["row_sum"][:N]
+        sum_exp = _buffers["sum_exp"][:N]
+        _tmp = _buffers["tmp"][:N]
+        v_abstain = _buffers["v_abstain"][:N]
+    else:
+        exp_parties = np.empty((N, J), dtype=np.float32)
+        top1 = np.empty(N, dtype=np.float32)
+        row_sum = np.empty(N, dtype=np.float32)
+        sum_exp = np.empty(N, dtype=np.float32)
+        _tmp = np.empty(N, dtype=np.float32)
+        v_abstain = np.empty(N, dtype=np.float32)
 
     # --- Indifference: gap = top1 - mean(rest) ---
-    # Column-at-a-time max + sum: each column (N,) fits in L1 cache,
-    # merging two axis=1 reductions into a single pass over the (N, J) array.
     if J >= 2:
-        top1 = utilities_matrix[:, 0].copy()  # (N,) float32
-        row_sum = utilities_matrix[:, 0].copy()
+        np.copyto(top1, utilities_matrix[:, 0])
+        np.copyto(row_sum, utilities_matrix[:, 0])
         for j_ind in range(1, J):
             col = utilities_matrix[:, j_ind]
             np.maximum(top1, col, out=top1)
@@ -285,36 +301,36 @@ def batch_compute_vote_probs_with_turnout(
         mean_rest = (row_sum - top1) * np.float32(1.0 / (J - 1))
         gap = np.abs(top1 - mean_rest)
     else:
-        top1 = utilities_matrix[:, 0].copy()
+        np.copyto(top1, utilities_matrix[:, 0])
         gap = np.abs(top1) + _EPSILON
-    gap = np.maximum(gap, _EPSILON)
+    np.maximum(gap, _EPSILON, out=gap)
 
     # --- Base abstention utility ---
-    v_abstain = params.tau_0 + params.tau_1 * min_dist_sq + params.tau_2 / gap  # (N,)
+    # v_abstain = tau_0 + tau_1 * min_dist_sq + tau_2 / gap
+    np.multiply(min_dist_sq, params.tau_1, out=v_abstain)
+    v_abstain += params.tau_0
+    np.divide(np.float32(params.tau_2), gap, out=_tmp)
+    v_abstain += _tmp
 
     # --- Demographic adjustments ---
     if precomputed_demo_adjust is not None:
         v_abstain += precomputed_demo_adjust
     else:
-        v_abstain[educations == 2] -= 1.0  # Tertiary
-        v_abstain[educations == 0] += 0.3  # Below secondary
-        v_abstain[age_cohorts == 3] -= 0.5  # 50+
-        v_abstain[age_cohorts == 0] += 0.2  # 18-24
-        v_abstain[settings == 0] -= 0.2  # Urban
+        v_abstain[educations == 2] -= 1.0
+        v_abstain[educations == 0] += 0.3
+        v_abstain[age_cohorts == 3] -= 0.5
+        v_abstain[age_cohorts == 0] += 0.2
+        v_abstain[settings == 0] -= 0.2
 
     # --- Softmax over [party utilities..., abstention] ---
-    # Reuse top1 from indifference; avoid second max scan over (N, J).
     row_max = np.maximum(top1, v_abstain)
-    row_max *= params.scale
-    rm32 = row_max.astype(np.float32)  # (N,) float32
     scale_f32 = np.float32(params.scale)
+    row_max *= scale_f32
+    # rm32 = row_max (already float32 if inputs are float32)
+    rm32 = row_max
 
-    # Column-at-a-time exp + sum: fuses the scale, shift, exp, and accumulate
-    # into a single pass over (N, J).  Each column (N,) = ~60KB stays in L1;
-    # avoids 3 separate full (N, J) passes of the previous approach.
-    exp_parties = np.empty((N, J), dtype=np.float32)
-    sum_exp = np.zeros(N, dtype=np.float32)
-    _tmp = np.empty(N, dtype=np.float32)  # reusable (N,) scratch
+    # Column-at-a-time exp + sum
+    sum_exp[:] = 0.0
     for j_exp in range(J):
         np.multiply(utilities_matrix[:, j_exp], scale_f32, out=_tmp)
         _tmp -= rm32
@@ -322,20 +338,22 @@ def batch_compute_vote_probs_with_turnout(
         exp_parties[:, j_exp] = _tmp
         sum_exp += _tmp
 
-    exp_abstain_f32 = np.exp(
-        (v_abstain * params.scale - row_max).astype(np.float32)
-    )  # (N,) float32
+    # Abstention exp
+    np.multiply(v_abstain, scale_f32, out=_tmp)
+    _tmp -= rm32
+    np.exp(_tmp, out=_tmp)
+    exp_abstain_f32 = _tmp  # alias
     sum_exp += exp_abstain_f32
-    inv_sum = np.float32(1.0) / sum_exp  # (N,) float32
+    inv_sum = np.float32(1.0) / sum_exp
 
     # Turnout = 1 - P(abstain)
     p_abstain_f32 = exp_abstain_f32 * inv_sum
     turnout_probs = np.clip(np.float32(1.0) - p_abstain_f32,
                             np.float32(0.0), np.float32(1.0))
 
-    # Conditional vote probabilities (column-at-a-time, stay float32)
+    # Conditional vote probabilities
     safe_total = np.maximum(turnout_probs, np.float32(1e-30))
-    scale_factor = inv_sum / safe_total  # (N,) float32
+    scale_factor = inv_sum / safe_total
     for j_cond in range(J):
         exp_parties[:, j_cond] *= scale_factor
 

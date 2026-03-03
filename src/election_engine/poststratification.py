@@ -418,15 +418,25 @@ def compute_all_lga_results(
     _beta_s = np.float32(params.beta_s)
     _q_half = np.float32(params.q / 2.0)
 
-    # Pre-allocate reusable buffers for per-LGA spatial/alienation computation.
+    # Pre-allocate reusable buffers for per-LGA spatial/alienation/turnout.
     # Sized for the maximum possible active types; sliced to n_active per LGA.
-    # This avoids per-LGA numpy memory allocation which adds ~0.5ms/LGA.
+    # This avoids per-LGA numpy memory allocation which adds ~1ms/LGA.
     N_types = len(voter_types)
     _wx_buf = np.empty((N_types, D), dtype=np.float32)
     _dot_buf = np.empty((N_types, J), dtype=np.float32)
     _voter_wsq_buf = np.empty(N_types, dtype=np.float32)
     _min_dist_buf = np.empty(N_types, dtype=np.float32)
     _candidate_buf = np.empty(N_types, dtype=np.float32)
+
+    # Turnout buffers (reused across all LGA iterations)
+    _turnout_bufs = {
+        "exp_NJ": np.empty((N_types, J), dtype=np.float32),
+        "top1": np.empty(N_types, dtype=np.float32),
+        "row_sum": np.empty(N_types, dtype=np.float32),
+        "sum_exp": np.empty(N_types, dtype=np.float32),
+        "tmp": np.empty(N_types, dtype=np.float32),
+        "v_abstain": np.empty(N_types, dtype=np.float32),
+    }
 
     # Pre-compute transposed party positions for fast matmul
     pp_T = np.ascontiguousarray(party_positions_f32.T)  # (D, J) contiguous
@@ -490,7 +500,7 @@ def compute_all_lga_results(
         # Step 6: Total utility = spatial + fixed (ethnic+religious+valence)
         u_spatial += fixed_type_utility[active_idx]
 
-        # Step 7: Turnout
+        # Step 7: Turnout (with pre-allocated buffers)
         active_vote_probs, active_turnout = batch_compute_vote_probs_with_turnout(
             utilities_matrix=u_spatial,
             voter_ideals=active_ideals,
@@ -502,6 +512,7 @@ def compute_all_lga_results(
             party_sq_norms_uniform=party_sq_norms_uniform,
             precomputed_min_dist_sq=min_dist_sq,
             precomputed_demo_adjust=turnout_demo_adjust[active_idx],
+            _buffers=_turnout_bufs,
         )
 
         # Step 8: Aggregate
