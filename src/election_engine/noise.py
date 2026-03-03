@@ -237,6 +237,60 @@ def apply_noise_to_results(
     return result
 
 
+def compute_lga_kappa_multipliers(
+    lga_data,
+) -> np.ndarray:
+    """
+    Compute per-LGA Dirichlet concentration multipliers for heteroscedastic noise.
+
+    LGAs with better infrastructure, higher urbanisation, and no conflict get
+    higher kappa (less noise = more predictable). Conflict zones, rural areas,
+    and low-infrastructure LGAs get lower kappa (more noise = harder to predict).
+
+    Returns
+    -------
+    np.ndarray, shape (N_lga,)
+        Multiplier for each LGA. Base kappa is multiplied by this.
+        Range roughly [0.5, 2.0], centred near 1.0.
+    """
+    import pandas as pd
+    N = len(lga_data)
+    multiplier = np.ones(N, dtype=float)
+
+    def _safe_col(col_name, default=0.0):
+        if col_name in lga_data.columns:
+            return pd.to_numeric(lga_data[col_name], errors="coerce").fillna(default).values.astype(float)
+        return np.full(N, default)
+
+    # Urban areas: better polling infrastructure → more predictable
+    urban_pct = _safe_col("Urban Pct", 50.0) / 100.0
+    multiplier += 0.3 * (urban_pct - 0.5)  # +0.15 for fully urban, -0.15 for fully rural
+
+    # Infrastructure quality: electricity + road quality → more predictable
+    elec = _safe_col("Access Electricity Pct", 50.0) / 100.0
+    road = _safe_col("Road Quality Index", 3.0) / 5.0
+    multiplier += 0.15 * (elec - 0.5) + 0.1 * (road - 0.5)
+
+    # Conflict: more chaos → less predictable
+    conflict = _safe_col("Conflict History", 0.0) / 5.0
+    multiplier -= 0.25 * conflict
+
+    # Federal control: military presence → irregular conditions
+    fed_control = _safe_col("Federal Control 2058", 0.0)
+    multiplier -= 0.15 * fed_control
+
+    # Population: larger populations → CLT → more predictable
+    pop = _safe_col("Estimated Population", 200000.0)
+    log_pop = np.log(np.maximum(pop, 1000.0))
+    log_pop_norm = (log_pop - log_pop.mean()) / max(log_pop.std(), 1e-6)
+    multiplier += 0.1 * log_pop_norm
+
+    # Clamp to [0.4, 2.5] range
+    np.clip(multiplier, 0.4, 2.5, out=multiplier)
+
+    return multiplier
+
+
 def apply_noise_arrays(
     base_shares: np.ndarray,
     base_turnout: np.ndarray,
@@ -244,6 +298,7 @@ def apply_noise_arrays(
     admin_zones: list[int],
     params: EngineParams,
     rng: np.random.Generator,
+    kappa_multipliers: np.ndarray | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     """
     Fast numpy-only noise application (no DataFrame overhead).
@@ -260,6 +315,9 @@ def apply_noise_arrays(
         Sorted unique zone IDs.
     params : EngineParams
     rng : np.random.Generator
+    kappa_multipliers : np.ndarray, shape (N_lga,), optional
+        Per-LGA multipliers for the Dirichlet concentration parameter.
+        If None, uniform kappa is used everywhere.
 
     Returns
     -------
@@ -290,7 +348,12 @@ def apply_noise_arrays(
     shifted = shocked_log - shocked_log.max(axis=1, keepdims=True)
     exp_vals = np.exp(shifted)
     shocked_shares = exp_vals / exp_vals.sum(axis=1, keepdims=True)
-    alphas = np.maximum(params.kappa * shocked_shares, 1e-6)
+    # Per-LGA kappa: base kappa × LGA-specific multiplier
+    if kappa_multipliers is not None:
+        kappa_per_lga = params.kappa * kappa_multipliers  # (N_lga,)
+        alphas = np.maximum(kappa_per_lga[:, np.newaxis] * shocked_shares, 1e-6)
+    else:
+        alphas = np.maximum(params.kappa * shocked_shares, 1e-6)
 
     # Batch Dirichlet draws via gamma: Dirichlet(alpha) = normalise(Gamma(alpha_j, 1))
     gamma_draws = rng.standard_gamma(alphas)  # (N_lga, J)

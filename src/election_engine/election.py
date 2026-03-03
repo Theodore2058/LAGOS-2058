@@ -28,7 +28,7 @@ from .ethnic_affinity import EthnicAffinityMatrix
 from .religious_affinity import ReligiousAffinityMatrix
 from .salience import compute_all_lga_salience, SalienceRule
 from .poststratification import compute_all_lga_results
-from .noise import apply_noise_arrays
+from .noise import apply_noise_arrays, compute_lga_kappa_multipliers
 from .results import (
     check_presidential_spread,
     aggregate_monte_carlo_from_arrays,
@@ -141,6 +141,9 @@ def run_election(
            if pop_col_name in lga_results_base.columns
            else np.ones(n_lgas))
 
+    # Compute per-LGA kappa multipliers for heteroscedastic noise
+    kappa_mults = compute_lga_kappa_multipliers(df)
+
     # Pre-allocate 3D share array and 2D turnout array
     all_mc_shares = np.empty((n_mc, n_lgas, J))
     all_mc_turnout = np.empty((n_mc, n_lgas))
@@ -153,6 +156,7 @@ def run_election(
             admin_zones=admin_zones,
             params=election_config.params,
             rng=rng,
+            kappa_multipliers=kappa_mults,
         )
         all_mc_shares[run_idx] = noisy_shares
         all_mc_turnout[run_idx] = noisy_turnout
