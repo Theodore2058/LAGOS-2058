@@ -637,5 +637,32 @@ def test_extreme_positions():
     assert base["Turnout"].between(0.0, 1.0).all()
 
 
+def test_mc_zero_no_crash():
+    """MC=0 should not crash — returns stub MC results."""
+    from election_engine.config import EngineParams, ElectionConfig, Party, N_ISSUES
+    from election_engine.election import run_election
+    import tempfile, os
+
+    p1 = Party(name="A", positions=np.zeros(N_ISSUES), valence=1.0,
+               leader_ethnicity="Yoruba", religious_alignment="Pentecostal")
+    p2 = Party(name="B", positions=np.ones(N_ISSUES) * 2.0, valence=0.0,
+               leader_ethnicity="Igbo", religious_alignment="Catholic")
+    params = EngineParams(tau_0=1.5, tau_1=0.3, tau_2=0.5, kappa=200.0,
+                          sigma_national=0.05, sigma_regional=0.10)
+    config = ElectionConfig(params=params, parties=[p1, p2], n_monte_carlo=0)
+
+    data_path = os.path.join(os.path.dirname(__file__), "..", "data",
+                             "nigeria_lga_polsim_2058.xlsx")
+    if not os.path.exists(data_path):
+        pytest.skip("Data file not available")
+
+    results = run_election(data_path, config, seed=42, verbose=False)
+    mc = results["mc_aggregated"]
+    assert mc["n_runs"] == 0
+    assert len(mc["swing_lgas"]) == 0
+    assert len(mc["seat_stats"]) == 2
+    assert mc["win_probabilities"]["A"] == 0.0
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

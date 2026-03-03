@@ -539,6 +539,42 @@ def aggregate_monte_carlo(
     }
 
 
+def _empty_mc_result(party_names: list[str], base_run_df: pd.DataFrame) -> dict:
+    """Return stub MC result when n_runs == 0 (no Monte Carlo)."""
+    J = len(party_names)
+    zeros = [0.0] * J
+    seat_rows = [{"Party": p, "Mean Seats": 0.0, "Std Seats": 0.0,
+                  "P5 Seats": 0.0, "P95 Seats": 0.0, "Median Seats": 0.0}
+                 for p in party_names]
+    share_rows = [{"Party": p, "Mean Share": 0.0, "Std Share": 0.0,
+                   "P5 Share": 0.0, "P95 Share": 0.0, "Median Share": 0.0}
+                  for p in party_names]
+    vote_rows = [{"Party": p, "Mean Votes": 0.0, "Std Votes": 0.0,
+                  "P5 Votes": 0.0, "P95 Votes": 0.0, "Median Votes": 0.0}
+                 for p in party_names]
+    share_stats_df = base_run_df[["State", "LGA Name"]].copy()
+    for p in party_names:
+        col = f"{p}_share"
+        share_stats_df[f"{col}_mean"] = 0.0
+        share_stats_df[f"{col}_std"] = 0.0
+    share_stats_df["Volatility"] = 0.0
+    return {
+        "seat_stats": pd.DataFrame(seat_rows),
+        "national_share_stats": pd.DataFrame(share_rows),
+        "national_vote_stats": pd.DataFrame(vote_rows),
+        "total_vote_stats": {"mean": 0.0, "std": 0.0, "p5": 0.0, "p95": 0.0},
+        "share_stats": share_stats_df,
+        "win_probabilities": {p: 0.0 for p in party_names},
+        "swing_lgas": base_run_df.iloc[0:0].copy(),
+        "enp_stats": {"mean": 0.0, "std": 0.0, "p5": 0.0, "p95": 0.0},
+        "margin_stats": {"mean": 0.0, "std": 0.0, "p5": 0.0, "p95": 0.0},
+        "zonal_vote_stats": pd.DataFrame(),
+        "mc_spread": pd.DataFrame(),
+        "state_mc_stats": pd.DataFrame(),
+        "n_runs": 0,
+    }
+
+
 def aggregate_monte_carlo_from_arrays(
     all_shares: np.ndarray,
     all_turnout: np.ndarray,
@@ -566,6 +602,10 @@ def aggregate_monte_carlo_from_arrays(
     dict — same structure as aggregate_monte_carlo.
     """
     n_runs, lga_count, J = all_shares.shape
+
+    # Handle MC=0: return stub results with no uncertainty data
+    if n_runs == 0:
+        return _empty_mc_result(party_names, base_run_df)
 
     # Winner per LGA per run
     winner_indices = np.argmax(all_shares, axis=2)
