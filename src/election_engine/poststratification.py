@@ -308,7 +308,9 @@ def compute_all_lga_results(
     J = len(parties)
 
     # Precompute voter-type-invariant quantities (done once, shared across all LGAs)
+    # Float32 for large arrays used in BLAS matmul (4x faster than float64).
     voter_ideal_base = build_voter_ideal_base(voter_types, ideal_point_coeff_table)
+    voter_ideal_base = voter_ideal_base.astype(np.float32)
     compat_factors = precompute_compat_factors(voter_types)
     type_indices = _build_type_indices()
 
@@ -322,6 +324,7 @@ def compute_all_lga_results(
 
     # Precompute party arrays (avoid recreating per LGA)
     party_positions = np.array([p.positions for p in parties])  # (J, 28)
+    party_positions_f32 = party_positions.astype(np.float32)
     valences = np.array([p.valence for p in parties])  # (J,)
     D = party_positions.shape[1]
     party_sq_norms_uniform = np.sum(party_positions ** 2, axis=1) / D  # (J,)
@@ -351,9 +354,11 @@ def compute_all_lga_results(
         salience_matrix = compute_all_lga_salience(
             lga_data, rules=salience_rules, national_median_gdp=national_median_gdp
         )
+    salience_matrix = salience_matrix.astype(np.float32)
 
-    # Precompute all LGA ideal offsets (vectorised over LGAs)
+    # Precompute all LGA ideal offsets (vectorised over LGAs) — float32 for fast ops
     all_lga_offsets = compute_all_lga_ideal_offsets(lga_data, ideal_point_coeff_table)
+    all_lga_offsets = all_lga_offsets.astype(np.float32)
 
     # Precompute all LGA demographic marginals (eliminates per-LGA pd.Series.get())
     all_marginals = precompute_all_lga_marginals(lga_data)

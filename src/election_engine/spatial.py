@@ -112,23 +112,30 @@ def batch_spatial_utility(
     np.ndarray, shape (N, J)
         Spatial utility for each (voter, party) pair.
     """
-    voter_ideals = np.asarray(voter_ideals, dtype=float)      # (N, D)
-    party_positions = np.asarray(party_positions, dtype=float)  # (J, D)
+    voter_ideals = np.asarray(voter_ideals)                    # (N, D)
+    party_positions = np.asarray(party_positions)               # (J, D)
 
     if salience_weights is None:
-        w = np.ones(voter_ideals.shape[1], dtype=float)
+        w = np.ones(voter_ideals.shape[1], dtype=np.float32)
     else:
-        w = np.asarray(salience_weights, dtype=float)          # (D,)
+        w = np.asarray(salience_weights)                        # (D,)
+
+    # Float32 BLAS: matmul is ~4x faster in float32. When input is already
+    # float32 (preconverted by caller), astype is a no-op (copy=False).
+    w_f32 = w.astype(np.float32, copy=False)
+    vi_f32 = voter_ideals.astype(np.float32, copy=False)
+    pp_f32 = party_positions.astype(np.float32, copy=False)
 
     # Weighted dot products: (N, D) · diag(w) · (D, J) → (N, J)
-    wx = voter_ideals * w                                       # (N, D)
-    dot_products = wx @ party_positions.T                       # (N, J)
+    wx = vi_f32 * w_f32                                         # (N, D) float32
+    dot_products = wx @ pp_f32.T                                # (N, J) float32
 
-    # Weighted squared norms: (J,)
-    sq_norms = (party_positions ** 2) @ w                      # (J,)
+    # Weighted squared norms: (J,) — compute in float32 if inputs are float32
+    sq_norms = (pp_f32 ** 2) @ w_f32                           # (J,) float32
 
-    # Broadcast: (N, J) and (J,)
-    utilities = beta_s * (dot_products - (q / 2.0) * sq_norms)
+    # Broadcast: promote to float64 via beta_s multiply for output precision
+    utilities = np.float64(beta_s) * (dot_products.astype(np.float64)
+                                       - np.float64(q / 2.0) * sq_norms.astype(np.float64))
 
     if _intermediates is not None:
         _intermediates["dot_products"] = dot_products
