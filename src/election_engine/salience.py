@@ -474,6 +474,106 @@ def _energy_crisis_conditional(lga_row: pd.Series) -> float:
     return extra
 
 
+def _fiscal_autonomy_conditional(lga_row: pd.Series) -> float:
+    """Fiscal autonomy becomes hyper-salient where resource extraction
+    co-exists with high poverty — the 'resource curse' paradox."""
+    extraction = _safe_float(lga_row.get("Extraction Intensity", 0), 0)
+    poverty = _safe_float(lga_row.get("Poverty Rate Pct", 30), 30)
+    oil = _safe_float(lga_row.get("Oil Producing", 0), 0)
+    gini = _safe_float(lga_row.get("Gini Proxy", 0.4), 0.4)
+    extra = 0.0
+    # Resource-rich but poor = rage at federal revenue distribution
+    if oil > 0 and poverty > 40:
+        extra += 0.3 * min(poverty, 80) / 80.0
+    if extraction > 2 and gini > 0.45:
+        extra += 0.2 * min(extraction, 5) / 5.0
+    return extra
+
+
+def _ethnic_quota_conditional(lga_row: pd.Series) -> float:
+    """Ethnic quotas become hyper-salient in highly fragmented areas
+    with high youth unemployment — competition for limited slots."""
+    frag = ethnic_fragmentation(lga_row)
+    youth_unemp = _safe_float(lga_row.get("Youth Unemployment Rate Pct", 46), 46)
+    unemp = _safe_float(lga_row.get("Unemployment Rate Pct", 33), 33)
+    extra = 0.0
+    # High diversity + high unemployment = quota politics inflamed
+    if frag > 0.7 and youth_unemp > 50:
+        extra += 0.25 * frag
+    if unemp > 40 and frag > 0.6:
+        extra += 0.2 * min(unemp, 70) / 70.0
+    return extra
+
+
+def _fertility_policy_conditional(lga_row: pd.Series) -> float:
+    """Fertility policy becomes charged where high fertility meets
+    resource scarcity — overpopulation feels real, not abstract."""
+    fertility = _safe_float(lga_row.get("Fertility Rate Est", 5), 5)
+    poverty = _safe_float(lga_row.get("Poverty Rate Pct", 30), 30)
+    osc = _safe_float(lga_row.get("Out of School Children Pct", 20), 20)
+    extra = 0.0
+    # High fertility + high poverty = population pressure politicized
+    if fertility > 5.5 and poverty > 50:
+        extra += 0.3 * min(fertility, 8) / 8.0
+    # Very high OSC + high fertility = education system overwhelmed
+    if osc > 40 and fertility > 5:
+        extra += 0.2 * min(osc, 80) / 80.0
+    return extra
+
+
+def _language_policy_conditional(lga_row: pd.Series) -> float:
+    """Language policy becomes urgent where multiple prestige languages
+    compete — Arabic/English/Mandarin interface zones."""
+    arabic = _safe_float(lga_row.get("Arabic Prestige", 0), 0)
+    english = _safe_float(lga_row.get("English Prestige", 5), 5)
+    mandarin = _safe_float(lga_row.get("Mandarin Presence", 0), 0)
+    almajiri = _safe_float(lga_row.get("Almajiri Index", 0), 0)
+    extra = 0.0
+    # Arabic-English interface = language politics inflamed
+    if arabic > 3 and english > 3:
+        extra += 0.25 * min(arabic, 8) / 8.0
+    # Mandarin presence + Arabic = trilingual tension
+    if mandarin > 2 and arabic > 2:
+        extra += 0.2 * min(mandarin, 8) / 8.0
+    # High almajiri = Arabic vs secular education language debate
+    if almajiri > 3:
+        extra += 0.15 * min(almajiri, 5) / 5.0
+    return extra
+
+
+def _womens_rights_conditional(lga_row: pd.Series) -> float:
+    """Women's rights become hyper-salient where gender parity gap
+    is large AND modernizing forces are present — culture clash."""
+    gpi = _safe_float(lga_row.get("Gender Parity Index", 0.8), 0.8)
+    internet = _safe_float(lga_row.get("Internet Access Pct", 30), 30)
+    fem_lit = _safe_float(lga_row.get("Female Literacy Rate Pct", 50), 50)
+    pent_growth = _safe_float(lga_row.get("Pentecostal Growth", 0), 0)
+    extra = 0.0
+    # Low gender parity + internet = feminist vs conservative clash online
+    if gpi < 0.6 and internet > 20:
+        extra += 0.3 * (1.0 - gpi)
+    # Low female literacy + Pentecostal growth = gender norms contested
+    if fem_lit < 40 and pent_growth > 1:
+        extra += 0.2 * (1.0 - fem_lit / 100.0)
+    return extra
+
+
+def _trade_policy_conditional(lga_row: pd.Series) -> float:
+    """Trade policy becomes urgent where manufacturing meets Chinese
+    competition — industrial areas facing import displacement."""
+    manuf = _safe_float(lga_row.get("Pct Livelihood Manufacturing", 15), 15)
+    chinese = _safe_float(lga_row.get("Chinese Economic Presence", 0), 0)
+    informal = _safe_float(lga_row.get("Pct Livelihood Informal", 30), 30)
+    extra = 0.0
+    # Manufacturing + Chinese competition = trade anxiety
+    if manuf > 15 and chinese > 3:
+        extra += 0.25 * min(chinese, 8) / 8.0
+    # Large informal economy + Chinese imports = market disruption anger
+    if informal > 40 and chinese > 2:
+        extra += 0.2 * min(informal, 70) / 70.0
+    return extra
+
+
 DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
     # 1. Sharia Jurisdiction
     SalienceRule(
@@ -508,6 +608,7 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "is_colonial_eastern": 0.3,          # Eastern Region: strong autonomy/self-determination tradition
             "is_colonial_midwestern": 0.4,       # Mid-Western: extraction revenue → fiscal autonomy salient
         },
+        conditional=_fiscal_autonomy_conditional,
     ),
     # 3. Chinese Relations
     SalienceRule(
@@ -551,6 +652,7 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "% Nupe": 0.2 / 100.0,              # Nupe: minority quota concerns
             "% Ibibio": 0.2 / 100.0,            # Ibibio: quota representation demands
         },
+        conditional=_ethnic_quota_conditional,
     ),
     # 6. Fertility Policy
     SalienceRule(
@@ -566,6 +668,7 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Out of School Children Pct": 0.3 / 100.0,  # High OSC → population pressure is felt
             "Gender Parity Index": -0.5,              # Gender parity gap → fertility norms politically contested
         },
+        conditional=_fertility_policy_conditional,
     ),
     # 7. Constitutional Structure
     SalienceRule(
@@ -698,6 +801,7 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Almajiri Index": 0.3 / 5.0,          # Arabic vs English in education
             "% Muslim": 0.15 / 100.0,             # Muslim areas: Arabic vs English debate
         },
+        conditional=_language_policy_conditional,
     ),
     # 15. Women's Rights
     SalienceRule(
@@ -716,6 +820,7 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Internet Access Pct": 0.3 / 100.0,   # Internet: women's rights campaigns amplified online
             "Mobile Phone Penetration Pct": 0.2 / 100.0,  # Phone access: gender violence reporting, activism
         },
+        conditional=_womens_rights_conditional,
     ),
     # 16. Traditional Authority
     SalienceRule(
@@ -829,6 +934,7 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "is_colonial_western": 0.3,              # Western Region: Yoruba commercial tradition → trade politics
             "is_colonial_eastern": 0.2,              # Eastern Region: Igbo entrepreneurial culture → trade matters
         },
+        conditional=_trade_policy_conditional,
     ),
     # 23. Environmental Regulation
     SalienceRule(
