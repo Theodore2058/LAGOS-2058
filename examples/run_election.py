@@ -51,7 +51,7 @@ from election_engine.election import run_election
 from election_engine.results import (
     compute_vote_counts, compute_state_vote_counts,
     compute_competitiveness, compute_vote_source_decomposition,
-    compute_coalition_feasibility,
+    compute_coalition_feasibility, compute_demographic_vote_profile,
 )
 
 logging.basicConfig(
@@ -962,6 +962,38 @@ def main():
             pct = decomp[p].loc[decomp[p]["Zone"] == zone, "Pct_of_Party_Total"].values[0]
             line += f"  {pct:6.1%}"
         print(line)
+
+    # --- Demographic vote profiles (ecological estimate) ---
+    ethnic_cols = {
+        "Hausa": "% Hausa", "Fulani": "% Fulani",
+        "Hausa-Fulani Undiff": "% Hausa Fulani Undiff",
+        "Yoruba": "% Yoruba", "Igbo": "% Igbo", "Ijaw": "% Ijaw",
+        "Kanuri": "% Kanuri", "Tiv": "% Tiv", "Edo": "% Edo Bini",
+        "Ibibio": "% Ibibio", "Pada": "% Pada", "Naijin": "% Naijin",
+    }
+    lga_df = results["data"].df
+    eth_profile = compute_demographic_vote_profile(
+        results["lga_results_base"], lga_df, party_names, ethnic_cols)
+    if len(eth_profile) > 0:
+        print("\nETHNIC VOTE PROFILE (ecological estimate, top 5 parties per group):")
+        for _, row in eth_profile.iterrows():
+            shares = {p: row[f"{p}_share"] for p in party_names}
+            top5 = sorted(shares.items(), key=lambda x: -x[1])[:5]
+            top_str = "  ".join(f"{p}:{s:.0%}" for p, s in top5)
+            pop_m = row["Population_Weight"] / 1e6
+            print(f"  {row['Group']:22s} ({pop_m:5.1f}M)  {top_str}")
+
+    # Urban/rural profile
+    setting_cols = {"Urban": "Urban Pct"}
+    setting_profile = compute_demographic_vote_profile(
+        results["lga_results_base"], lga_df, party_names, setting_cols)
+    if len(setting_profile) > 0:
+        print("\nURBAN VOTE PROFILE (ecological estimate):")
+        for _, row in setting_profile.iterrows():
+            shares = {p: row[f"{p}_share"] for p in party_names}
+            top5 = sorted(shares.items(), key=lambda x: -x[1])[:5]
+            top_str = "  ".join(f"{p}:{s:.0%}" for p, s in top5)
+            print(f"  {row['Group']:22s}  {top_str}")
 
     # --- Competitiveness ---
     comp = compute_competitiveness(results["lga_results_base"], party_names)

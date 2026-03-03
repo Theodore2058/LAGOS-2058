@@ -937,6 +937,67 @@ def compute_vote_source_decomposition(
     return result
 
 
+def compute_demographic_vote_profile(
+    lga_results: pd.DataFrame,
+    lga_data: pd.DataFrame,
+    party_names: list[str],
+    demographic_cols: dict[str, str],
+    pop_col: str = "Estimated Population",
+    turnout_col: str = "Turnout",
+) -> pd.DataFrame:
+    """
+    Estimate vote shares by demographic group using ecological correlation.
+
+    For each demographic group g with LGA-level population fraction f_gc,
+    computes the weighted average vote share:
+
+        vote_profile[g, j] = Σ_c pop_c × f_gc × share_cj / Σ_c pop_c × f_gc
+
+    This is an ecological estimate — it shows the correlation between group
+    presence and party performance, not exact individual-level behavior.
+
+    Parameters
+    ----------
+    lga_results : pd.DataFrame
+        LGA results with {party}_share columns.
+    lga_data : pd.DataFrame
+        Raw LGA data with demographic fraction columns.
+    party_names : list[str]
+    demographic_cols : dict[group_name, column_name]
+        Maps group labels to LGA data column names containing the
+        population fraction (0-1 scale or 0-100 pct scale).
+
+    Returns
+    -------
+    pd.DataFrame
+        Columns: Group, {party}_share for each party, Population_Weight
+    """
+    pop = lga_results[pop_col].values.astype(float) if pop_col in lga_results.columns else np.ones(len(lga_results))
+    turnout = lga_results[turnout_col].values.astype(float) if turnout_col in lga_results.columns else np.ones(len(lga_results))
+    total_voters = pop * turnout
+
+    rows = []
+    for group_name, col_name in demographic_cols.items():
+        if col_name not in lga_data.columns:
+            continue
+        frac = lga_data[col_name].values.astype(float)
+        # Auto-detect percentage vs fraction scale
+        if frac.max() > 1.5:
+            frac = frac / 100.0
+        group_weight = total_voters * frac  # effective group voter count per LGA
+        total_gw = group_weight.sum()
+        if total_gw < 1.0:
+            continue
+
+        row = {"Group": group_name, "Population_Weight": total_gw}
+        for p in party_names:
+            shares = lga_results[f"{p}_share"].values.astype(float)
+            row[f"{p}_share"] = float(np.dot(group_weight, shares) / total_gw)
+        rows.append(row)
+
+    return pd.DataFrame(rows)
+
+
 def compute_coalition_feasibility(
     lga_results: pd.DataFrame,
     party_names: list[str],
