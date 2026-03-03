@@ -501,6 +501,24 @@ def compute_all_lga_results(
     _extract_int = _lga_col("Extraction Intensity", 0.0)
     _lga_turnout_mod -= 0.1 * np.clip(_extract_int / 5.0, 0.0, 1.0)  # extraction mobilises
 
+    # Al-Shahid Influence: dual effect — intimidation suppresses turnout
+    # but also mobilises supporters. Net effect: mild suppression.
+    _al_shahid_t = _lga_col("Al-Shahid Influence", 0.0)
+    _lga_turnout_mod += 0.15 * np.clip(_al_shahid_t / 5.0, 0.0, 1.0)  # insecurity → abstention
+
+    # Almajiri Index: high almajiri presence → disengaged male youth
+    _almajiri = _lga_col("Almajiri Index", 0.0)
+    _lga_turnout_mod += 0.15 * np.clip(_almajiri / 5.0, 0.0, 1.0)  # youth disengagement
+
+    # Traditional Authority Index: strong traditional authority → mobilisation
+    # through patron-client networks (chiefs direct voting)
+    _trad_auth = _lga_col("Trad Authority Index", 0.0)
+    _lga_turnout_mod -= 0.15 * np.clip(_trad_auth / 5.0, 0.0, 1.0)  # chiefs mobilise turnout
+
+    # Internet access: informed citizens more likely to vote
+    _internet = _lga_col("Internet Access Pct", 60.0)
+    _lga_turnout_mod -= 0.1 * np.clip(_internet / 100.0, 0.0, 1.0)
+
     lga_turnout_modifier = _lga_turnout_mod.astype(np.float32)
 
     # ---- Identity context modifiers ----
