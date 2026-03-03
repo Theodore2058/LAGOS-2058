@@ -311,7 +311,7 @@ def compute_all_lga_results(
     # Float32 for large arrays used in BLAS matmul (4x faster than float64).
     voter_ideal_base = build_voter_ideal_base(voter_types, ideal_point_coeff_table)
     voter_ideal_base = voter_ideal_base.astype(np.float32)
-    compat_factors = precompute_compat_factors(voter_types)
+    compat_factors = precompute_compat_factors(voter_types).astype(np.float32)
     type_indices = _build_type_indices()
 
     # Precompute ethnic/religious utility lookup tables (avoids dict lookups per voter)

@@ -208,7 +208,7 @@ def test_weights_compat_precompute_matches_reference():
     w_precomputed = compute_type_weights(lga, voter_types, precomputed_compat=compat)
     w_reference   = compute_type_weights(lga, voter_types, precomputed_compat=None)
 
-    np.testing.assert_allclose(w_precomputed, w_reference, atol=1e-12,
+    np.testing.assert_allclose(w_precomputed, w_reference, atol=1e-6, rtol=1e-5,
         err_msg="Precomputed compat path must match the reference loop path")
 
 
