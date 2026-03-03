@@ -693,14 +693,13 @@ PARTIES = [
         name="NDC",
         positions=NDC_POSITIONS,
         valence=0.1,  # deep organizational roots across the north
-        incumbency_bonus=0.8,  # ruling party: state machinery, patronage networks
         leader_ethnicity="Hausa-Fulani Undiff",
         religious_alignment="Mainstream Sunni",
         demographic_coefficients={
             "livelihood": {"Smallholder": 0.3, "Public sector": 0.2},
         },
         regional_strongholds={
-            6: +0.8,   # Central: Kano is HF stronghold + FCT incumbency
+            6: +0.8,   # Central: Kano is HF stronghold
             7: +0.5,   # Chad: northern establishment networks
             8: +1.0,   # Savanna: Arewa core — deepest party machinery
             2: +0.3,   # Niger Zone: northern extension (Niger, Kwara)

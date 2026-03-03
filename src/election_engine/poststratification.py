@@ -359,9 +359,8 @@ def compute_all_lga_results(
         all_rel_indices=all_rel_indices,
         demo_table=demo_table,
     ).astype(np.float32)
-    # Pre-bake valence + incumbency bonus (broadcasts (J,) over rows)
-    incumbency = np.array([p.incumbency_bonus for p in parties], dtype=np.float32)
-    fixed_type_utility += valences + incumbency
+    # Pre-bake valence (broadcasts (J,) over rows)
+    fixed_type_utility += valences
 
     # Precompute turnout demographic adjustment per voter type (replaces
     # 5 boolean-mask operations per LGA with a single fancy-index + add).
@@ -516,7 +515,7 @@ def compute_all_lga_results(
         dot_products -= _q_half * sq_norms
         dot_products *= _beta_s
 
-        # Step 6: Total utility = spatial + fixed (ethnic+religious+valence+incumbency)
+        # Step 6: Total utility = spatial + fixed (ethnic+religious+valence)
         dot_products += fixed_type_utility[active_idx]
         # Add regional stronghold bonus (per-AZ, per-party)
         if regional_bonus_matrix is not None:

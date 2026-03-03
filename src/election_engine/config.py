@@ -140,11 +140,6 @@ class Party:
         Key into religious affinity matrix.
     demographic_coefficients : dict, optional
         Maps demographic attribute → {value: coeff} for targeted appeal.
-    incumbency_bonus : float
-        Additive utility bonus for the incumbent party. Captures name
-        recognition, organizational advantage, and access to state
-        resources. Typical range: 0.0 (opposition) to 1.5 (strong
-        incumbent). Added to valence in utility computation.
     regional_strongholds : dict, optional
         Maps Administrative Zone number (1-8) → additive utility bonus.
         Captures historical territorial bases of support, ground-level
@@ -159,7 +154,6 @@ class Party:
     leader_ethnicity: str = ""         # Key into ethnic affinity matrix
     religious_alignment: str = ""      # Key into religious affinity matrix
     demographic_coefficients: Optional[dict] = None  # γ_mj terms for demographic utility
-    incumbency_bonus: float = 0.0      # Additive utility bonus for incumbent party
     regional_strongholds: Optional[dict] = None  # AZ number → utility bonus
 
     def __post_init__(self) -> None:
