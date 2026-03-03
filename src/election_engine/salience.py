@@ -398,6 +398,8 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "youth_unemployment_ratio": 0.4,      # Youth-specific job crisis
             "Chinese Economic Presence": 0.3 / 10.0,  # Chinese automation presence
             "Median Age Estimate": -0.015,         # Younger workforce → more automation anxiety
+            "Cobalt Extraction Active": 0.3,       # Cobalt mining: automation disruption in extraction
+            "Poverty Rate Pct": 0.2 / 100.0,      # Poverty → more anxious about job displacement
         },
     ),
     # 12. Military Role
@@ -553,6 +555,8 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Pct Livelihood Services": 0.3 / 100.0,  # Service economy cares about trade openness
             "% Igbo": 0.2 / 100.0,                 # Igbo: entrepreneurial/trade culture
             "% Yoruba": 0.15 / 100.0,              # Yoruba: commercial tradition
+            "Cobalt Extraction Active": 0.5,        # Cobalt: global battery supply chain trade
+            "Refinery Present": 0.3,                # Refinery: export-oriented economy
         },
     ),
     # 23. Environmental Regulation
@@ -595,6 +599,7 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "population_pressure": 0.3,               # Dense + poor-infra → health crisis
             "conflict_severity": 0.2 / 5.0,          # Conflict zones: health infrastructure destroyed
             "Median Age Estimate": 0.01,              # Older population → healthcare more salient
+            "Out of School Children Pct": 0.3 / 100.0,  # High OSC → systemic deprivation → health salient
         },
     ),
     # 26. Padà Status

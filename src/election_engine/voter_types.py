@@ -974,6 +974,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_youth_unemployed": -1.0,  # Jobless youth blame Chinese competition
         "is_informal": -0.5,          # Informal traders hurt by Chinese imports
         "is_nupe": 0.5,               # Nupe traders pragmatically pro-trade
+        "is_ibibio": 0.5,             # Ibibio: coastal, trade-oriented
+        "is_edo": -0.5,               # Edo: wary of foreign economic domination
         "lga_Unemployment Rate Pct": -0.02,  # High unemployment → anti-WAFTA sentiment
         "lga_Planned City": 1.5,      # Chinese-built planned cities: residents pro-WAFTA
         "lga_Rail Corridor": 0.3,     # Rail corridor (Chinese-built): pro-WAFTA infrastructure
@@ -1399,6 +1401,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_Extraction Intensity": -0.2 / 5.0,  # Extraction areas want own AZ (resource control)
         "is_igbo_pentecostal": -1.5,  # Igbo Pentecostals: strongly pro-restructuring (Biafra sentiment)
         "is_yoruba_muslim": 0.5,      # Yoruba Muslims: less anti-AZ than Yoruba Christians
+        "is_ibibio": -1.5,            # Ibibio: want Akwa Ibom/Cross River recognition
+        "is_ijaw": -1.0,             # Ijaw: want own Niger Delta state/AZ
     },
 ]
 
