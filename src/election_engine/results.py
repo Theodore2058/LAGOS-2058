@@ -883,6 +883,60 @@ def _compute_zonal_mc_stats(
     return pd.DataFrame(rows)
 
 
+def compute_vote_source_decomposition(
+    lga_results: pd.DataFrame,
+    party_names: list[str],
+    pop_col: str = "Estimated Population",
+    turnout_col: str = "Turnout",
+    az_name_col: str = "AZ Name",
+) -> dict[str, pd.DataFrame]:
+    """
+    Decompose each party's national vote by administrative zone.
+
+    For each party, computes what fraction of its total national vote
+    originates from each zone. This reveals each party's geographic
+    base and vulnerability.
+
+    Returns
+    -------
+    dict[party_name, pd.DataFrame]
+        Each DataFrame has one row per zone with columns:
+        Zone, Votes, Pct_of_Party_Total, Zone_Share, Zone_Turnout
+    """
+    has_pop = pop_col in lga_results.columns
+    has_turnout = turnout_col in lga_results.columns
+
+    pop = lga_results[pop_col].values.astype(float) if has_pop else np.ones(len(lga_results))
+    turnout = lga_results[turnout_col].values.astype(float) if has_turnout else np.ones(len(lga_results))
+    total_voters = pop * turnout
+
+    zone_ids = lga_results[az_name_col].values if az_name_col in lga_results.columns else np.zeros(len(lga_results))
+    unique_zones = sorted(np.unique(zone_ids).tolist())
+
+    result = {}
+    for p in party_names:
+        shares = lga_results[f"{p}_share"].values.astype(float)
+        party_votes = total_voters * shares
+
+        rows = []
+        total_party_votes = party_votes.sum()
+        for zone in unique_zones:
+            mask = zone_ids == zone
+            zv = party_votes[mask].sum()
+            ztv = total_voters[mask].sum()
+            zpop = pop[mask].sum()
+            rows.append({
+                "Zone": zone,
+                "Votes": int(np.round(zv)),
+                "Pct_of_Party_Total": float(zv / max(total_party_votes, 1.0)),
+                "Zone_Share": float(zv / max(ztv, 1.0)),
+                "Zone_Turnout": float(ztv / max(zpop, 1.0)),
+            })
+        result[p] = pd.DataFrame(rows)
+
+    return result
+
+
 def compute_summary_stats(
     lga_results: pd.DataFrame,
     party_names: list[str],

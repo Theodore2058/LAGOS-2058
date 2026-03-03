@@ -568,5 +568,74 @@ def test_many_party_system():
         assert enp >= 1.0, f"ENP must be >= 1, got {enp}"
 
 
+def test_single_party_system():
+    """Single-party system should give 100% vote share and valid turnout."""
+    from election_engine.config import EngineParams, ElectionConfig, Party, N_ISSUES
+    from election_engine.poststratification import compute_all_lga_results
+
+    p_only = Party(name="Only", positions=np.zeros(N_ISSUES), valence=0.5,
+                   leader_ethnicity="Yoruba", religious_alignment="Secular")
+    params = EngineParams(tau_0=1.5, tau_1=0.3, tau_2=0.5, kappa=200.0,
+                          sigma_national=0.05, sigma_regional=0.10)
+    config = ElectionConfig(params=params, parties=[p_only])
+
+    toy_df = _make_toy_lga_df(n_lgas=5, seed=55)
+    base = compute_all_lga_results(lga_data=toy_df, election_config=config)
+
+    assert len(base) == 5
+    np.testing.assert_allclose(base["Only_share"].values, 1.0, atol=1e-6)
+    assert base["Turnout"].between(0.0, 1.0).all()
+
+
+def test_identical_parties():
+    """Parties with identical positions/identity should get roughly equal shares."""
+    from election_engine.config import EngineParams, ElectionConfig, Party, N_ISSUES
+    from election_engine.poststratification import compute_all_lga_results
+
+    positions = np.zeros(N_ISSUES)
+    parties = [
+        Party(name="X", positions=positions, valence=0.0,
+              leader_ethnicity="Yoruba", religious_alignment="Secular"),
+        Party(name="Y", positions=positions, valence=0.0,
+              leader_ethnicity="Yoruba", religious_alignment="Secular"),
+    ]
+    params = EngineParams(tau_0=1.5, tau_1=0.3, tau_2=0.5, kappa=200.0,
+                          sigma_national=0.05, sigma_regional=0.10)
+    config = ElectionConfig(params=params, parties=parties)
+
+    toy_df = _make_toy_lga_df(n_lgas=10, seed=66)
+    base = compute_all_lga_results(lga_data=toy_df, election_config=config)
+
+    # Shares should be nearly equal (both ~50%) since parties are identical
+    x_shares = base["X_share"].values
+    y_shares = base["Y_share"].values
+    np.testing.assert_allclose(x_shares, y_shares, atol=0.01,
+                                err_msg="Identical parties should have equal shares")
+
+
+def test_extreme_positions():
+    """Parties with extreme positions (-5 or +5) should not crash or produce NaN."""
+    from election_engine.config import EngineParams, ElectionConfig, Party, N_ISSUES
+    from election_engine.poststratification import compute_all_lga_results
+
+    p_left = Party(name="L", positions=np.full(N_ISSUES, -5.0), valence=0.0,
+                   leader_ethnicity="Igbo", religious_alignment="Pentecostal")
+    p_right = Party(name="R", positions=np.full(N_ISSUES, 5.0), valence=0.0,
+                    leader_ethnicity="Hausa-Fulani Undiff",
+                    religious_alignment="Mainstream Sunni")
+    params = EngineParams(tau_0=1.5, tau_1=0.3, tau_2=0.5, kappa=200.0,
+                          sigma_national=0.05, sigma_regional=0.10)
+    config = ElectionConfig(params=params, parties=[p_left, p_right])
+
+    toy_df = _make_toy_lga_df(n_lgas=10, seed=88)
+    base = compute_all_lga_results(lga_data=toy_df, election_config=config)
+
+    shares = base[["L_share", "R_share"]].values
+    assert not np.any(np.isnan(shares)), "No NaN in shares with extreme positions"
+    assert not np.any(np.isinf(shares)), "No Inf in shares with extreme positions"
+    np.testing.assert_allclose(shares.sum(axis=1), 1.0, atol=1e-6)
+    assert base["Turnout"].between(0.0, 1.0).all()
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

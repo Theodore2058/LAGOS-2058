@@ -50,7 +50,7 @@ from election_engine.config import Party, EngineParams, ElectionConfig, N_ISSUES
 from election_engine.election import run_election
 from election_engine.results import (
     compute_vote_counts, compute_state_vote_counts,
-    compute_competitiveness,
+    compute_competitiveness, compute_vote_source_decomposition,
 )
 
 logging.basicConfig(
@@ -923,6 +923,23 @@ def main():
             if f"{p}_win_prob" in disp.columns:
                 disp[f"{p}_win_prob"] = disp[f"{p}_win_prob"].map("{:.0%}".format)
         print(disp.to_string(index=False))
+
+    # --- Vote source decomposition ---
+    decomp = compute_vote_source_decomposition(results["lga_results_base"], party_names)
+    print("\nVOTE SOURCE DECOMPOSITION (% of each party's vote by zone):")
+    # Build a compact table: rows = zones, columns = parties
+    zone_names = decomp[party_names[0]]["Zone"].tolist()
+    header = f"  {'Zone':30s}"
+    for p, _ in sorted_parties[:7]:  # top 7 by national share
+        header += f"  {p:>7s}"
+    print(header)
+    print(f"  {'-'*30}" + f"  {'-'*7}" * min(7, len(sorted_parties)))
+    for zone in zone_names:
+        line = f"  {str(zone):30s}"
+        for p, _ in sorted_parties[:7]:
+            pct = decomp[p].loc[decomp[p]["Zone"] == zone, "Pct_of_Party_Total"].values[0]
+            line += f"  {pct:6.1%}"
+        print(line)
 
     # --- Competitiveness ---
     comp = compute_competitiveness(results["lga_results_base"], party_names)
