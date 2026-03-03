@@ -1209,6 +1209,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_Youth Unemployment Rate Pct": 0.01,  # High youth unemployment → demand quotas as jobs pathway
         "lga_Gini Proxy": 1.5,           # High inequality → demand redistributive quotas
         "lga_Urban Pct": -0.005,          # Urban areas: more meritocratic, less quota support
+        "lga_Colonial Eastern": -0.5,    # Eastern Region: Igbo meritocratic tradition, anti-quotas
+        "lga_Colonial Western": -0.3,    # Western Region: Yoruba achievement-oriented, mild anti-quotas
     },
     # 6. Fertility Policy (population control ↔ pro-natalism)
     {
@@ -1236,6 +1238,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_Primary Enrollment Pct": -0.005,  # High primary enrollment → more exposure to family planning education
         "is_hf_rural_older": 1.5,  # HF rural elderly: strongest pro-natalist constituency
         "is_yoruba_christian_urban": -1.0,  # Yoruba Christian urban: modern family planning
+        "lga_Colonial Western": -0.5,   # Western Region: Awolowo education legacy → smaller families
+        "lga_Colonial Eastern": -0.3,   # Eastern Region: mission education → some family planning awareness
     },
     # 7. Constitutional Structure (parliamentary ↔ presidential)
     {
@@ -1355,6 +1359,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_yoruba_christian_urban": 1.5, # Yoruba Christian urban: secular education champions
         "is_igbo_pentecostal_formal": 1.0,  # Igbo Pentecostal formal: private school advocates, meritocratic
         "is_hf_rural_older": -1.5,       # HF rural elderly: prefer Quranic/local education
+        "lga_Colonial Western": 1.0,    # Western Region: Awolowo's free primary education → strongest centralist tradition
+        "lga_Colonial Eastern": 0.8,    # Eastern Region: mission school tradition → meritocratic centralism
     },
     # 11. Labor & Automation (pro-capital ↔ pro-labor)
     {
@@ -1410,6 +1416,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_Poverty Rate Pct": 0.01,  # Poorer areas: military as employer/provider → pro-guardianship
         "lga_Border LGA": 0.5,        # Border LGAs: need military presence → pro-guardianship
         "lga_Youth Unemployment Rate Pct": 0.01,  # Jobless youth → security vacuum → pro-military
+        "lga_Colonial Eastern": -0.5,   # Eastern Region: civil war memory → deeply anti-military
+        "lga_Colonial Western": -0.3,   # Western Region: June 12 / Abiola memory → anti-military
     },
     # 13. Immigration (open borders ↔ restrictionism)
     {
@@ -1507,6 +1515,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_Mobile Phone Penetration Pct": 0.005,  # Mobile phones → women's economic agency, GBV reporting
         "lga_Secondary Enrollment Pct": 0.005,  # Higher secondary enrollment → gender awareness in schools
         "lga_Pentecostal Growth": -0.1 / 3.0,  # Pentecostal growth → conservative complementarian gender views
+        "lga_Colonial Western": 0.5,   # Western Region: Yoruba women trader tradition → more progressive
+        "lga_Colonial Eastern": 0.3,   # Eastern Region: Igbo women's war / Aba 1929 → feminist legacy
     },
     # 16. Traditional Authority (marginalization ↔ formal integration)
     {
@@ -1531,6 +1541,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_minority_urban_youth": -1.5,  # Minority urban youth: reject traditional authority entirely
         "is_yoruba_christian_urban": -0.5,  # Yoruba Christian urbanites: modern governance preference
         "lga_Colonial Western": 0.8,  # Western Region: Oba institution deeply embedded in governance
+        "lga_Colonial Eastern": -0.5,  # Eastern Region: Igbo egalitarian tradition, less chief-oriented
         "is_ibibio": 0.5,             # Ibibio: respect for traditional leadership institutions
         "is_ijaw": -0.5,              # Ijaw: traditional structures weak relative to Delta activism
         "is_female": -0.3,            # Women: traditional authority often patriarchal
@@ -1568,6 +1579,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_igbo_formal": -0.5,       # Igbo formal: prefer targeted investment in commercial corridors
         "is_ijaw_christian_unemployed": 1.5,  # Ijaw Christian unemployed: demand reconstruction of Delta infrastructure
         "is_mb_minority_christian": 0.8,  # Middle Belt Christian minorities: infrastructure neglect in the "forgotten middle"
+        "lga_Colonial Western": -0.3,  # Western Region: early infrastructure investment under Awolowo → less demand
+        "lga_Colonial Eastern": -0.2,  # Eastern Region: some rail/road development → moderate provision
     },
     # 18. Land Tenure (customary ↔ formalization)
     {
@@ -1596,6 +1609,9 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_GDP Per Capita Est": 0.5 / 90000.0,  # Wealthier LGAs: land markets → formalization
         "is_ijaw": -1.0,             # Ijaw: ancestral fishing/creek land rights, anti-formalization
         "is_edo": 0.3,               # Edo: Benin commercial tradition, mild formalization
+        "lga_Colonial Western": 0.4,   # Western Region: early land registration under colonial rule, commercial land markets
+        "lga_Colonial Eastern": 0.3,   # Eastern Region: Igbo commercial orientation, some formalization pressure
+        "lga_Colonial Mid-Western": 0.2,  # Mid-Western: partial formalization legacy from Western Region split
     },
     # 19. Taxation (low tax ↔ high redistribution)
     {
@@ -1623,6 +1639,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_ijaw_christian_unemployed": 2.0,  # Ijaw Christian unemployed: strongly pro-redistribution
         "is_yoruba_muslim_trader": -0.5,  # Yoruba Muslim traders: low-tax, zakat over secular tax
         "is_tertiary_bottom_income": 1.5,  # Educated poor: strongly pro-redistribution (aware of inequality)
+        "lga_Colonial Western": 0.3,   # Western Region: Awolowo's progressive taxation for welfare state
+        "lga_Colonial Eastern": 0.2,   # Eastern Region: commercial revenue → some redistribution ethic
     },
     # 20. Agricultural Policy (free market ↔ protectionist smallholder)
     {
@@ -1650,6 +1668,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_kanuri": 0.5,            # Kanuri: subsistence agriculture, protectionist
         "is_bottom_income": 0.5,     # Bottom income: food security concerns
         "is_formal_sector": -0.5,    # Formal sector: cheap food imports benefit consumers
+        "lga_Colonial Western": -0.3,  # Western Region: cocoa cash crops for export → free market orientation
+        "lga_Colonial Eastern": -0.2,  # Eastern Region: palm oil export tradition → market orientation
     },
     # 21. Biological Enhancement (prohibition ↔ universal access)
     {
@@ -1713,6 +1733,9 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_igbo_pentecostal_formal": 1.5,  # Igbo Pentecostal formal: entrepreneurial, pro-free trade
         "is_igbo_female": 0.8,  # Igbo women: market women → pro-open trade
         "is_urban_trader": -0.5,  # Urban traders: fear cheap imports undercutting local markets
+        "lga_Colonial Western": 0.5,   # Western Region: Lagos port, Yoruba trader tradition, most trade-exposed
+        "lga_Colonial Eastern": 0.4,   # Eastern Region: Port Harcourt, Igbo trade networks
+        "lga_Colonial Mid-Western": 0.3,  # Mid-Western: Benin rubber trade, moderate openness
     },
     # 23. Environmental Regulation (growth first ↔ strong regulation)
     {
@@ -1804,6 +1827,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_catholic_smallholder": 0.8,  # Catholic smallholders: underserved, strongly pro-universal care
         "is_young_adult": 0.5,  # 25-34: family formation → maternal/child health demand
         "is_igbo_female": 0.5,  # Igbo women: maternal health advocates
+        "lga_Colonial Western": 0.5,   # Western Region: Awolowo's free healthcare legacy → universal provision
+        "lga_Colonial Eastern": 0.3,   # Eastern Region: mission hospital tradition → universal care
     },
     # 26. Padà Status (anti-Padà ↔ Padà preservation)
     {
