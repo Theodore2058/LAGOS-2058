@@ -1041,6 +1041,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_kanuri_unemployed": 1.5,  # Kanuri jobless youth: Al-Shahid recruitment target
         "is_muslim_female": 1.0,   # Muslim women still favour Sharia, just less so
         "is_muslim_tertiary": -1.5, # Educated Muslims are more moderate
+        "is_tijaniyya_trader": -0.8,  # Tijaniyya traders: Sufi moderation, less Sharia-insistent
         "is_pentecostal": -1.5,    # Pentecostals strongly oppose Sharia
         "is_igbo": -1.0,           # Igbo are strongly secular
         "is_ibibio": -0.5,         # Southern Christians oppose Sharia
@@ -1062,6 +1063,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_Oil Producing": 3.0, "lga_Poverty Rate Pct": -1.5 / 100.0,
         "lga_GDP Per Capita Est": 0.5 / 90000.0,  # Wealthy LGAs lean confederalist (keep revenue local)
         "is_hausa_fulani": 0.5, "is_pada": -1.5,
+        "is_tijaniyya": -0.5,        # Tijaniyya: moderate, comfortable with federal sharing
         "is_ijaw": 2.5,           # Niger Delta wants resource federalism
         "is_nd_minority": 2.0,    # Other Delta groups also want local control
         "is_igbo": 1.5,           # Igbo favour confederalism (self-determination tradition)
@@ -1120,6 +1122,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_tiv": 1.5,                # Tiv favour quotas as Middle Belt protection
         "is_mb_minority": 1.5,        # Middle Belt minorities need quota protection
         "is_kanuri": 1.0,             # Kanuri favour northern solidarity quotas
+        "is_al_shahid": 2.0,          # Al-Shahid: radical quotas to purge "infidels" from state
         "is_igbo": -1.5,              # Igbo strongly meritocratic (self-reliance ethos)
         "is_igbo_formal": -2.0,       # Igbo business class: extremely meritocratic
         "is_yoruba": -1.0,            # Yoruba lean meritocratic
@@ -1167,6 +1170,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_Traditional Authority": 0.3,  # Active traditional authority → prefer strong executive
         "is_tiv": -1.5,              # Tiv fear presidential centralism
         "is_mb_minority": -1.5,      # Middle Belt minorities pro-parliamentary
+        "is_al_shahid": -3.0,        # Al-Shahid: reject secular governance entirely — want Islamic state
         "is_kanuri": 0.5,            # Kanuri moderate pro-presidential
         "is_igbo": -0.5,             # Igbo wary of presidential power
         "is_edo": -1.0,              # Edo pro-parliamentary (civic tradition)
@@ -1208,6 +1212,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_% Population Under 30": 0.01,  # Young population → housing pressure from new households
         "lga_Pct Livelihood Informal": 0.01,  # Informal workers → housing insecurity
         "lga_Land Formalization Pct": -0.005,  # Formalized land → functioning housing market → less intervention
+        "is_hf_bottom_income": 0.5,    # Poor northerners: need state housing (no private market access)
         "is_igbo_bottom_income": 1.0,  # Poor Igbo in cities: acute housing crisis
         "lga_Major Urban Center": 1.0,  # Major cities: extreme housing pressure → interventionism
         "is_tertiary_bottom_income": 1.5,  # Educated poor: acute housing pain with awareness of alternatives
@@ -1252,6 +1257,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_youth_unemployed": 1.5,   # Jobless youth very pro-labor protection
         "is_nupe": 0.5,               # Nupe: artisan/trader tradition
         "is_middle_income": 0.5,      # Middle class worried about automation
+        "is_urban_bottom_income": 1.0,  # Urban poor: gig economy, no labor protections
         "is_older": -0.5,             # Elderly less concerned about automation
         "lga_Chinese Economic Presence": 0.1 / 10.0,  # Chinese presence → automation threat
         "lga_Cobalt Extraction Active": 0.5,  # Cobalt mining areas: battery supply chain → automation anxiety
@@ -1269,6 +1275,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "intercept": 0.0,
         "is_civil_servant": 2.0, "is_pada": 0.5, "is_hausa_fulani": 1.0,
         "lga_Conflict History": 0.8 / 5.0, "is_youth": -0.5, "is_tertiary": -1.5,
+        "is_al_shahid": -2.5,         # Al-Shahid: anti-state military (want Islamic militia instead)
         "is_kanuri": 2.0,             # Kanuri heavily pro-military (Boko Haram era)
         "is_kanuri_unemployed": 1.5,  # Kanuri jobless: security concerns, some militant sympathy
         "is_tiv": -1.0,              # Tiv wary of military (history of military rule)
@@ -1287,6 +1294,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_pada": -0.5, "is_naijin": 1.5, "is_bottom_income": -2.0,
         "is_top_income": 1.5, "lga_Fertility Rate Est": -0.3, "is_hausa_fulani": -1.0,
         "is_kanuri": -1.5,            # Kanuri: border region, suspicious of migrants
+        "is_middle_age": -0.5,       # Middle-aged: established, protective of status quo
         "is_kanuri_unemployed": -2.0,  # Kanuri unemployed: blame migrants for jobs
         "is_urban_youth": -1.0,       # Urban youth feel competition from migrants
         "is_yoruba_trader": -1.0,     # Yoruba traders: compete with migrant businesses
@@ -1318,6 +1326,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_Al-Shahid Influence": -0.2 / 5.0,  # Al-Shahid areas: pro-Arabic, anti-English
         "lga_Almajiri Index": -0.15 / 5.0,  # Almajiri areas: Arabic/vernacular preferred
         "lga_Mandarin Presence": 0.02 / 10.0,  # Mandarin presence → language diversity awareness, pragmatic multilingualism
+        "is_muslim_tertiary": -0.5,  # Educated Muslims: pragmatic multilingual, moderate on language
+        "is_christian_urban": 0.8,   # Urban Christians: strongly pro-English for modernity/commerce
         "lga_Colonial Western": -0.5,  # Western Region: strong Yoruba language pride → vernacular
         "lga_Colonial Eastern": 0.5,   # Eastern Region: pragmatic Igbo pro-English for commerce
     },
@@ -1327,6 +1337,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_female": 2.0, "is_muslim": -2.0, "is_tertiary": 1.0, "is_urban": 1.0,
         "lga_Gender Parity Index": 1.0, "is_pada": 1.5,
         "lga_Female Literacy Rate Pct": 0.01,  # Higher female literacy → more feminist orientation
+        "is_al_shahid": -2.5,         # Al-Shahid: extreme patriarchy, oppose all women's rights
         "is_muslim_female": 1.5,      # Muslim women still want rights, more moderate
         "is_female_tertiary": 1.5,    # Educated women strongest feminists
         "is_kanuri": -1.5,            # Kanuri strongly patriarchal
@@ -1394,6 +1405,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_Rail Corridor": -0.3,    # Rail access → infrastructure already decent
         "lga_Market Access Index": -0.1,  # Well-connected LGAs need less universal provision
         "lga_Road Quality Index": -0.1,  # Good roads → less demand for universal provision
+        "is_commercial_ag": 0.5,          # Commercial farmers: need roads, electricity, irrigation
+        "is_christian_rural": 0.5,        # Rural Christians: Middle Belt infrastructure deficit
         "is_urban_bottom_income": 0.5,   # Urban poor: inadequate infrastructure despite density
         "lga_Major Urban Center": -0.8,  # Major cities: already served → less demand for universal infra
     },
@@ -1498,6 +1511,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_Pct Livelihood Informal": -0.02,  # Informal economy → protectionist (fear imports)
         "lga_GDP Per Capita Est": 0.5 / 90000.0,  # Wealthy LGAs benefit from open trade
         "lga_Market Access Index": 0.1,  # Good market access → benefit from open trade
+        "is_commercial_ag": 1.5,      # Commercial farmers: need open export markets
         "is_igbo": 1.0,               # Igbo: entrepreneurial, pro-open trade
         "is_igbo_formal": 2.0,        # Igbo business class: strongest free-trade advocates
         "is_yoruba": 0.5,             # Yoruba: commercial culture
@@ -1533,6 +1547,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_nd_minority": 1.5,        # Niger Delta minorities: pollution victims
         "is_ijaw_extraction": 2.0,    # Ijaw in extraction: direct victims, want regulation
         "is_edo": 1.0,                # Edo: oil zone environmental awareness
+        "is_christian_rural": 0.5,    # Rural Christians (Middle Belt): pollution/deforestation awareness
         "is_tertiary_youth": 1.0,     # Educated youth pro-environment
         "is_ibibio": 0.5,             # Ibibio: Akwa Ibom environmental concern
         "lga_Refinery Zone": 0.3,     # Refinery zones: direct pollution → want regulation
@@ -1583,6 +1598,9 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_Fertility Rate Est": 0.15,  # High fertility → maternal health demand
         "lga_Gini Proxy": 1.0,  # High inequality → health disparities → demand universal provision
         "lga_Biological Enhancement Pct": 0.003,  # Bio-enhancement infrastructure → health tech awareness
+        "is_muslim_tertiary": 0.5,        # Educated Muslims: want modern healthcare (Islamic + Western)
+        "is_christian_rural": 1.0,       # Rural Christians: mission hospital tradition, want universal care
+        "is_hf_bottom_income": 1.0,      # Poor northerners: most healthcare-deprived, strongly pro-universal
         "is_pentecostal_formal": -0.5,   # Pentecostal formal: faith-healing tradition, less state healthcare
         "is_catholic": 0.5,              # Catholics: social doctrine, pro-universal healthcare
         "is_catholic_smallholder": 0.8,  # Catholic smallholders: underserved, strongly pro-universal care
