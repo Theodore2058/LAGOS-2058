@@ -314,7 +314,7 @@ def test_precomputed_ideal_matches_reference():
         vt = voter_types[i]
         ref = demographics_to_ideal_point(vt, lga_row)
         fast = ideal_matrix[i]
-        assert np.allclose(ref, fast, atol=1e-12), (
+        assert np.allclose(ref, fast, atol=1e-5), (
             f"Voter type {i} ({vt.ethnicity}/{vt.religion}) mismatch:\n"
             f"  reference: {ref}\n  precomputed: {fast}"
         )

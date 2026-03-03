@@ -1374,6 +1374,10 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_Population Density per km2": -0.3 / 55000.0,  # Dense areas → more competition → restrictionist
         "lga_Internet Access Pct": -0.005,  # Internet: online anti-immigration echo chambers
         "lga_Road Quality Index": -0.05,  # Good roads → more migrant flows → restrictionist backlash
+        "is_igbo": 0.5,              # Igbo: diaspora culture, empathize with migrants
+        "is_tertiary": 0.3,          # Educated: more cosmopolitan, pro-immigration
+        "is_rural": -0.3,            # Rural: suspicious of outsiders
+        "is_yoruba": -0.5,           # Yoruba: Omo-onile territorial tradition
     },
     # 14. Language Policy (vernacular ↔ English supremacy)
     {
@@ -1396,6 +1400,12 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_christian_urban": 0.8,   # Urban Christians: strongly pro-English for modernity/commerce
         "lga_Colonial Western": -0.5,  # Western Region: strong Yoruba language pride → vernacular
         "lga_Colonial Eastern": 0.5,   # Eastern Region: pragmatic Igbo pro-English for commerce
+        "is_rural": -0.5,            # Rural: vernacular preference
+        "is_urban": 0.3,             # Urban: English for commerce
+        "is_hausa_fulani": -0.5,     # HF: Hausa language pride
+        "is_youth": 0.3,             # Youth: social media English, digital cosmopolitanism
+        "is_edo": 0.3,               # Edo: pragmatic, English for commerce
+        "is_older": -0.3,            # Older: vernacular attachment
     },
     # 15. Women's Rights (traditional patriarchy ↔ aggressive feminism)
     {
@@ -1558,6 +1568,11 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "is_fulani_rural": 2.5,      # Rural Fulani pastoralists: need grazing protection, most vulnerable
         "is_mb_minority_christian": 1.0,  # MB Christian minorities: farming communities, protectionist
         "is_catholic_smallholder": 1.5,  # Catholic smallholders: deeply agrarian, strongly protectionist
+        "is_urban": -0.5,            # Urban: prefer free market ag, cheap food imports
+        "is_igbo": -0.5,             # Igbo: commercial orientation, free market
+        "is_kanuri": 0.5,            # Kanuri: subsistence agriculture, protectionist
+        "is_bottom_income": 0.5,     # Bottom income: food security concerns
+        "is_formal_sector": -0.5,    # Formal sector: cheap food imports benefit consumers
     },
     # 21. Biological Enhancement (prohibition ↔ universal access)
     {
@@ -1643,6 +1658,12 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_Colonial Mid-Western": 0.5,  # Mid-Western: Edo/Delta extraction zone → environmental awareness
         "lga_Oil Extraction Active": 1.0,  # Active oil extraction → pollution → pro-regulation
         "lga_Other Mining Active": 0.5,  # Active mining → environmental degradation → pro-regulation
+        "is_urban": 0.3,             # Urban: air quality, waste management concerns
+        "is_rural": -0.3,            # Rural: development priority over regulation
+        "is_youth": 0.3,             # Youth: more environmentally conscious
+        "is_hausa_fulani": -0.5,     # HF: development priority for northern states
+        "is_kanuri": -0.5,           # Kanuri: post-conflict development first
+        "is_igbo": 0.3,              # Igbo: see green economy as opportunity
     },
     # 24. Media Freedom (state control ↔ full press freedom)
     {
@@ -1745,6 +1766,12 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_Oil Extraction Active": -0.5,  # Active oil → fossil dependency → resist green transition
         "is_edo": 0.5,                # Edo: oil zone but environmentally conscious
         "lga_Internet Access Pct": 0.005,  # Internet: exposure to global green movement → pro-transition
+        "is_hausa_fulani": -0.3,     # HF: development priority, northern power deficit
+        "is_youth": 0.3,             # Youth: generally pro-green transition
+        "is_urban": 0.3,             # Urban: green awareness, air quality concerns
+        "is_kanuri": -0.5,           # Kanuri: post-conflict development > green transition
+        "is_igbo": 0.3,              # Igbo: see green tech as business opportunity
+        "is_muslim": -0.3,           # Muslim: development priorities outweigh green concerns
     },
     # 28. AZ Restructuring (return to 36+ states ↔ keep 8 AZs)
     {
