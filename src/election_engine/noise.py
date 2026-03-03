@@ -300,6 +300,24 @@ def compute_lga_kappa_multipliers(
     al_shahid = _safe_col("Al-Shahid Influence", 0.0) / 5.0
     multiplier -= 0.1 * al_shahid
 
+    # Population density: denser areas → more sample points → more predictable
+    pop_density = _safe_col("Population Density per km2", 200.0)
+    log_density = np.log(np.maximum(pop_density, 1.0))
+    log_density_norm = (log_density - log_density.mean()) / max(log_density.std(), 1e-6)
+    multiplier += 0.08 * log_density_norm
+
+    # Mobile phone penetration: information flow → more predictable patterns
+    mobile = _safe_col("Mobile Phone Penetration Pct", 50.0) / 100.0
+    multiplier += 0.08 * (mobile - 0.5)
+
+    # Internet access: social media coordination → more predictable bloc voting
+    internet = _safe_col("Internet Access Pct", 60.0) / 100.0
+    multiplier += 0.05 * (internet - 0.6)
+
+    # Almajiri: informal networks → harder to poll/predict
+    almajiri = _safe_col("Almajiri Index", 0.0) / 5.0
+    multiplier -= 0.08 * almajiri
+
     # Clamp to [0.4, 2.5] range
     np.clip(multiplier, 0.4, 2.5, out=multiplier)
 

@@ -1014,6 +1014,8 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_Oil Producing": 3.0, "lga_Extraction Intensity": 0.5 / 5.0,
         "is_ijaw": 3.0, "is_civil_servant": -2.0,
         "lga_Cobalt Extraction Active": 2.0,
+        "lga_Oil Extraction Active": 1.5,  # Active oil extraction → demand local control
+        "lga_Other Mining Active": 1.0,     # Tin/coltan mining → resource control demand
         "is_nd_minority": 2.5,        # Niger Delta minorities want local control
         "is_ijaw_extraction": 3.0,     # Ijaw in extraction: most vocal for local revenue
         "is_edo": 1.5,                 # Edo in oil zone; pro-local control
@@ -1054,6 +1056,7 @@ _IDEAL_POINT_COEFFICIENTS: list[dict] = [
         "lga_Almajiri Index": -0.2 / 5.0,  # High almajiri → entrenched localist education norms
         "lga_Num Secondary Schools": 0.05,   # More schools → more invested in centralist education system
         "lga_Traditionalist Practice": -0.1 / 5.0,  # Traditional practice → localist education
+        "lga_Primary Enrollment Pct": 0.005,  # Higher primary enrollment → centralist education buy-in
     },
     # 11. Labor & Automation (pro-capital ↔ pro-labor)
     {
