@@ -285,6 +285,21 @@ def compute_lga_kappa_multipliers(
     log_pop_norm = (log_pop - log_pop.mean()) / max(log_pop.std(), 1e-6)
     multiplier += 0.1 * log_pop_norm
 
+    # Terrain: difficult terrain → harder to poll accurately → less predictable
+    if "Terrain Type" in lga_data.columns:
+        terrain = lga_data["Terrain Type"].fillna("").astype(str).str.lower().values
+        for i, t in enumerate(terrain):
+            if "montane" in t:
+                multiplier[i] -= 0.15
+            elif "mangrove" in t or "freshwater" in t:
+                multiplier[i] -= 0.1
+            elif "sahel" in t:
+                multiplier[i] -= 0.08
+
+    # Al-Shahid areas: political instability → less predictable
+    al_shahid = _safe_col("Al-Shahid Influence", 0.0) / 5.0
+    multiplier -= 0.1 * al_shahid
+
     # Clamp to [0.4, 2.5] range
     np.clip(multiplier, 0.4, 2.5, out=multiplier)
 

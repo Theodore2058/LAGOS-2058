@@ -519,6 +519,30 @@ def compute_all_lga_results(
     _internet = _lga_col("Internet Access Pct", 60.0)
     _lga_turnout_mod -= 0.1 * np.clip(_internet / 100.0, 0.0, 1.0)
 
+    # Terrain difficulty: hard-to-reach terrain → harder to get to polls
+    # Montane, mangrove/freshwater swamp, sahel → higher abstention
+    if "Terrain Type" in lga_data.columns:
+        _terrain = lga_data["Terrain Type"].fillna("").astype(str).str.lower().values
+        _terrain_penalty = np.zeros(n_lgas)
+        for _i, _t in enumerate(_terrain):
+            if "montane" in _t:
+                _terrain_penalty[_i] = 0.15  # mountainous: very hard to reach
+            elif "mangrove" in _t:
+                _terrain_penalty[_i] = 0.12  # mangrove: waterway access
+            elif "freshwater" in _t:
+                _terrain_penalty[_i] = 0.1   # freshwater swamp: flooding
+            elif "sahel" in _t:
+                _terrain_penalty[_i] = 0.08  # sahel: long distances, sparse population
+        _lga_turnout_mod += _terrain_penalty
+
+    # Planned City: well-organized infrastructure → easy polling
+    _planned = _lga_col("Planned City", 0.0)
+    _lga_turnout_mod -= 0.1 * _planned  # planned cities have better logistics
+
+    # Rail corridor: better connectivity → easier to reach polls
+    _rail = _lga_col("Rail Corridor", 0.0)
+    _lga_turnout_mod -= 0.05 * np.clip(_rail / 2.0, 0.0, 1.0)
+
     lga_turnout_modifier = _lga_turnout_mod.astype(np.float32)
 
     # ---- Identity context modifiers ----
