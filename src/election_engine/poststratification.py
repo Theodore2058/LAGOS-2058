@@ -206,6 +206,9 @@ def compute_lga_results(
         active_demographics = None
 
     # Batch utility computation (N_active, J)
+    # Capture salience-weighted alienation from spatial intermediates to
+    # avoid a redundant (N, D) @ (D, J) matmul in turnout.
+    alienation_out = {}
     utilities_matrix = compute_utilities_batch(
         voter_ideals=active_ideals,
         voter_ethnicities=active_ethnicities,
@@ -226,7 +229,9 @@ def compute_lga_results(
         precomputed_demo_table=precomputed_demo_table,
         active_indices=active_idx,
         fixed_type_utility=fixed_type_utility,
+        _alienation_out=alienation_out,
     )
+    precomputed_alienation = alienation_out.get("min_dist_sq")
 
     # Slice integer-coded demographic arrays for batch turnout
     if type_indices is not None:
@@ -251,6 +256,7 @@ def compute_lga_results(
         age_cohorts=age_codes,
         settings=set_codes,
         party_sq_norms_uniform=party_sq_norms_uniform,
+        precomputed_min_dist_sq=precomputed_alienation,
     )
 
     # Step 4: Aggregate (only active types contribute; inactive have zero weight)

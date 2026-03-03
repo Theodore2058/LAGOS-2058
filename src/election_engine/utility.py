@@ -298,6 +298,7 @@ def compute_utilities_batch(
     precomputed_demo_table: Optional[np.ndarray] = None,
     active_indices: Optional[np.ndarray] = None,
     fixed_type_utility: Optional[np.ndarray] = None,
+    _alienation_out: Optional[dict] = None,
 ) -> np.ndarray:
     """
     Compute full utilities for a batch of voter types × all parties.
@@ -339,12 +340,30 @@ def compute_utilities_batch(
     if valences is None:
         valences = np.array([p.valence for p in parties])
 
-    # 2. Spatial utility (N, J)
+    # 2. Spatial utility (N, J) — capture intermediates for alienation reuse
+    _spatial_intermediates = {} if _alienation_out is not None else None
     u_spatial = batch_spatial_utility(
         voter_ideals, party_positions,
         beta_s=params.beta_s, q=params.q,
         salience_weights=salience_weights,
+        _intermediates=_spatial_intermediates,
     )
+
+    # Compute salience-weighted alienation from spatial intermediates
+    # (avoids a second (N,D)@(D,J) matmul in the turnout function)
+    if _alienation_out is not None and _spatial_intermediates:
+        dot_products = _spatial_intermediates["dot_products"]  # (N, J)
+        sq_norms = _spatial_intermediates["sq_norms"]          # (J,)
+        wx = _spatial_intermediates["wx"]                      # (N, D)
+        J_al = dot_products.shape[1]
+        # voter_wsq = Σ_d w_d x_{id}² — use einsum to avoid (N,D) temporaries
+        voter_wsq = np.einsum("nd,nd->n", wx, voter_ideals)   # (N,)
+        # Compute min sq_dist without allocating full (N, J) — loop over J
+        min_dist_sq = voter_wsq + sq_norms[0] - 2.0 * dot_products[:, 0]
+        for j_al in range(1, J_al):
+            candidate = voter_wsq + sq_norms[j_al] - 2.0 * dot_products[:, j_al]
+            np.minimum(min_dist_sq, candidate, out=min_dist_sq)
+        _alienation_out["min_dist_sq"] = min_dist_sq  # (N,)
 
     # --- Fast path: combined fixed_type_utility table ---
     # When available, ethnic + religious + demographic are already precomputed

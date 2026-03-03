@@ -86,6 +86,7 @@ def batch_spatial_utility(
     beta_s: float,
     q: float,
     salience_weights: Optional[np.ndarray] = None,
+    _intermediates: Optional[dict] = None,
 ) -> np.ndarray:
     """
     Compute spatial utilities for a batch of voter ideal points.
@@ -102,6 +103,9 @@ def batch_spatial_utility(
         Proximity-directional mix.
     salience_weights : np.ndarray, shape (D,), optional
         Per-issue salience weights (same for all voters in this call).
+    _intermediates : dict, optional
+        If provided, populated with intermediate arrays for reuse
+        (dot_products, sq_norms, w) to avoid redundant matmuls elsewhere.
 
     Returns
     -------
@@ -125,4 +129,10 @@ def batch_spatial_utility(
 
     # Broadcast: (N, J) and (J,)
     utilities = beta_s * (dot_products - (q / 2.0) * sq_norms)
+
+    if _intermediates is not None:
+        _intermediates["dot_products"] = dot_products
+        _intermediates["sq_norms"] = sq_norms
+        _intermediates["wx"] = wx
+
     return utilities

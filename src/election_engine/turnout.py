@@ -223,6 +223,7 @@ def batch_compute_vote_probs_with_turnout(
     age_cohorts: np.ndarray,
     settings: np.ndarray,
     party_sq_norms_uniform: np.ndarray | None = None,
+    precomputed_min_dist_sq: np.ndarray | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     """
     Vectorised vote probabilities and turnout for N voter types at once.
@@ -253,15 +254,22 @@ def batch_compute_vote_probs_with_turnout(
     D = party_positions.shape[1]
 
     # --- Alienation: min mean-sq-distance to any party ---
-    # Compute ||x - z_j||²/D = (||x||² + ||z_j||² - 2x·z_j) / D
-    # Uses BLAS matmul for the cross-term; avoids (N, J, D) intermediate.
-    inv_D = 1.0 / D
-    voter_sq_norms = np.sum(voter_ideals ** 2, axis=1) * inv_D  # (N,)
-    if party_sq_norms_uniform is None:
-        party_sq_norms_uniform = np.sum(party_positions ** 2, axis=1) * inv_D  # (J,)
-    cross_terms = (voter_ideals @ party_positions.T) * (2.0 * inv_D)  # (N, J)
-    sq_dists = voter_sq_norms[:, np.newaxis] + party_sq_norms_uniform[np.newaxis, :] - cross_terms
-    min_dist_sq = sq_dists.min(axis=1)  # (N,)
+    if precomputed_min_dist_sq is not None:
+        # Salience-weighted alienation already computed during spatial utility
+        min_dist_sq = precomputed_min_dist_sq
+    else:
+        # Fallback: uniform-weighted alienation via BLAS matmul
+        inv_D = 1.0 / D
+        voter_sq_norms = np.einsum("nd,nd->n", voter_ideals, voter_ideals) * inv_D  # (N,)
+        if party_sq_norms_uniform is None:
+            party_sq_norms_uniform = np.sum(party_positions ** 2, axis=1) * inv_D  # (J,)
+        cross_terms = (voter_ideals @ party_positions.T) * (2.0 * inv_D)  # (N, J)
+        # Compute min without allocating full (N, J) — loop over J
+        min_dist_sq = voter_sq_norms + party_sq_norms_uniform[0] - cross_terms[:, 0]
+        for j_al in range(1, J):
+            candidate = voter_sq_norms + party_sq_norms_uniform[j_al] - cross_terms[:, j_al]
+            np.minimum(min_dist_sq, candidate, out=min_dist_sq)
+        del cross_terms  # Free (N, J) early
 
     # --- Indifference: gap = top1 - mean(rest) without full sort ---
     # top1 = max, mean_rest = (sum - top1) / (J - 1), gap = top1 - mean_rest
