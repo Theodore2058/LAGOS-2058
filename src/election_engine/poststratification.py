@@ -374,18 +374,23 @@ def compute_all_lga_results(
     # boolean-mask operations per LGA with a single fancy-index + add).
     turnout_demo_adjust = np.zeros(len(voter_types), dtype=np.float32)
     # Education
-    turnout_demo_adjust[type_indices["edu"] == 2] -= 1.0   # Tertiary
-    turnout_demo_adjust[type_indices["edu"] == 0] += 0.3   # Below secondary
+    turnout_demo_adjust[type_indices["edu"] == 2] -= 1.0   # Tertiary: most engaged
+    turnout_demo_adjust[type_indices["edu"] == 0] += 0.3   # Below secondary: barriers to engagement
     # Age
-    turnout_demo_adjust[type_indices["age"] == 3] -= 0.5   # 50+
-    turnout_demo_adjust[type_indices["age"] == 0] += 0.2   # 18-24
+    turnout_demo_adjust[type_indices["age"] == 3] -= 0.5   # 50+: lifetime civic habit
+    turnout_demo_adjust[type_indices["age"] == 2] -= 0.15  # 35-49: established, engaged
+    turnout_demo_adjust[type_indices["age"] == 1] += 0.05  # 25-34: mobile, less settled
+    turnout_demo_adjust[type_indices["age"] == 0] += 0.2   # 18-24: least engaged
     # Setting
-    turnout_demo_adjust[type_indices["set"] == 0] -= 0.2   # Urban
+    turnout_demo_adjust[type_indices["set"] == 0] -= 0.2   # Urban: better access to polling
+    turnout_demo_adjust[type_indices["set"] == 2] += 0.05  # Rural: physical barriers
     # Livelihood
     turnout_demo_adjust[type_indices["liv"] == 4] -= 0.4   # Public sector: high awareness
     turnout_demo_adjust[type_indices["liv"] == 3] -= 0.2   # Formal private: somewhat engaged
+    turnout_demo_adjust[type_indices["liv"] == 2] += 0.05  # Trade/informal: work-hour conflicts
     turnout_demo_adjust[type_indices["liv"] == 5] += 0.3   # Unemployed/student: disengaged
     turnout_demo_adjust[type_indices["liv"] == 0] += 0.1   # Smallholder: harder access
+    turnout_demo_adjust[type_indices["liv"] == 1] -= 0.05  # Commercial ag: more established
     # Income
     turnout_demo_adjust[type_indices["inc"] == 2] -= 0.3   # Top 20%: more stake
     turnout_demo_adjust[type_indices["inc"] == 0] += 0.2   # Bottom 40%: barriers
