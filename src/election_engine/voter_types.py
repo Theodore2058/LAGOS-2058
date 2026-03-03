@@ -219,6 +219,89 @@ class VoterType:
     def is_majority(self) -> bool:
         return not self.is_minority
 
+    # --- Additional ethnic groups ---
+    @property
+    def is_kanuri(self) -> bool:
+        return self.ethnicity == "Kanuri"
+
+    @property
+    def is_tiv(self) -> bool:
+        return self.ethnicity == "Tiv"
+
+    @property
+    def is_nupe(self) -> bool:
+        return self.ethnicity == "Nupe"
+
+    @property
+    def is_edo(self) -> bool:
+        return self.ethnicity == "Edo"
+
+    @property
+    def is_ibibio(self) -> bool:
+        return self.ethnicity == "Ibibio"
+
+    @property
+    def is_nd_minority(self) -> bool:
+        return self.ethnicity == "Niger Delta Minorities"
+
+    @property
+    def is_mb_minority(self) -> bool:
+        return self.ethnicity == "Middle Belt Minorities"
+
+    # --- Additional religion/demographic ---
+    @property
+    def is_pentecostal(self) -> bool:
+        return self.religion == "Pentecostal"
+
+    @property
+    def is_middle_income(self) -> bool:
+        return self.income == "Middle 40%"
+
+    @property
+    def is_middle_age(self) -> bool:
+        return self.age_cohort == "35-49"
+
+    # --- Interaction terms ---
+    @property
+    def is_muslim_female(self) -> bool:
+        return self.is_muslim and self.is_female
+
+    @property
+    def is_urban_youth(self) -> bool:
+        return self.is_urban and self.is_youth
+
+    @property
+    def is_rural_muslim(self) -> bool:
+        return self.is_rural and self.is_muslim
+
+    @property
+    def is_tertiary_youth(self) -> bool:
+        return self.is_tertiary and self.is_youth
+
+    @property
+    def is_hf_bottom_income(self) -> bool:
+        return self.is_hausa_fulani and self.is_bottom_income
+
+    @property
+    def is_christian_urban(self) -> bool:
+        return self.is_christian and self.is_urban
+
+    @property
+    def is_muslim_tertiary(self) -> bool:
+        return self.is_muslim and self.is_tertiary
+
+    @property
+    def is_female_tertiary(self) -> bool:
+        return self.is_female and self.is_tertiary
+
+    @property
+    def is_youth_unemployed(self) -> bool:
+        return self.is_youth and self.is_unemployed
+
+    @property
+    def is_rural_older(self) -> bool:
+        return self.is_rural and self.is_older
+
 
 @lru_cache(maxsize=1)
 def generate_all_voter_types() -> list[VoterType]:
@@ -778,186 +861,318 @@ def precompute_all_lga_marginals(
 # Voter-level features use the VoterType property names.
 
 _IDEAL_POINT_COEFFICIENTS: list[dict] = [
-    # 1. Sharia Jurisdiction
+    # 1. Sharia Jurisdiction (secular ↔ full Sharia)
     {
         "intercept": -2.0,
         "is_muslim": 5.0, "is_al_shahid": 2.0, "is_tijaniyya": 1.0,
         "is_tertiary": -1.5, "is_urban": -1.0, "is_pada": -2.0, "is_female": -0.5,
+        "is_kanuri": 1.5,          # Kanuri are deeply Islamist
+        "is_muslim_female": 1.0,   # Muslim women still favour Sharia, just less so
+        "is_muslim_tertiary": -1.5, # Educated Muslims are more moderate
+        "is_pentecostal": -1.5,    # Pentecostals strongly oppose Sharia
+        "is_igbo": -1.0,           # Igbo are strongly secular
+        "is_ibibio": -0.5,         # Southern Christians oppose Sharia
     },
-    # 2. Fiscal Autonomy
+    # 2. Fiscal Autonomy (centralism ↔ confederalism)
     {
         "intercept": 0.0,
         "is_civil_servant": -2.0, "is_top_income": 1.5,
         "lga_Oil Producing": 3.0, "lga_Poverty Rate Pct": -1.5 / 100.0,
         "is_hausa_fulani": 0.5, "is_pada": -1.5,
+        "is_ijaw": 2.5,           # Niger Delta wants resource federalism
+        "is_nd_minority": 2.0,    # Other Delta groups also want local control
+        "is_igbo": 1.5,           # Igbo favour confederalism (self-determination tradition)
+        "is_tiv": 1.0,            # Middle Belt wants local autonomy from northern hegemony
+        "is_mb_minority": 1.0,    # Middle Belt minorities pro-local control
+        "is_yoruba": 0.5,         # Yoruba moderately favour fiscal autonomy
     },
-    # 3. Chinese Relations
+    # 3. Chinese Relations (Western pivot ↔ deepen WAFTA)
     {
         "intercept": 0.0,
         "is_naijin": 4.0, "is_formal_sector": 0.5, "is_tertiary": 0.5,
         "lga_Mandarin Presence": 0.3 / 10.0, "lga_Chinese Economic Presence": 0.2 / 10.0,
         "is_unemployed": -1.5, "is_muslim": -0.5,
+        "is_youth_unemployed": -1.0,  # Jobless youth blame Chinese competition
+        "is_informal": -0.5,          # Informal traders hurt by Chinese imports
+        "is_nupe": 0.5,               # Nupe traders pragmatically pro-trade
     },
-    # 4. BIC Reform
+    # 4. BIC Reform (abolish ↔ preserve BIC)
     {
         "intercept": 0.5,
         "is_pada": 2.0, "is_civil_servant": -0.5, "is_top_income": -1.5,
         "lga_BIC Effectiveness": 0.3 / 10.0, "is_hausa_fulani": -1.5, "is_tertiary": -0.5,
+        "is_naijin": 1.5,             # Naijin cultural attachment to BIC
+        "is_kanuri": -1.0,            # Kanuri sceptical of BIC
+        "is_yoruba": -0.5,            # Yoruba mildly reformist
     },
-    # 5. Ethnic Quotas
+    # 5. Ethnic Quotas (meritocracy ↔ affirmative action)
     {
         "intercept": 0.0,
         "is_hausa_fulani": 2.5, "is_minority": 2.0, "is_pada": -3.0,
         "is_tertiary": -1.0, "is_civil_servant": 0.5, "is_youth": 0.5,
+        "is_tiv": 1.5,                # Tiv favour quotas as Middle Belt protection
+        "is_mb_minority": 1.5,        # Middle Belt minorities need quota protection
+        "is_kanuri": 1.0,             # Kanuri favour northern solidarity quotas
+        "is_igbo": -1.5,              # Igbo strongly meritocratic (self-reliance ethos)
+        "is_yoruba": -1.0,            # Yoruba lean meritocratic
+        "is_edo": 0.5,                # Edo moderate pro-quota
     },
-    # 6. Fertility Policy
+    # 6. Fertility Policy (population control ↔ pro-natalism)
     {
         "intercept": 0.0,
         "is_muslim": 2.0, "is_rural": 1.5, "is_female": -1.5,
         "is_tertiary": -2.0, "is_pada": -1.0, "is_youth": -0.5,
         "lga_Fertility Rate Est": 0.5,
+        "is_muslim_female": 0.5,     # Muslim women still lean pro-natalist
+        "is_rural_muslim": 0.5,      # Rural Muslim compound effect
+        "is_kanuri": 1.0,            # Kanuri high-fertility culture
+        "is_female_tertiary": -1.0,  # Educated women strongly pro-control
+        "is_urban_youth": -1.0,      # Urban youth favour smaller families
     },
-    # 7. Constitutional Structure
+    # 7. Constitutional Structure (parliamentary ↔ presidential)
     {
         "intercept": 0.0,
         "is_majority": 1.5, "is_minority": -2.0, "is_hausa_fulani": 1.0,
         "is_pada": -2.0, "is_tertiary": -0.5,
         "lga_Trad Authority Index": -0.3 / 5.0,
+        "is_tiv": -1.5,              # Tiv fear presidential centralism
+        "is_mb_minority": -1.5,      # Middle Belt minorities pro-parliamentary
+        "is_kanuri": 0.5,            # Kanuri moderate pro-presidential
+        "is_igbo": -0.5,             # Igbo wary of presidential power
+        "is_edo": -1.0,              # Edo pro-parliamentary (civic tradition)
     },
-    # 8. Resource Revenue
+    # 8. Resource Revenue (federal monopoly ↔ local control)
     {
         "intercept": -0.5,
         "lga_Oil Producing": 3.0, "lga_Extraction Intensity": 0.5 / 5.0,
         "is_ijaw": 3.0, "is_civil_servant": -2.0,
         "lga_Cobalt Extraction Active": 2.0,
+        "is_nd_minority": 2.5,        # Niger Delta minorities want local control
+        "is_edo": 1.5,                 # Edo in oil zone; pro-local control
+        "is_ibibio": 1.0,              # Ibibio: Akwa Ibom oil state
+        "is_hausa_fulani": -1.5,       # Northern establishment benefits from federal control
+        "is_kanuri": -1.0,             # Kanuri benefit from federal redistribution
+        "is_tiv": 0.5,                 # Tiv: Benue has mineral resources
     },
-    # 9. Housing
+    # 9. Housing (pure market ↔ state intervention)
     {
         "intercept": 1.0,
         "is_urban": 1.0, "is_bottom_income": 2.5, "is_top_income": -2.5,
         "lga_Housing Affordability": -0.3 / 10.0, "is_youth": 1.5, "is_pada": -1.5,
+        "is_urban_youth": 1.0,        # Urban youth face acute housing crisis
+        "is_informal": 0.5,           # Informal workers need housing support
+        "is_middle_income": 0.5,      # Squeezed middle also wants state help
     },
-    # 10. Education
+    # 10. Education (radical localism ↔ meritocratic centralism)
     {
         "intercept": 0.0,
         "is_tertiary": 2.0, "is_muslim": -1.0, "is_rural": -1.5,
         "is_female": 0.5, "is_naijin": 1.5,
         "lga_Out of School Children Pct": -0.2 / 100.0,
+        "is_igbo": 1.0,               # Igbo strongly pro-education/meritocracy
+        "is_kanuri": -1.5,            # Kanuri prefer Quranic/local education
+        "is_rural_muslim": -1.0,      # Rural Muslims prefer almajiri/local
+        "is_female_tertiary": 1.0,    # Educated women champion education reform
+        "is_yoruba": 0.5,             # Yoruba favour structured education
     },
-    # 11. Labor & Automation
+    # 11. Labor & Automation (pro-capital ↔ pro-labor)
     {
         "intercept": 0.5,
         "is_informal": 2.0, "is_formal_sector": 1.0, "is_unemployed": 0.5,
         "is_top_income": -3.0, "is_smallholder": -0.5,
         "lga_Pct Livelihood Manufacturing": 0.2 / 100.0,
+        "is_youth_unemployed": 1.5,   # Jobless youth very pro-labor protection
+        "is_nupe": 0.5,               # Nupe: artisan/trader tradition
+        "is_middle_income": 0.5,      # Middle class worried about automation
     },
-    # 12. Military Role
+    # 12. Military Role (civilian control ↔ military guardianship)
     {
         "intercept": 0.0,
         "is_civil_servant": 2.0, "is_pada": 0.5, "is_hausa_fulani": 1.0,
         "lga_Conflict History": 0.5 / 5.0, "is_youth": -0.5, "is_tertiary": -1.5,
+        "is_kanuri": 2.0,             # Kanuri heavily pro-military (Boko Haram era)
+        "is_tiv": -1.0,              # Tiv wary of military (history of military rule)
+        "is_igbo": -1.5,             # Igbo anti-military (civil war memory)
+        "is_rural_older": 0.5,       # Rural elderly trust military for security
     },
-    # 13. Immigration
+    # 13. Immigration (open borders ↔ restrictionism)
     {
         "intercept": -0.5,
         "is_pada": -0.5, "is_naijin": 1.5, "is_bottom_income": -2.0,
         "is_top_income": 1.5, "lga_Fertility Rate Est": -0.3, "is_hausa_fulani": -1.0,
+        "is_kanuri": -1.5,            # Kanuri: border region, suspicious of migrants
+        "is_urban_youth": -1.0,       # Urban youth feel competition from migrants
+        "is_informal": -0.5,          # Informal workers face migrant competition
+        "is_ibibio": 0.5,             # Ibibio: coastal, more open to trade/people
     },
-    # 14. Language Policy
+    # 14. Language Policy (vernacular ↔ English supremacy)
     {
         "intercept": 0.0,
         "is_pada": 2.5, "is_naijin": -2.0, "is_muslim": -1.5, "is_tertiary": 1.0,
         "lga_English Prestige": 0.3 / 10.0, "lga_Arabic Prestige": -0.3 / 10.0,
+        "is_igbo": 1.0,               # Igbo pragmatically pro-English
+        "is_yoruba": -0.5,            # Yoruba proud of vernacular
+        "is_kanuri": -1.5,            # Kanuri defend Kanuri language
+        "is_tiv": -1.0,              # Tiv defend local language
+        "is_nupe": -0.5,             # Nupe value local identity
+        "is_christian_urban": 0.5,    # Urban Christians lean English
     },
-    # 15. Women's Rights
+    # 15. Women's Rights (traditional patriarchy ↔ aggressive feminism)
     {
         "intercept": -0.5,
         "is_female": 2.0, "is_muslim": -2.0, "is_tertiary": 1.0, "is_urban": 1.0,
         "lga_Gender Parity Index": 1.0, "is_pada": 1.5,
+        "is_muslim_female": 1.5,      # Muslim women still want rights, more moderate
+        "is_female_tertiary": 1.5,    # Educated women strongest feminists
+        "is_kanuri": -1.5,            # Kanuri strongly patriarchal
+        "is_igbo": 0.5,               # Igbo moderate feminist (market women tradition)
+        "is_pentecostal": -0.5,       # Pentecostal complementarian gender views
+        "is_tiv": 0.5,                # Tiv: relatively egalitarian tradition
     },
-    # 16. Traditional Authority
+    # 16. Traditional Authority (marginalization ↔ formal integration)
     {
         "intercept": 0.0,
         "is_rural": 1.5, "lga_Trad Authority Index": 0.5 / 5.0,
         "is_tertiary": -2.0, "is_pada": -2.5, "is_older": 1.0, "is_naijin": -1.5,
+        "is_kanuri": 2.0,             # Kanuri: strong Shehu of Borno tradition
+        "is_hausa_fulani": 1.5,       # HF: emirate system is backbone
+        "is_nupe": 1.0,               # Nupe: Etsu Nupe tradition
+        "is_yoruba": 1.5,             # Yoruba: Obas deeply revered
+        "is_edo": 1.0,                # Edo: Oba of Benin tradition
+        "is_tiv": -0.5,              # Tiv: more egalitarian, less chief-oriented
+        "is_rural_older": 1.0,       # Rural elders strongest supporters
+        "is_urban_youth": -1.5,       # Urban youth reject trad authority
     },
-    # 17. Infrastructure
+    # 17. Infrastructure (targeted ↔ universal provision)
     {
         "intercept": 1.0,
         "is_rural": 1.5, "is_bottom_income": 1.0,
         "lga_Access Electricity Pct": -0.02, "lga_Access Water Pct": -0.01,
         "is_top_income": -1.0,
+        "is_mb_minority": 0.5,        # Middle Belt underserved
+        "is_nd_minority": 0.5,        # Niger Delta: pipelines but no roads
+        "is_urban_youth": -0.5,       # Urban youth prefer targeted investment
     },
-    # 18. Land Tenure
+    # 18. Land Tenure (customary ↔ formalization)
     {
         "intercept": 0.0,
         "is_smallholder": -1.5, "is_rural": -1.0,
         "lga_Trad Authority Index": -0.3 / 5.0, "is_top_income": 2.5,
         "lga_Land Formalization Pct": 0.03 / 100.0, "is_pada": 2.0,
+        "is_tiv": -1.5,              # Tiv: strong customary land system
+        "is_nupe": -1.0,             # Nupe: traditional land allocation
+        "is_igbo": 1.0,              # Igbo: pro-formalization (commercial mindset)
+        "is_commercial_ag": 2.0,     # Commercial farmers want formal titles
+        "is_rural_older": -1.0,      # Rural elderly defend customary tenure
     },
-    # 19. Taxation
+    # 19. Taxation (low tax ↔ high redistribution)
     {
         "intercept": 0.5,
         "is_top_income": -3.5, "is_bottom_income": 2.5, "is_unemployed": 2.0,
         "lga_Gini Proxy": 2.0, "is_pada": -1.0, "lga_Poverty Rate Pct": 0.02 / 100.0,
+        "is_hf_bottom_income": 0.5,  # Poor northerners want redistribution
+        "is_informal": 0.5,          # Informal workers want better services
+        "is_youth_unemployed": 1.0,  # Unemployed youth strongly pro-redistribution
+        "is_igbo": -1.0,             # Igbo prefer low-tax self-reliance
     },
-    # 20. Agricultural Policy
+    # 20. Agricultural Policy (free market ↔ protectionist smallholder)
     {
         "intercept": 0.5,
         "is_smallholder": 3.0, "is_commercial_ag": -3.0, "is_rural": 1.0,
         "is_top_income": -1.5, "lga_Pct Livelihood Agriculture": 0.02 / 100.0,
+        "is_tiv": 1.5,               # Tiv: breadbasket, smallholder heartland
+        "is_nupe": 1.0,              # Nupe: farming tradition
+        "is_mb_minority": 0.5,       # Middle Belt agricultural communities
+        "is_yoruba": -0.5,           # Yoruba: more commercially oriented
     },
-    # 21. Biological Enhancement
+    # 21. Biological Enhancement (prohibition ↔ universal access)
     {
         "intercept": 0.0,
         "is_top_income": 2.0, "is_muslim": -2.0, "is_youth": 1.5,
         "lga_Biological Enhancement Pct": 0.1 / 100.0, "is_tertiary": 0.5, "is_rural": -1.0,
+        "is_pentecostal": -1.5,       # Pentecostals oppose "playing God"
+        "is_tertiary_youth": 1.5,     # Educated youth most pro-access
+        "is_kanuri": -1.5,            # Kanuri: conservative, anti-enhancement
+        "is_urban_youth": 1.0,        # Urban youth embrace technology
+        "is_naijin": 1.0,             # Naijin cosmopolitan, pro-tech
     },
-    # 22. Trade Policy
+    # 22. Trade Policy (autarky ↔ full openness)
     {
         "intercept": 0.0,
         "is_formal_sector": 1.5, "lga_Pct Livelihood Manufacturing": 0.3 / 100.0,
         "is_smallholder": -1.5, "is_top_income": 2.0, "is_unemployed": -2.0,
         "lga_Rail Corridor": 0.5,
+        "is_igbo": 1.0,               # Igbo: entrepreneurial, pro-open trade
+        "is_yoruba": 0.5,             # Yoruba: commercial culture
+        "is_nupe": 0.5,               # Nupe: historic trans-Saharan trade routes
+        "is_kanuri": -0.5,            # Kanuri: protectionist instinct
     },
-    # 23. Environmental Regulation
+    # 23. Environmental Regulation (growth first ↔ strong regulation)
     {
         "intercept": 0.0,
-        "is_formal_sector": -2.0,  # extraction worker proxy
+        "is_formal_sector": -2.0,
         "is_tertiary": 1.5, "lga_Oil Producing": 1.0,
         "is_top_income": -1.5, "is_ijaw": 2.0, "is_bottom_income": -1.0,
+        "is_nd_minority": 1.5,        # Niger Delta minorities: pollution victims
+        "is_edo": 1.0,                # Edo: oil zone environmental awareness
+        "is_tertiary_youth": 1.0,     # Educated youth pro-environment
+        "is_ibibio": 0.5,             # Ibibio: Akwa Ibom environmental concern
     },
-    # 24. Media Freedom
+    # 24. Media Freedom (state control ↔ full press freedom)
     {
         "intercept": 0.5,
         "is_tertiary": 1.5, "lga_Internet Access Pct": 0.05 / 100.0,
         "is_pada": -0.5, "is_youth": 1.0, "is_civil_servant": -2.0,
         "is_al_shahid": -1.0,
+        "is_urban_youth": 0.5,        # Urban youth are social media generation
+        "is_kanuri": -1.0,            # Kanuri: state media tradition
+        "is_igbo": 0.5,               # Igbo: pro-free expression
+        "is_yoruba": 0.5,             # Yoruba: strong media tradition
     },
-    # 25. Healthcare
+    # 25. Healthcare (pure market ↔ universal provision)
     {
         "intercept": 1.0,
         "is_bottom_income": 2.5, "is_top_income": -2.0,
         "lga_Access Healthcare Pct": -0.05 / 100.0, "is_rural": 1.0, "is_older": 0.5,
+        "is_middle_income": 0.5,      # Middle class also wants accessible healthcare
+        "is_female": 0.5,             # Women (maternal health) want universal care
+        "is_tiv": 0.5,                # Tiv: underserved area
+        "is_kanuri": 0.5,             # Kanuri: health infrastructure poor
     },
-    # 26. Padà Status
+    # 26. Padà Status (anti-Padà ↔ Padà preservation)
     {
         "intercept": -1.0,
         "is_pada": 5.0, "is_hausa_fulani": -2.5, "is_bottom_income": -1.5,
         "is_civil_servant": 0.5, "is_naijin": 1.0,
+        "is_kanuri": -1.5,            # Kanuri suspicious of Padà influence
+        "is_igbo": 0.5,               # Igbo moderate pro-Padà (commercial allies)
+        "is_yoruba": 0.5,             # Yoruba tolerant of Padà presence
+        "is_tiv": -0.5,              # Tiv mild suspicion
+        "is_edo": 0.5,                # Edo: cosmopolitan, tolerant
     },
-    # 27. Energy Policy
+    # 27. Energy Policy (fossil status quo ↔ green transition)
     {
         "intercept": 0.5,
-        "is_formal_sector": -2.0,  # extraction worker proxy
+        "is_formal_sector": -2.0,
         "is_rural": 2.0, "lga_Access Electricity Pct": -0.05 / 100.0,
         "is_tertiary": 1.0, "is_top_income": -1.0,
+        "is_ijaw": -0.5,              # Ijaw: complex — want transition but depend on oil
+        "is_nd_minority": -0.5,       # Niger Delta: oil-dependent economies
+        "is_tertiary_youth": 1.0,     # Educated youth pro-green
+        "is_urban_youth": 0.5,        # Urban youth lean green
     },
-    # 28. AZ Restructuring
+    # 28. AZ Restructuring (return to 36+ states ↔ keep 8 AZs)
     {
         "intercept": 0.0,
         "is_yoruba": -2.0, "is_hausa_fulani": -1.0, "is_minority": -2.5,
         "is_pada": 3.0, "lga_Trad Authority Index": -0.3 / 5.0,
+        "is_tiv": -2.0,              # Tiv strongly want Middle Belt state
+        "is_mb_minority": -2.0,      # Middle Belt minorities want own states
+        "is_nd_minority": -1.5,      # Niger Delta minorities want own states
+        "is_igbo": -1.0,             # Igbo want Biafra-adjacent structures
+        "is_kanuri": 1.5,            # Kanuri prefer current AZ (Borno dominance)
+        "is_nupe": -1.0,             # Nupe want distinct identity from HF hegemony
+        "is_edo": -1.0,              # Edo want Mid-West recognition
     },
 ]
 
@@ -1050,9 +1265,17 @@ def _build_voter_feature_matrix(voter_types: list[VoterType],
     _yoruba = _eth_map["Yoruba"]
     _igbo = _eth_map["Igbo"]
     _ijaw = _eth_map["Ijaw"]
+    _kanuri = _eth_map["Kanuri"]
+    _tiv = _eth_map["Tiv"]
+    _nupe = _eth_map["Nupe"]
+    _edo = _eth_map["Edo"]
+    _ibibio = _eth_map["Ibibio"]
+    _nd_min = _eth_map["Niger Delta Minorities"]
+    _mb_min = _eth_map["Middle Belt Minorities"]
     _pada = _eth_map["Pada"]
     _naijin = _eth_map["Naijin"]
     _majority_set = {_hausa, _fulani, _hf_undiff, _yoruba, _igbo}
+    _hf_set = [_hausa, _fulani, _hf_undiff]
 
     # Religion int codes (matching RELIGIONS order)
     _rel_map = {r: j for j, r in enumerate(RELIGIONS)}
@@ -1064,61 +1287,115 @@ def _build_voter_feature_matrix(voter_types: list[VoterType],
     _catholic = _rel_map.get("Catholic", -1)
     _mainline_prot = _rel_map.get("Mainline Protestant", -1)
     _muslim_codes = {_tijaniyya, _qadiriyya, _al_shahid, _mainstream_sunni}
+    _christian_codes = [_pentecostal, _catholic, _mainline_prot]
+
+    # Precompute base boolean arrays for building interaction terms
+    _is_muslim = np.isin(rel_idx, list(_muslim_codes))
+    _is_christian = np.isin(rel_idx, _christian_codes)
+    _is_female = gen_idx == 1
+    _is_urban = set_idx == 0
+    _is_rural = set_idx == 2
+    _is_youth = age_idx == 0
+    _is_tertiary = edu_idx == 2
+    _is_hf = np.isin(eth_idx, _hf_set)
+    _is_bottom = inc_idx == 0
+    _is_top = inc_idx == 2
 
     # Vectorised boolean feature computation
     for fi, feat in enumerate(feature_names):
         if feat == "is_muslim":
-            mat[:, fi] = np.isin(rel_idx, list(_muslim_codes)).astype(np.float32)
+            mat[:, fi] = _is_muslim.astype(np.float32)
         elif feat == "is_christian":
-            mat[:, fi] = np.isin(rel_idx, [_pentecostal, _catholic, _mainline_prot]).astype(np.float32)
+            mat[:, fi] = _is_christian.astype(np.float32)
         elif feat == "is_al_shahid":
             mat[:, fi] = (rel_idx == _al_shahid).astype(np.float32)
         elif feat == "is_tijaniyya":
             mat[:, fi] = (rel_idx == _tijaniyya).astype(np.float32)
+        elif feat == "is_pentecostal":
+            mat[:, fi] = (rel_idx == _pentecostal).astype(np.float32)
         elif feat == "is_tertiary":
-            mat[:, fi] = (edu_idx == 2).astype(np.float32)  # Tertiary = index 2
+            mat[:, fi] = _is_tertiary.astype(np.float32)
         elif feat == "is_urban":
-            mat[:, fi] = (set_idx == 0).astype(np.float32)  # Urban = index 0
+            mat[:, fi] = _is_urban.astype(np.float32)
         elif feat == "is_rural":
-            mat[:, fi] = (set_idx == 2).astype(np.float32)  # Rural = index 2
+            mat[:, fi] = _is_rural.astype(np.float32)
         elif feat == "is_pada":
             mat[:, fi] = (eth_idx == _pada).astype(np.float32)
         elif feat == "is_naijin":
             mat[:, fi] = (eth_idx == _naijin).astype(np.float32)
         elif feat == "is_hausa_fulani":
-            mat[:, fi] = np.isin(eth_idx, [_hausa, _fulani, _hf_undiff]).astype(np.float32)
+            mat[:, fi] = _is_hf.astype(np.float32)
         elif feat == "is_yoruba":
             mat[:, fi] = (eth_idx == _yoruba).astype(np.float32)
         elif feat == "is_igbo":
             mat[:, fi] = (eth_idx == _igbo).astype(np.float32)
         elif feat == "is_ijaw":
             mat[:, fi] = (eth_idx == _ijaw).astype(np.float32)
+        elif feat == "is_kanuri":
+            mat[:, fi] = (eth_idx == _kanuri).astype(np.float32)
+        elif feat == "is_tiv":
+            mat[:, fi] = (eth_idx == _tiv).astype(np.float32)
+        elif feat == "is_nupe":
+            mat[:, fi] = (eth_idx == _nupe).astype(np.float32)
+        elif feat == "is_edo":
+            mat[:, fi] = (eth_idx == _edo).astype(np.float32)
+        elif feat == "is_ibibio":
+            mat[:, fi] = (eth_idx == _ibibio).astype(np.float32)
+        elif feat == "is_nd_minority":
+            mat[:, fi] = (eth_idx == _nd_min).astype(np.float32)
+        elif feat == "is_mb_minority":
+            mat[:, fi] = (eth_idx == _mb_min).astype(np.float32)
         elif feat == "is_female":
-            mat[:, fi] = (gen_idx == 1).astype(np.float32)  # Female = index 1
+            mat[:, fi] = _is_female.astype(np.float32)
         elif feat == "is_youth":
-            mat[:, fi] = (age_idx == 0).astype(np.float32)  # 18-24 = index 0
+            mat[:, fi] = _is_youth.astype(np.float32)
         elif feat == "is_older":
             mat[:, fi] = (age_idx == 3).astype(np.float32)  # 50+ = index 3
+        elif feat == "is_middle_age":
+            mat[:, fi] = (age_idx == 2).astype(np.float32)  # 35-49 = index 2
         elif feat == "is_top_income":
-            mat[:, fi] = (inc_idx == 2).astype(np.float32)  # Top 20% = index 2
+            mat[:, fi] = _is_top.astype(np.float32)
         elif feat == "is_bottom_income":
-            mat[:, fi] = (inc_idx == 0).astype(np.float32)  # Bottom 40% = index 0
+            mat[:, fi] = _is_bottom.astype(np.float32)
+        elif feat == "is_middle_income":
+            mat[:, fi] = (inc_idx == 1).astype(np.float32)  # Middle 40% = index 1
         elif feat == "is_civil_servant":
-            mat[:, fi] = (liv_idx == 4).astype(np.float32)  # Public sector = index 4
+            mat[:, fi] = (liv_idx == 4).astype(np.float32)
         elif feat == "is_formal_sector":
-            mat[:, fi] = (liv_idx == 3).astype(np.float32)  # Formal private = index 3
+            mat[:, fi] = (liv_idx == 3).astype(np.float32)
         elif feat == "is_informal":
-            mat[:, fi] = (liv_idx == 2).astype(np.float32)  # Trade/informal = index 2
+            mat[:, fi] = (liv_idx == 2).astype(np.float32)
         elif feat == "is_smallholder":
-            mat[:, fi] = (liv_idx == 0).astype(np.float32)  # Smallholder = index 0
+            mat[:, fi] = (liv_idx == 0).astype(np.float32)
         elif feat == "is_commercial_ag":
-            mat[:, fi] = (liv_idx == 1).astype(np.float32)  # Commercial ag = index 1
+            mat[:, fi] = (liv_idx == 1).astype(np.float32)
         elif feat == "is_unemployed":
-            mat[:, fi] = (liv_idx == 5).astype(np.float32)  # Unemployed/student = index 5
+            mat[:, fi] = (liv_idx == 5).astype(np.float32)
         elif feat == "is_minority":
             mat[:, fi] = (~np.isin(eth_idx, list(_majority_set))).astype(np.float32)
         elif feat == "is_majority":
             mat[:, fi] = np.isin(eth_idx, list(_majority_set)).astype(np.float32)
+        # --- Interaction terms ---
+        elif feat == "is_muslim_female":
+            mat[:, fi] = (_is_muslim & _is_female).astype(np.float32)
+        elif feat == "is_urban_youth":
+            mat[:, fi] = (_is_urban & _is_youth).astype(np.float32)
+        elif feat == "is_rural_muslim":
+            mat[:, fi] = (_is_rural & _is_muslim).astype(np.float32)
+        elif feat == "is_tertiary_youth":
+            mat[:, fi] = (_is_tertiary & _is_youth).astype(np.float32)
+        elif feat == "is_hf_bottom_income":
+            mat[:, fi] = (_is_hf & _is_bottom).astype(np.float32)
+        elif feat == "is_christian_urban":
+            mat[:, fi] = (_is_christian & _is_urban).astype(np.float32)
+        elif feat == "is_muslim_tertiary":
+            mat[:, fi] = (_is_muslim & _is_tertiary).astype(np.float32)
+        elif feat == "is_female_tertiary":
+            mat[:, fi] = (_is_female & _is_tertiary).astype(np.float32)
+        elif feat == "is_youth_unemployed":
+            mat[:, fi] = (_is_youth & (liv_idx == 5)).astype(np.float32)
+        elif feat == "is_rural_older":
+            mat[:, fi] = (_is_rural & (age_idx == 3)).astype(np.float32)
         else:
             # Fallback for any unknown feature — use getattr (shouldn't happen
             # for the default table, but supports custom coefficient tables)
