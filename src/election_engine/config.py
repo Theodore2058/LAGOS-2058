@@ -90,7 +90,7 @@ class EngineParams:
     kappa: float = 200.0          # Dirichlet concentration (κ). Higher = less noise
     sigma_national: float = 0.10  # National shock SD (σ_nat)
     sigma_regional: float = 0.15  # Regional shock SD (σ_reg)
-    sigma_lga: float = 0.20       # LGA shock SD (σ_lga)
+    sigma_lga: float = 0.20       # LGA shock SD (σ_lga) — UNUSED: per-LGA noise uses Dirichlet κ instead
     sigma_turnout: float = 0.0    # National turnout noise SD on logit scale. 0 = deterministic turnout
     sigma_turnout_regional: float = 0.0  # Regional turnout noise SD on logit scale (per admin zone)
 

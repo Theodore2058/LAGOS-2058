@@ -209,7 +209,10 @@ def compute_lga_results(
         active_demographics = [
             {"education": voter_types[i].education,
              "age_cohort": voter_types[i].age_cohort,
-             "setting": voter_types[i].setting}
+             "setting": voter_types[i].setting,
+             "livelihood": voter_types[i].livelihood,
+             "income": voter_types[i].income,
+             "gender": voter_types[i].gender}
             for i in active_idx
         ]
     else:
