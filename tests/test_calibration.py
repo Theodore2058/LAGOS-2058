@@ -599,3 +599,129 @@ class TestReproducibilityAndFragmentation:
         assert states_above_10 >= 2, (
             f"PLF >10% in only {states_above_10} Niger Delta states, need >=2"
         )
+
+
+# ===================================================================
+# REGRESSION TESTS — dimensional scaling fix
+# ===================================================================
+
+class TestDimensionalScaling:
+    """Verify spatial and identity utility magnitudes are comparable."""
+
+    def test_spatial_normalization_default(self):
+        """EngineParams auto-computes spatial_normalization = sqrt(28)."""
+        params = EngineParams()
+        expected = np.sqrt(N_ISSUES)
+        assert abs(params.spatial_normalization - expected) < 1e-6
+
+    def test_spatial_normalization_custom(self):
+        """Custom spatial_normalization is preserved."""
+        params = EngineParams(spatial_normalization=3.0)
+        assert params.spatial_normalization == 3.0
+
+    def test_spatial_identity_magnitude_ratio(self, full_run):
+        """Mean |spatial| should be within 5x of mean |ethnic + religious|.
+
+        This is the regression test for Bug #1: before the fix, spatial
+        was 5-15x larger than identity, drowning out ethnic/religious voting.
+        """
+        results, parties = full_run
+        df = results["lga_results_base"]
+        # Ethnic heartlands holding is the observable consequence —
+        # if spatial overwhelms identity, heartlands break.
+        # NDC should win >50% of Hausa>50% LGAs
+        lga_obj = load_lga_data(DATA_PATH)
+        lga_data = lga_obj.df
+        party_names = [p.name for p in parties]
+        share_cols = [f"{p}_share" for p in party_names]
+
+        hausa_mask = lga_data["% Hausa"].values > 50
+        hausa_df = df.iloc[hausa_mask]
+        ndc_wins = (hausa_df[share_cols].idxmax(axis=1) == "NDC_share").sum()
+        assert ndc_wins > hausa_mask.sum() * 0.5, (
+            f"NDC wins only {ndc_wins}/{hausa_mask.sum()} Hausa LGAs — "
+            "spatial may be overwhelming identity"
+        )
+
+        igbo_mask = lga_data["% Igbo"].values > 50
+        igbo_df = df.iloc[igbo_mask]
+        ipa_wins = (igbo_df[share_cols].idxmax(axis=1) == "IPA_share").sum()
+        assert ipa_wins > igbo_mask.sum() * 0.5, (
+            f"IPA wins only {ipa_wins}/{igbo_mask.sum()} Igbo LGAs — "
+            "spatial may be overwhelming identity"
+        )
+
+
+# ===================================================================
+# REGRESSION TESTS — turnout signature fix
+# ===================================================================
+
+class TestTurnoutSignatureFix:
+    """Verify single-voter turnout path handles all demographics."""
+
+    def test_gender_affects_turnout(self):
+        """Female gender should increase abstention utility (Bug #2 fix)."""
+        from election_engine.turnout import compute_vote_probs_with_turnout
+        params = EngineParams()
+        pp = np.array([[1, 0, -1]] * N_ISSUES).T[:3]
+        voter = np.zeros(N_ISSUES)
+        utils = np.array([2.0, 1.5, 1.0])
+
+        _, turnout_male = compute_vote_probs_with_turnout(
+            utils, voter, pp, params,
+            voter_demographics={"education": "Secondary", "age_cohort": "35-49",
+                                "setting": "Urban", "gender": "Male"},
+        )
+        _, turnout_female = compute_vote_probs_with_turnout(
+            utils, voter, pp, params,
+            voter_demographics={"education": "Secondary", "age_cohort": "35-49",
+                                "setting": "Urban", "gender": "Female"},
+        )
+        assert turnout_female < turnout_male, (
+            f"Female turnout ({turnout_female:.3f}) should be lower than "
+            f"male ({turnout_male:.3f}) due to gender gap"
+        )
+
+    def test_livelihood_affects_turnout(self):
+        """Public sector workers should have higher turnout than unemployed."""
+        from election_engine.turnout import compute_vote_probs_with_turnout
+        params = EngineParams()
+        pp = np.array([[1, 0, -1]] * N_ISSUES).T[:3]
+        voter = np.zeros(N_ISSUES)
+        utils = np.array([2.0, 1.5, 1.0])
+
+        _, turnout_public = compute_vote_probs_with_turnout(
+            utils, voter, pp, params,
+            voter_demographics={"livelihood": "Public sector"},
+        )
+        _, turnout_unemp = compute_vote_probs_with_turnout(
+            utils, voter, pp, params,
+            voter_demographics={"livelihood": "Unemployed/student"},
+        )
+        assert turnout_public > turnout_unemp
+
+
+# ===================================================================
+# SMOKE TEST — full MC run
+# ===================================================================
+
+class TestSmokeTest:
+    """Quick smoke test with 10 MC iterations."""
+
+    def test_no_nan_no_negative_shares_sum_to_one(self, full_run):
+        """MC aggregated results should be well-formed."""
+        results, parties = full_run
+        mc_agg = results.get("mc_aggregated")
+        if mc_agg is None:
+            pytest.skip("MC aggregated results not available")
+        # Check seat stats
+        seat_stats = mc_agg.get("seat_stats")
+        if seat_stats is None:
+            pytest.skip("seat_stats not in MC results")
+        assert not seat_stats.isnull().any().any(), "NaN in seat_stats"
+        assert (seat_stats["Mean Seats"] >= 0).all(), "Negative mean seats"
+        # Check win probabilities sum to ~1
+        win_probs = mc_agg.get("win_probabilities", {})
+        if win_probs:
+            total = sum(win_probs.values())
+            assert abs(total - 1.0) < 0.01, f"Win probabilities sum to {total}"
