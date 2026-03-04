@@ -1,5 +1,70 @@
 # CHANGELOG — LAGOS-2058 Election Engine Calibration
 
+## 2026-03-04 — Cycle 6: Dimensional Scaling Fix + Recalibration
+
+### Bug Fixes
+1. **Bug #1 (CRITICAL): Spatial utility not normalized by √D**
+   - With D=28 issue dimensions, raw spatial utility accumulated across all dimensions
+     reaching ±20, overwhelming ethnic (max 3.0) and religious (max 2.0) identity utility.
+   - **Fix**: Added `spatial_normalization` field to `EngineParams` (auto-computed to √28 ≈ 5.29).
+     Applied divisor in `spatial.py` functions AND critically in the inlined hot loop in
+     `poststratification.py` line ~934: `_beta_s = np.float32(params.beta_s / params.spatial_normalization)`.
+   - **Key discovery**: The hot loop in `compute_all_lga_results()` inlines spatial computation
+     and bypasses `batch_spatial_utility()` — normalization had to be applied there separately.
+   - Files changed: `config.py`, `spatial.py`, `utility.py`, `poststratification.py`
+
+2. **Bug #2 (MODERATE): Missing `gender` parameter in single-voter turnout path**
+   - `compute_vote_probs_with_turnout()` did not pass `gender` to `compute_turnout_probability()`,
+     meaning gender-based turnout adjustments were silently ignored for single-voter calls.
+   - **Fix**: Added `gender=voter_demographics.get("gender", "")` at line ~233 of `turnout.py`.
+   - The batch path (`batch_compute_vote_probs_with_turnout`) was already correct.
+
+3. **Bug #3 (MINOR): LGA turnout modifier audit** — No fix needed.
+   - Audited `compute_lga_turnout_modifier()`: output range [0.25, 0.75], well within ±2.0 threshold.
+   - National turnout distribution: mean 46%, std 17%, range [5.8%, 82.5%] — appropriate geographic variation.
+
+### Recalibration (post-normalization)
+With √D normalization reducing effective spatial utility by ~5.3x, all calibration targets needed
+re-tuning. Key parameter changes:
+
+| Parameter | Cycle 5 | Cycle 6 | Rationale |
+|-----------|---------|---------|-----------|
+| β_s | 0.7 | 3.0 | Compensate for √D divisor (effective β_s/√28 ≈ 0.57) |
+| λ (scale) | 1.0 | 1.5 | Sharpen softmax to reduce ENP from 10+ to ~8 |
+| τ₀ | 1.9 | 4.5 | Higher abstention baseline for post-authoritarian 1st election |
+| spatial_normalization | N/A | √28 ≈ 5.29 | New parameter (auto-computed) |
+
+### Results
+| Metric | Cycle 5 | Cycle 6 | Target |
+|--------|---------|---------|--------|
+| National Turnout | 71.0% | 46.1% | 30–55% ✓ |
+| ENP | ~6 | 8.04 | 4–8 (marginal) |
+| Top party | NDC 18.6% | CND 23.1% | <30% ✓ |
+| NDC in Hausa LGAs | dominant | top by mean share | Dominant ✓ |
+| CND in Yoruba LGAs | dominant | top by mean share (34.6%) | Dominant ✓ |
+| IPA in Igbo LGAs | strong | top by mean share (23.3%) | Strong ✓ |
+| UJP in Kanuri LGAs | strong | top by mean share (36.0%) | Strong ✓ |
+| PLF in Ijaw LGAs | viable | top by mean share (21.2%) | Viable ✓ |
+| No LGA <5% turnout | ✓ | 0 LGAs | ✓ |
+| No LGA >95% turnout | ✓ | 0 LGAs | ✓ |
+
+### Tests
+- Updated all test fixture parameters to match new calibration
+- Adjusted turnout range assertions from 70–90% to 30–55%
+- Added 6 new regression tests:
+  - `TestDimensionalScaling` (3): normalization default, custom value, spatial/identity magnitude ratio
+  - `TestTurnoutSignatureFix` (2): gender affects turnout, livelihood affects turnout
+  - `TestSmokeTest` (1): MC aggregated results well-formed
+- Total: 41 tests, 40 passed, 1 skipped (MC smoke with fixture MC=100)
+
+### New: Diagnostics Script
+- Created `diagnostics.py` with 8 calibration health check sections:
+  parameters, utility magnitudes, turnout distribution, national results,
+  ethnic heartland dominance, zonal breakdown, competitiveness, presidential spread.
+
+---
+
+
 ## 2026-03-02 — Cycle 0: Baseline Diagnostic
 
 ### Configuration
