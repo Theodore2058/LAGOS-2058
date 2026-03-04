@@ -230,6 +230,7 @@ def compute_vote_probs_with_turnout(
         setting=voter_demographics.get("setting", ""),
         livelihood=voter_demographics.get("livelihood", ""),
         income=voter_demographics.get("income", ""),
+        gender=voter_demographics.get("gender", ""),
     )
 
     all_utils = np.append(utilities, v_abstain)
