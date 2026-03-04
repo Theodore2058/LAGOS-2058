@@ -1216,3 +1216,157 @@ def compute_summary_stats(
         "national_turnout": turnout,
         "enp": enp,
     }
+
+
+# ---------------------------------------------------------------------------
+# Sainte-Laguë seat allocation
+# ---------------------------------------------------------------------------
+
+def sainte_lague(
+    votes: dict[str, int | float],
+    n_seats: int,
+) -> dict[str, int]:
+    """
+    Allocate *n_seats* among parties using the Sainte-Laguë (Webster) method.
+
+    Each party's vote total is divided by the sequence 1, 3, 5, 7, ...
+    (i.e. ``2k + 1`` for k = 0, 1, 2, ...).  The *n_seats* highest quotients
+    each win one seat.
+
+    Parameters
+    ----------
+    votes : dict[str, int | float]
+        Mapping of party name → total votes in the district.
+        Parties with zero or negative votes receive no seats.
+    n_seats : int
+        Number of seats to allocate (must be >= 1).
+
+    Returns
+    -------
+    dict[str, int]
+        Mapping of party name → seats won.
+    """
+    if n_seats < 1:
+        return {p: 0 for p in votes}
+
+    # Build a list of (quotient, party) for all possible seat awards
+    quotients: list[tuple[float, str]] = []
+    for party, v in votes.items():
+        if v <= 0:
+            continue
+        for k in range(n_seats):
+            quotients.append((v / (2 * k + 1), party))
+
+    # Sort descending by quotient; take top n_seats entries
+    quotients.sort(key=lambda x: -x[0])
+
+    seats: dict[str, int] = {p: 0 for p in votes}
+    for _, party in quotients[:n_seats]:
+        seats[party] += 1
+
+    return seats
+
+
+def allocate_district_seats(
+    lga_results: pd.DataFrame,
+    party_names: list[str],
+    district_seats: pd.DataFrame,
+    lga_mapping: pd.DataFrame,
+    pop_col: str = "Estimated Population",
+    turnout_col: str = "Turnout",
+) -> pd.DataFrame:
+    """
+    Aggregate LGA vote counts to voting districts and allocate seats via
+    Sainte-Laguë.
+
+    Parameters
+    ----------
+    lga_results : pd.DataFrame
+        LGA-level results with {party}_share, population, and turnout columns.
+        Must contain a ``"LGA Name"`` column.
+    party_names : list[str]
+        Party names in order.
+    district_seats : pd.DataFrame
+        Must contain columns ``"District ID"`` and ``"Seats"``
+        (from seat_allocation.xlsx "District Seats" sheet).
+    lga_mapping : pd.DataFrame
+        Must contain columns ``"LGA"`` and ``"District ID"``
+        (from voting_districts_summary.xlsx "LGA Mapping" sheet).
+    pop_col, turnout_col : str
+        Column names in *lga_results*.
+
+    Returns
+    -------
+    pd.DataFrame
+        One row per district with columns:
+        District ID, AZ Name, Seats, Total_Votes,
+        {party}_votes, {party}_share, {party}_seats,
+        Winner (party with most seats).
+    """
+    # --- compute LGA-level vote counts ---
+    df = lga_results.copy()
+    pop = df[pop_col].values.astype(float) if pop_col in df.columns else np.ones(len(df))
+    turnout = df[turnout_col].values.astype(float) if turnout_col in df.columns else np.ones(len(df))
+    total_voters = pop * turnout
+    for p in party_names:
+        df[f"{p}_votes"] = np.round(total_voters * df[f"{p}_share"].values.astype(float)).astype(int)
+    df["Total_Votes"] = np.round(total_voters).astype(int)
+
+    # --- merge LGA → district mapping ---
+    mapping = lga_mapping[["LGA", "District ID"]].copy()
+    mapping = mapping.rename(columns={"LGA": "LGA Name"})
+    merged = df.merge(mapping, on="LGA Name", how="left")
+
+    # --- build seat lookup ---
+    seat_lookup = dict(zip(
+        district_seats["District ID"],
+        district_seats["Seats"].astype(int),
+    ))
+
+    # --- AZ Name lookup (from district_seats if available) ---
+    az_lookup: dict[str, str] = {}
+    if "Admin Zone" in district_seats.columns:
+        az_lookup = dict(zip(district_seats["District ID"], district_seats["Admin Zone"]))
+
+    # --- aggregate per district and allocate seats ---
+    rows: list[dict] = []
+    vote_cols = [f"{p}_votes" for p in party_names]
+
+    for dist_id, group in merged.groupby("District ID"):
+        n_seats = seat_lookup.get(dist_id, 0)
+        total_votes = int(group["Total_Votes"].sum())
+
+        party_votes: dict[str, int] = {}
+        row: dict = {
+            "District ID": dist_id,
+            "AZ Name": az_lookup.get(dist_id, ""),
+            "Seats": n_seats,
+            "Total_Votes": total_votes,
+        }
+
+        for p in party_names:
+            vcol = f"{p}_votes"
+            pv = int(group[vcol].sum())
+            party_votes[p] = pv
+            row[f"{p}_votes"] = pv
+            row[f"{p}_share"] = pv / total_votes if total_votes > 0 else 0.0
+
+        # Sainte-Laguë allocation
+        seats = sainte_lague(party_votes, n_seats)
+        for p in party_names:
+            row[f"{p}_seats"] = seats[p]
+
+        # Winner = party with most seats (tie-break: most votes)
+        max_seats = max(seats.values())
+        winners = [p for p in party_names if seats[p] == max_seats]
+        if len(winners) > 1:
+            row["Winner"] = max(winners, key=lambda p: party_votes[p])
+        else:
+            row["Winner"] = winners[0]
+
+        rows.append(row)
+
+    result = pd.DataFrame(rows)
+    # Sort by district ID for stable output
+    result = result.sort_values("District ID").reset_index(drop=True)
+    return result

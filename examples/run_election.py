@@ -52,6 +52,7 @@ from election_engine.results import (
     compute_vote_counts, compute_state_vote_counts,
     compute_competitiveness, compute_vote_source_decomposition,
     compute_coalition_feasibility, compute_demographic_vote_profile,
+    allocate_district_seats,
 )
 
 logging.basicConfig(
@@ -1119,50 +1120,70 @@ def main():
     available_sv = [c for c in sv_cols if c in state_votes.columns]
     print(state_votes[available_sv].to_string(index=False))
 
-    # --- Voting district results ---
+    # --- Voting district results with Sainte-Laguë seat allocation ---
     import pandas as pd
-    district_file = Path(__file__).parent.parent / "voting_districts_summary.xlsx"
-    if district_file.exists():
-        districts = pd.read_excel(district_file)
-        district_rows = []
-        for _, drow in districts.iterrows():
-            lga_list = [l.strip() for l in str(drow["LGA List"]).split(",")]
-            dist_lgas = lga_with_votes[lga_with_votes["LGA Name"].isin(lga_list)]
-            if len(dist_lgas) == 0:
-                continue
-            row = {
-                "District ID": drow["District ID"],
-                "AZ Name": drow["AZ Name"],
-                "# LGAs": drow["# LGAs"],
-                "Population": drow["Population"],
-            }
-            total_votes = dist_lgas["Total_Votes"].sum()
-            row["Total_Votes"] = total_votes
-            for p in party_names:
-                vcol = f"{p}_votes"
-                if vcol in dist_lgas.columns:
-                    row[f"{p}_votes"] = dist_lgas[vcol].sum()
-                    row[f"{p}_share"] = (
-                        row[f"{p}_votes"] / total_votes if total_votes > 0 else 0.0
-                    )
-            district_rows.append(row)
+    project_root = Path(__file__).parent.parent
+    district_file = project_root / "voting_districts_summary.xlsx"
+    seat_file = project_root / "seat_allocation.xlsx"
+    if district_file.exists() and seat_file.exists():
+        lga_mapping = pd.read_excel(district_file, sheet_name="LGA Mapping")
+        district_seats = pd.read_excel(seat_file, sheet_name="District Seats")
 
-        if district_rows:
-            dist_df = pd.DataFrame(district_rows)
-            print(f"\nVOTING DISTRICT RESULTS ({len(dist_df)} districts, base run):")
-            top3_d_vote = [f"{p}_votes" for p in top3]
-            top3_d_share = [f"{p}_share" for p in top3]
-            show_cols = (
-                ["District ID", "AZ Name", "Total_Votes"]
-                + top3_d_vote + top3_d_share
-            )
-            available_d = [c for c in show_cols if c in dist_df.columns]
-            disp_d = dist_df[available_d].copy()
-            for p in top3:
-                sc = f"{p}_share"
-                if sc in disp_d.columns:
-                    disp_d[sc] = disp_d[sc].map("{:.1%}".format)
-            print(disp_d.to_string(index=False))
+        dist_df = allocate_district_seats(
+            results["lga_results_base"], party_names,
+            district_seats, lga_mapping,
+        )
+        total_seats = dist_df["Seats"].sum()
+
+        # --- Per-district table ---
+        print(f"\nVOTING DISTRICT RESULTS ({len(dist_df)} districts, "
+              f"{total_seats} seats, Sainte-Laguë, base run):")
+        top3_d_seats = [f"{p}_seats" for p in top3]
+        top3_d_share = [f"{p}_share" for p in top3]
+        show_cols = (
+            ["District ID", "AZ Name", "Seats", "Total_Votes"]
+            + top3_d_seats + top3_d_share
+        )
+        available_d = [c for c in show_cols if c in dist_df.columns]
+        disp_d = dist_df[available_d].copy()
+        for p in top3:
+            sc = f"{p}_share"
+            if sc in disp_d.columns:
+                disp_d[sc] = disp_d[sc].map("{:.1%}".format)
+        print(disp_d.to_string(index=False))
+
+        # --- National seat totals ---
+        national_seats = {p: int(dist_df[f"{p}_seats"].sum()) for p in party_names}
+        sorted_seats = sorted(national_seats.items(), key=lambda x: -x[1])
+        print(f"\nNATIONAL SEAT TOTALS (Sainte-Laguë, {total_seats} seats):")
+        print(f"  {'Party':10s}  {'Seats':>5s}  {'%':>6s}  {'Votes':>12s}  {'Vote %':>7s}")
+        print(f"  {'-'*10}  {'-'*5}  {'-'*6}  {'-'*12}  {'-'*7}")
+        for p, s in sorted_seats:
+            if s > 0:
+                pct = s / total_seats
+                votes = summary["national_votes"][p]
+                vote_share = summary["national_shares"][p]
+                print(f"  {p:10s}  {s:5d}  {pct:5.1%}  {votes:12,}  {vote_share:6.1%}")
+
+        # --- Zonal seat breakdown ---
+        print(f"\nZONAL SEAT BREAKDOWN:")
+        zone_seat_rows = []
+        for az_name, zgroup in dist_df.groupby("AZ Name"):
+            zrow = {"AZ Name": az_name, "Seats": int(zgroup["Seats"].sum())}
+            for p in party_names:
+                zrow[f"{p}_seats"] = int(zgroup[f"{p}_seats"].sum())
+            zone_seat_rows.append(zrow)
+        zone_seat_df = pd.DataFrame(zone_seat_rows)
+        header = f"  {'Zone':25s}  {'Seats':>5s}"
+        for p, _ in sorted_seats[:7]:
+            header += f"  {p:>5s}"
+        print(header)
+        print(f"  {'-'*25}  {'-'*5}" + f"  {'-'*5}" * min(7, len(sorted_seats)))
+        for _, zr in zone_seat_df.iterrows():
+            line = f"  {str(zr['AZ Name']):25s}  {zr['Seats']:5d}"
+            for p, _ in sorted_seats[:7]:
+                line += f"  {zr[f'{p}_seats']:5d}"
+            print(line)
 
     # --- State-level MC win probabilities ---
     state_mc = mc.get("state_mc_stats")

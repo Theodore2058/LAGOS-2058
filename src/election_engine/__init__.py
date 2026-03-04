@@ -12,6 +12,8 @@ from .results import (
     compute_state_vote_counts,
     effective_number_of_parties,
     compute_competitiveness,
+    sainte_lague,
+    allocate_district_seats,
 )
 
 __all__ = [
@@ -24,4 +26,6 @@ __all__ = [
     "compute_state_vote_counts",
     "effective_number_of_parties",
     "compute_competitiveness",
+    "sainte_lague",
+    "allocate_district_seats",
 ]
