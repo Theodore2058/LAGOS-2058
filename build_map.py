@@ -460,9 +460,36 @@ html = f"""<!DOCTYPE html>
   .type-zone {{ background: rgba(200,56,56,0.1); color: #B83030; border: 1px solid rgba(200,56,56,0.2); }}
 
   /* ── Layer control ── */
+  /* ── Right sidebar ── */
+  .right-sidebar {{
+    position: absolute; top: 14px; right: 14px; bottom: 14px; z-index: 1000;
+    width: 210px; overflow-y: auto; overflow-x: hidden;
+    display: flex; flex-direction: column; gap: 0;
+    scrollbar-width: thin; scrollbar-color: rgba(180,90,20,0.3) transparent;
+  }}
+  .right-sidebar::-webkit-scrollbar {{ width: 3px; }}
+  .right-sidebar::-webkit-scrollbar-thumb {{ background: rgba(180,90,20,0.3); }}
+  .right-sidebar .rsec {{
+    padding: 12px 16px; font-size: 13px;
+    border-bottom: 1px solid rgba(180,90,20,0.08);
+  }}
+  .right-sidebar .rsec:last-child {{ border-bottom: none; }}
+  .rsec-head {{
+    font-family: 'Orbitron', monospace;
+    font-size: 8px; text-transform: uppercase; letter-spacing: 4px;
+    color: rgba(42,139,154,0.6); cursor: pointer;
+    display: flex; justify-content: space-between; align-items: center;
+    user-select: none;
+  }}
+  .rsec-head::after {{
+    content: '\u25B4'; font-size: 10px; transition: transform 0.25s;
+  }}
+  .rsec-head.collapsed::after {{ transform: rotate(180deg); }}
+  .rsec-body {{ overflow: hidden; transition: max-height 0.3s ease, opacity 0.25s; max-height: 600px; opacity: 1; margin-top: 8px; }}
+  .rsec-body.hidden {{ max-height: 0; opacity: 0; margin-top: 0; }}
+
   .layer-control {{
-    position: absolute; top: 14px; right: 14px; z-index: 1000;
-    padding: 16px 20px; font-size: 13px;
+    font-size: 13px;
   }}
   .layer-control h3 {{
     font-family: 'Orbitron', monospace;
@@ -574,8 +601,7 @@ html = f"""<!DOCTYPE html>
 
   /* ── Choropleth control ── */
   .choro-control {{
-    position: absolute; top: 240px; right: 14px; z-index: 1000;
-    padding: 16px 20px; font-size: 13px;
+    font-size: 13px;
   }}
   .choro-control h3 {{
     font-family: 'Orbitron', monospace;
@@ -752,8 +778,8 @@ html = f"""<!DOCTYPE html>
 
   /* ── Ranking panel ── */
   .rank-panel {{
-    position: absolute; top: 100px; right: 14px; z-index: 1001;
-    width: 320px; max-height: 500px; overflow-y: auto;
+    position: absolute; top: 130px; left: 56px; z-index: 1001;
+    width: 360px; max-height: calc(100vh - 420px); overflow-y: auto;
     padding: 14px 16px; font-size: 12px; display: none;
   }}
   .rank-panel::-webkit-scrollbar {{ width: 3px; }}
@@ -826,7 +852,7 @@ html = f"""<!DOCTYPE html>
   body.dark-mode .search-results {{ background: rgba(26,26,46,0.95); border-color: var(--border); }}
   body.dark-mode .search-item:hover {{ background: rgba(42,139,154,0.1); }}
   body.dark-mode .search-item .name {{ color: var(--text); }}
-  body.dark-mode .layer-control h3, body.dark-mode .choro-control h3, body.dark-mode .legend h3 {{ color: var(--teal); }}
+  body.dark-mode .rsec-head, body.dark-mode .layer-control h3, body.dark-mode .choro-control h3, body.dark-mode .legend h3 {{ color: var(--teal); }}
   body.dark-mode .lc-row .lc-name, body.dark-mode .choro-btn {{ color: var(--text-muted); }}
   body.dark-mode .choro-btn.active {{ color: var(--accent); border-left-color: var(--accent); background: rgba(232,144,48,0.08); }}
   body.dark-mode .choro-btn:hover {{ color: var(--teal); }}
@@ -859,8 +885,7 @@ html = f"""<!DOCTYPE html>
 
   /* ── Legend ── */
   .legend {{
-    position: absolute; bottom: 130px; right: 14px; z-index: 1000;
-    padding: 14px 18px; font-size: 12px;
+    font-size: 12px;
   }}
   .legend h3 {{
     font-family: 'Orbitron', monospace;
@@ -958,36 +983,55 @@ html = f"""<!DOCTYPE html>
 </div>
 
 <!-- Layer control -->
-<div class="layer-control panel">
+<div class="right-sidebar panel" id="rightSidebar">
   <div class="panel-corners"><div class="corner corner-tl"></div><div class="corner corner-tr"></div><div class="corner corner-bl"></div><div class="corner corner-br"></div></div>
-  <h3>Layers</h3>
-  <div class="lc-header"><span></span><span>Border</span><span>Label</span></div>
-  <div class="lc-row"><span class="lc-name">Admin Zones</span><label><input type="checkbox" id="togZone" checked></label><label><input type="checkbox" id="togZoneLbl" checked></label></div>
-  <div class="lc-row"><span class="lc-name">States</span><label><input type="checkbox" id="togState" checked></label><label><input type="checkbox" id="togStateLbl" checked></label></div>
-  <div class="lc-row"><span class="lc-name">Districts</span><label><input type="checkbox" id="togDistrict" checked></label><label><input type="checkbox" id="togDistrictLbl" checked></label></div>
-  <div class="lc-row"><span class="lc-name">LGAs</span><label><input type="checkbox" id="togLGA" checked></label><label><input type="checkbox" id="togLGALbl" checked></label></div>
-  <div class="lc-row"><span class="lc-name">Cities</span><label><input type="checkbox" id="togCities" checked></label><label></label></div>
-  <div class="lc-row"><span class="lc-name">Terrain</span><label><input type="checkbox" id="togTerrain"></label><label></label></div>
-</div>
 
-<!-- Choropleth control -->
-<div class="choro-control panel" id="choroControl">
-  <div class="panel-corners"><div class="corner corner-tl"></div><div class="corner corner-tr"></div><div class="corner corner-bl"></div><div class="corner corner-br"></div></div>
-  <h3>Data Layer</h3>
-  <div class="glow-line"></div>
-  <div class="choro-btn active" data-mode="zones">Zones</div>
-  <div class="choro-btn" data-mode="religion">Religion</div>
-  <div class="choro-btn" data-mode="ethnicity">Ethnicity</div>
-  <div class="choro-sub" id="ethSub" style="display:none;">
-    <label><input type="radio" name="ethMode" value="diversity" checked> Diversity Index</label>
-    <label><input type="radio" name="ethMode" value="dominant"> Dominant Group</label>
+  <!-- Layers section -->
+  <div class="rsec layer-control">
+    <div class="rsec-head" onclick="toggleSection(this)">Layers</div>
+    <div class="rsec-body">
+      <div class="lc-header"><span></span><span>Border</span><span>Label</span></div>
+      <div class="lc-row"><span class="lc-name">Admin Zones</span><label><input type="checkbox" id="togZone" checked></label><label><input type="checkbox" id="togZoneLbl" checked></label></div>
+      <div class="lc-row"><span class="lc-name">States</span><label><input type="checkbox" id="togState" checked></label><label><input type="checkbox" id="togStateLbl" checked></label></div>
+      <div class="lc-row"><span class="lc-name">Districts</span><label><input type="checkbox" id="togDistrict" checked></label><label><input type="checkbox" id="togDistrictLbl" checked></label></div>
+      <div class="lc-row"><span class="lc-name">LGAs</span><label><input type="checkbox" id="togLGA" checked></label><label><input type="checkbox" id="togLGALbl" checked></label></div>
+      <div class="lc-row"><span class="lc-name">Cities</span><label><input type="checkbox" id="togCities" checked></label><label></label></div>
+      <div class="lc-row"><span class="lc-name">Terrain</span><label><input type="checkbox" id="togTerrain"></label><label></label></div>
+    </div>
   </div>
-  <div class="choro-btn" data-mode="poverty">Poverty</div>
-  <div class="choro-btn" data-mode="education">Education</div>
-  <div class="choro-btn" data-mode="population">Population</div>
-  <div class="choro-btn" data-mode="bivariate">Poverty &times; Education</div>
+
   <div class="glow-line"></div>
-  <div class="choro-btn" style="font-size:10px;letter-spacing:2px;color:rgba(42,139,154,0.4)" onclick="toggleRankPanel()">&#x2195; RANK</div>
+
+  <!-- Data Layer section -->
+  <div class="rsec choro-control" id="choroControl">
+    <div class="rsec-head" onclick="toggleSection(this)">Data Layer</div>
+    <div class="rsec-body">
+      <div class="choro-btn active" data-mode="zones">Zones</div>
+      <div class="choro-btn" data-mode="religion">Religion</div>
+      <div class="choro-btn" data-mode="ethnicity">Ethnicity</div>
+      <div class="choro-sub" id="ethSub" style="display:none;">
+        <label><input type="radio" name="ethMode" value="diversity" checked> Diversity Index</label>
+        <label><input type="radio" name="ethMode" value="dominant"> Dominant Group</label>
+      </div>
+      <div class="choro-btn" data-mode="poverty">Poverty</div>
+      <div class="choro-btn" data-mode="education">Education</div>
+      <div class="choro-btn" data-mode="population">Population</div>
+      <div class="choro-btn" data-mode="bivariate">Poverty &times; Education</div>
+      <div class="glow-line"></div>
+      <div class="choro-btn" style="font-size:10px;letter-spacing:2px;color:rgba(42,139,154,0.4)" onclick="toggleRankPanel()">&#x2195; RANK</div>
+    </div>
+  </div>
+
+  <div class="glow-line"></div>
+
+  <!-- Legend section -->
+  <div class="rsec legend" id="legend">
+    <div class="rsec-head" onclick="toggleSection(this)">Legend</div>
+    <div class="rsec-body">
+      <h3 id="legendTitle">Admin Zones</h3>
+      <div id="legendItems"></div>
+    </div>
+  </div>
 </div>
 
 <!-- Dashboard strip -->
@@ -1051,22 +1095,7 @@ html = f"""<!DOCTYPE html>
   <div id="infoPanelContent"></div>
 </div>
 
-<!-- Legend -->
-<div class="legend panel" id="legend">
-  <div class="panel-corners"><div class="corner corner-tl"></div><div class="corner corner-tr"></div><div class="corner corner-bl"></div><div class="corner corner-br"></div></div>
-  <h3>Admin Zones</h3>
-  <div id="legendItems"></div>
-</div>
 
-<!-- Title cartouche -->
-<div class="map-title">
-  <div class="adinkra">&#x2726; &#x25C7; &#x2726;</div>
-  <h1>NIGERIA</h1>
-  <div class="year">&#x2736; 2 0 5 8 &#x2736;</div>
-  <div class="glow-line"></div>
-  <p>150 Districts &middot; 774 LGAs &middot; 8 Zones</p>
-  <div class="adinkra">&#x25C7; &#x2726; &#x25C7;</div>
-</div>
 
 <script>
 // ── Embedded data ──
@@ -1399,6 +1428,13 @@ function animateChoroTransition(newStyleFn, duration) {{
     else {{ animating = false; lgaLayer.eachLayer(l => l.setStyle(lgaStyle(l.feature))); }}
   }}
   requestAnimationFrame(step);
+}}
+
+// ── Sidebar section toggle ──
+function toggleSection(head) {{
+  head.classList.toggle('collapsed');
+  const body = head.nextElementSibling;
+  body.classList.toggle('hidden');
 }}
 
 // ── Mode switching ──
@@ -1830,6 +1866,7 @@ function esc(s) {{ return s.replace(/'/g, "\\\\'"); }}
 function showPanel(html) {{
   document.getElementById('infoPanelContent').innerHTML = html;
   document.getElementById('infoPanel').style.display = 'block';
+  document.getElementById('rankPanel').style.display = 'none';
 }}
 
 // ── Search ──
@@ -2028,7 +2065,12 @@ updateDashboard();
 function toggleRankPanel() {{
   const panel = document.getElementById('rankPanel');
   panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
-  if (panel.style.display === 'block') buildRankTable();
+  if (panel.style.display === 'block') {{
+    document.getElementById('infoPanel').style.display = 'none';
+    document.getElementById('comparePanel').style.display = 'none';
+    clearHighlight();
+    buildRankTable();
+  }}
 }}
 let rankSortDir = 'desc';
 function buildRankTable(dir) {{
