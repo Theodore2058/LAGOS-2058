@@ -573,9 +573,9 @@ def compute_all_lga_results(
     _med_age = _lga_col("Median Age Estimate", 22.0)
     _lga_turnout_mod -= 0.1 * np.clip((_med_age - 18.0) / 20.0, 0.0, 1.0)  # older median → more turnout
 
-    # Gini inequality: high inequality can mobilise protest voting
-    _gini_t = _lga_col("Gini Proxy", 0.36)
-    _lga_turnout_mod -= 0.05 * np.clip((_gini_t - 0.30) / 0.30, 0.0, 1.0)  # inequality → mobilisation
+    # Gini inequality (additional term): lower threshold captures moderate inequality mobilisation
+    # (reuse _gini loaded earlier to avoid redundant column read)
+    _lga_turnout_mod -= 0.05 * np.clip((_gini - 0.30) / 0.30, 0.0, 1.0)  # inequality → mobilisation
 
     # Major Urban Center: concentrated election infrastructure, party presence, media
     _major_urban = _lga_col("Major Urban Center", 0.0)
@@ -598,11 +598,11 @@ def compute_all_lga_results(
     _lga_turnout_mod -= 0.04 * _col_midwestern  # Mid-Western: minority identity mobilisation
 
     # Internet Access: political information, campaign exposure → engagement
-    _internet = _lga_col("Internet Access Pct", 50.0)
+    # (reuse _internet loaded earlier with default 60.0 to avoid shadowing)
     _lga_turnout_mod -= 0.06 * np.clip(_internet / 100.0, 0.0, 1.0)  # connected → informed → turnout
 
     # Mobile Phone Penetration: party mobilisation via SMS/WhatsApp
-    _mobile = _lga_col("Mobile Phone Penetration Pct", 80.0)
+    # (reuse _mobile loaded earlier with default 50.0 to avoid shadowing)
     _lga_turnout_mod -= 0.04 * np.clip(_mobile / 100.0, 0.0, 1.0)  # phone access → mobilisation
 
     # Market Access Index: connected communities participate more

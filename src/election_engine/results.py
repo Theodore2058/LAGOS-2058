@@ -793,7 +793,7 @@ def _compute_mc_spread_check(
     result = {}
     for j, pname in enumerate(party_names):
         # National plurality: this party has the highest national share
-        is_plurality = national_shares[:, j] == national_shares.max(axis=1)
+        is_plurality = (national_shares.max(axis=1) - national_shares[:, j]) < 1e-9
 
         # State-level shares: for each run, how many states have >=25%?
         states_above = np.zeros(n_runs, dtype=int)
