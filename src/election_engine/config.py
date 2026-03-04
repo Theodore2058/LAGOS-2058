@@ -68,17 +68,18 @@ class EngineParams:
 
     # Spatial model
     q: float = 0.5          # Proximity-directional mix (0=directional, 1=proximity)
-    beta_s: float = 1.0     # Spatial sensitivity (β_s)
+    beta_s: float = 3.0     # Spatial sensitivity (β_s) — scaled with √D normalization
+    spatial_normalization: float = 0.0  # Divisor for spatial utility (0 = auto = √N_ISSUES)
 
     # Identity affinity
-    alpha_e: float = 2.5    # Ethnic sensitivity (α_e)
-    alpha_r: float = 1.5    # Religious sensitivity (α_r)
+    alpha_e: float = 3.0    # Ethnic sensitivity (α_e) — primary vote driver in Nigerian context
+    alpha_r: float = 2.0    # Religious sensitivity (α_r)
 
     # Multinomial logit
-    scale: float = 1.0      # Softmax scale / rationality (λ). Higher = sharper choices
+    scale: float = 1.5      # Softmax scale / rationality (λ). Higher = sharper choices
 
     # Turnout / abstention
-    tau_0: float = 3.5      # Baseline abstention utility (τ₀)
+    tau_0: float = 4.5      # Baseline abstention utility (τ₀) — high for post-authoritarian 1st election
     tau_1: float = 0.3      # Alienation strength (τ₁)
     tau_2: float = 0.5      # Indifference strength (τ₂)
 
@@ -94,6 +95,9 @@ class EngineParams:
     sigma_turnout_regional: float = 0.0  # Regional turnout noise SD on logit scale (per admin zone)
 
     def __post_init__(self) -> None:
+        # Auto-compute spatial normalization from issue dimensionality
+        if self.spatial_normalization <= 0.0:
+            self.spatial_normalization = float(np.sqrt(N_ISSUES))
         if not (0.0 <= self.q <= 1.0):
             raise ValueError(f"q must be in [0, 1], got {self.q}")
         if self.beta_s < 0:

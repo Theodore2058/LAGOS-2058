@@ -38,6 +38,7 @@ def spatial_utility(
     beta_s: float,
     q: float,
     salience_weights: Optional[np.ndarray] = None,
+    spatial_normalization: float = 1.0,
 ) -> np.ndarray:
     """
     Compute spatial utility of one voter for all parties.
@@ -55,6 +56,10 @@ def spatial_utility(
     salience_weights : np.ndarray, shape (D,), optional
         Per-issue salience weights for this LGA.
         If None, uniform weights of 1.0 are used.
+    spatial_normalization : float
+        Divisor for raw spatial utility. Default √D corrects for
+        the accumulation effect of many issue dimensions, keeping
+        spatial utility comparable to identity utility.
 
     Returns
     -------
@@ -75,8 +80,8 @@ def spatial_utility(
     # Weighted squared norm: Σ_d w_d · z_{jd}²        → shape (J,)
     sq_norm = party_positions ** 2 @ w
 
-    # Unified model: x·z - (q/2)·||z||²
-    utility = beta_s * (dot_product - (q / 2.0) * sq_norm)
+    # Unified model: x·z - (q/2)·||z||², normalized by √D
+    utility = (beta_s / spatial_normalization) * (dot_product - (q / 2.0) * sq_norm)
     return utility
 
 
@@ -87,6 +92,7 @@ def batch_spatial_utility(
     q: float,
     salience_weights: Optional[np.ndarray] = None,
     _intermediates: Optional[dict] = None,
+    spatial_normalization: float = 1.0,
 ) -> np.ndarray:
     """
     Compute spatial utilities for a batch of voter ideal points.
@@ -106,6 +112,9 @@ def batch_spatial_utility(
     _intermediates : dict, optional
         If provided, populated with intermediate arrays for reuse
         (dot_products, sq_norms, w) to avoid redundant matmuls elsewhere.
+    spatial_normalization : float
+        Divisor for raw spatial utility. Default √D corrects for
+        the accumulation effect of many issue dimensions.
 
     Returns
     -------
@@ -134,7 +143,9 @@ def batch_spatial_utility(
     sq_norms = (pp_f32 ** 2) @ w_f32                           # (J,) float32
 
     # Broadcast: stay in float32 to avoid promoting the whole chain to float64
-    utilities = np.float32(beta_s) * (dot_products - np.float32(q / 2.0) * sq_norms)
+    # Apply √D normalization to keep spatial utility comparable to identity terms
+    effective_beta = np.float32(beta_s / spatial_normalization)
+    utilities = effective_beta * (dot_products - np.float32(q / 2.0) * sq_norms)
 
     if _intermediates is not None:
         _intermediates["dot_products"] = dot_products

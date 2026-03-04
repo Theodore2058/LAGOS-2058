@@ -130,6 +130,7 @@ def compute_utility(
         voter_ideal, party_positions,
         beta_s=params.beta_s, q=params.q,
         salience_weights=salience_weights,
+        spatial_normalization=params.spatial_normalization,
     )
 
     # 3. Ethnic utility (J,)
@@ -348,6 +349,7 @@ def compute_utilities_batch(
         beta_s=params.beta_s, q=params.q,
         salience_weights=salience_weights,
         _intermediates=_spatial_intermediates,
+        spatial_normalization=params.spatial_normalization,
     )
 
     # Compute salience-weighted alienation from spatial intermediates

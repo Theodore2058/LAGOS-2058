@@ -930,8 +930,8 @@ def compute_all_lga_results(
     _idx_rel = type_indices["rel"]
     _idx_gen = type_indices["gen"]
 
-    # Cache frequently-used scalars
-    _beta_s = np.float32(params.beta_s)
+    # Cache frequently-used scalars (apply √D normalization to beta_s)
+    _beta_s = np.float32(params.beta_s / params.spatial_normalization)
     _q_half = np.float32(params.q / 2.0)
 
     # Pre-allocate reusable buffers for per-LGA spatial/alienation/turnout.
