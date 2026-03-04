@@ -20,6 +20,8 @@ with open('GeoJSON/district_info.json') as f:
     district_info = json.load(f)
 with open('GeoJSON/zone_info.json') as f:
     zone_info = json.load(f)
+with open('GeoJSON/nga_admincapitals.geojson') as f:
+    capitals_data = json.load(f)
 
 # ── Load LGA demographic data for choropleth modes ──────────────────────
 print("Loading LGA demographic data...")
@@ -142,6 +144,8 @@ for feat in lga_data['features']:
         choro['pe'] = round(float(row[('EDUCATION', 'Primary Enrollment Pct')]), 1)
         choro['se'] = round(float(row[('EDUCATION', 'Secondary Enrollment Pct')]), 1)
         choro['gp'] = round(float(row[('EDUCATION', 'Gender Parity Index')]), 2)
+        # Population
+        choro['pop'] = int(row[('DEMOGRAPHIC', 'Estimated Population')])
     else:
         unmatched_lgas.append((geo_state, geo_lga))
 
@@ -286,7 +290,20 @@ for feat in zone_features:
     except Exception:
         pass
 
+# ── Process city markers (state capitals) ────────────────────────────
+capital_points = []
+for ft in capitals_data['features']:
+    p = ft['properties']
+    if p.get('adm_p_lvl') == 1:
+        capital_points.append({
+            'name': p['name'],
+            'lat': round(p['y_coord'], 4),
+            'lon': round(p['x_coord'], 4),
+        })
+print(f"  {len(capital_points)} state capitals extracted")
+
 # ── Serialize ─────────────────────────────────────────────────────────
+capitals_json = json.dumps(capital_points)
 lga_json = json.dumps(lga_data)
 state_json = json.dumps(state_data)
 mask_json = json.dumps(mask_geo)
@@ -308,6 +325,7 @@ html = f"""<!DOCTYPE html>
 <title>NIGERIA 2058 — Electoral Territories</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
   * {{ margin: 0; padding: 0; box-sizing: border-box; }}
@@ -597,6 +615,248 @@ html = f"""<!DOCTYPE html>
     width: 10px; height: 10px;
   }}
 
+  /* ── Hover tooltip ── */
+  .lga-tooltip {{
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 13px; font-weight: 600;
+    color: var(--text, #2C1810);
+    background: var(--panel-bg, rgba(242,226,198,0.96));
+    border: 1px solid rgba(180,90,20,0.2);
+    padding: 6px 12px;
+    box-shadow: 0 2px 12px rgba(160,80,20,0.12);
+    clip-path: polygon(0 4px, 4px 0, calc(100% - 4px) 0, 100% 4px,
+      100% calc(100% - 4px), calc(100% - 4px) 100%, 4px 100%, 0 calc(100% - 4px));
+    letter-spacing: 0.5px; white-space: nowrap;
+  }}
+  .lga-tooltip .tt-stat {{
+    font-size: 11px; color: rgba(42,139,154,0.7);
+    font-weight: 500; margin-top: 2px;
+  }}
+
+  /* ── Bivariate legend ── */
+  .bivar-legend {{
+    display: grid; grid-template-columns: repeat(3, 28px);
+    grid-template-rows: repeat(3, 28px); gap: 2px; margin: 8px 0;
+  }}
+  .bivar-legend div {{
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+  }}
+  .bivar-axis {{
+    font-size: 8px; color: rgba(44,24,16,0.45);
+    font-family: 'Orbitron', monospace; letter-spacing: 1px;
+  }}
+
+  /* ── Distribution chart ── */
+  .distro-chart {{ margin-top: 10px; padding-top: 6px; border-top: 1px solid rgba(180,90,20,0.1); }}
+  .distro-chart svg {{ display: block; width: 100%; }}
+
+  /* ── Filter slider ── */
+  .filter-slider {{ margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(180,90,20,0.1); }}
+  .filter-slider input[type=range] {{
+    width: 100%; accent-color: #2A8B9A; height: 4px; cursor: pointer;
+    margin: 4px 0;
+  }}
+  .filter-slider .filter-row-label {{
+    font-size: 8px; color: rgba(44,24,16,0.35); margin-top: 6px; margin-bottom: 1px;
+    font-family: 'Orbitron', monospace; letter-spacing: 1px;
+  }}
+  .filter-slider .filter-labels {{
+    display: flex; justify-content: space-between;
+    font-size: 9px; color: rgba(44,24,16,0.4); margin-top: 2px;
+  }}
+  .filter-slider .filter-count {{
+    font-size: 10px; color: rgba(42,139,154,0.6);
+    text-align: center; margin-top: 6px;
+    font-family: 'Orbitron', monospace; letter-spacing: 1px;
+  }}
+
+  /* ── City markers ── */
+  .city-marker {{
+    width: 8px; height: 8px; background: var(--teal, #2A8B9A);
+    transform: rotate(45deg);
+    border: 1px solid rgba(42,139,154,0.6);
+    box-shadow: 0 0 6px rgba(42,139,154,0.3);
+  }}
+  .city-label {{
+    font-family: 'Rajdhani', sans-serif; font-size: 10px; font-weight: 600;
+    color: rgba(42,139,154,0.8); white-space: nowrap;
+    text-shadow: 0 0 4px rgba(242,226,198,0.9), 0 0 2px rgba(242,226,198,0.95);
+    letter-spacing: 0.5px;
+  }}
+
+  /* ── Minimap ── */
+  .minimap-container {{
+    position: absolute; bottom: 14px; left: 440px; z-index: 999;
+    width: 140px; height: 110px;
+    border: 1px solid rgba(180,90,20,0.25);
+    background: rgba(242,226,198,0.95);
+    clip-path: polygon(0 6px, 6px 0, calc(100% - 6px) 0, 100% 6px,
+      100% calc(100% - 6px), calc(100% - 6px) 100%, 6px 100%, 0 calc(100% - 6px));
+    overflow: hidden;
+  }}
+  .minimap-container .leaflet-container {{ background: #F2E2C6 !important; }}
+
+  /* ── Compare mode ── */
+  .compare-toggle {{
+    position: absolute; top: 100px; left: 56px; z-index: 1000;
+    padding: 8px 16px; cursor: pointer;
+    font-family: 'Rajdhani', sans-serif; font-size: 12px;
+    font-weight: 600; letter-spacing: 1px;
+    color: rgba(44,24,16,0.5); transition: all 0.25s;
+  }}
+  .compare-toggle.active {{
+    color: #B45A14; border-left: 2px solid #B45A14;
+    background: rgba(180,90,20,0.08);
+  }}
+  .compare-panel {{
+    position: absolute; bottom: 14px; left: 14px; z-index: 1001;
+    padding: 16px 20px; min-width: 480px; max-width: 560px;
+    font-size: 12px; display: none;
+  }}
+  .compare-cols {{
+    display: grid; grid-template-columns: 120px 1fr 1fr;
+    gap: 0; font-size: 12px;
+  }}
+  .compare-cols .cmp-label {{
+    color: rgba(44,24,16,0.45); padding: 3px 4px;
+    border-bottom: 1px solid rgba(180,90,20,0.06);
+  }}
+  .compare-cols .cmp-val {{
+    color: #2C1810; font-weight: 600; text-align: center; padding: 3px 4px;
+    border-bottom: 1px solid rgba(180,90,20,0.06);
+  }}
+  .compare-cols .cmp-header {{
+    font-family: 'Orbitron', monospace; font-size: 10px;
+    color: #B45A14; letter-spacing: 1px; text-align: center;
+    padding: 4px; font-weight: 700;
+  }}
+
+  /* ── Dashboard strip ── */
+  .dashboard-strip {{
+    position: absolute; top: 58px; left: 56px; z-index: 1000;
+    padding: 10px 22px; font-size: 11px;
+    display: flex; gap: 20px; align-items: center;
+  }}
+  .dashboard-strip .dash-item {{
+    display: flex; flex-direction: column; align-items: center; gap: 1px;
+  }}
+  .dashboard-strip .dash-value {{
+    font-family: 'Orbitron', monospace; font-size: 12px;
+    color: var(--accent, #B45A14); font-weight: 700; letter-spacing: 1px;
+  }}
+  .dashboard-strip .dash-label {{
+    font-size: 8px; color: rgba(42,139,154,0.5);
+    letter-spacing: 2px; text-transform: uppercase;
+    font-family: 'Orbitron', monospace;
+  }}
+
+  /* ── Ranking panel ── */
+  .rank-panel {{
+    position: absolute; top: 100px; right: 14px; z-index: 1001;
+    width: 320px; max-height: 500px; overflow-y: auto;
+    padding: 14px 16px; font-size: 12px; display: none;
+  }}
+  .rank-panel::-webkit-scrollbar {{ width: 3px; }}
+  .rank-panel::-webkit-scrollbar-thumb {{ background: rgba(180,90,20,0.4); }}
+  .rank-table {{ width: 100%; border-collapse: collapse; }}
+  .rank-table th {{
+    font-family: 'Orbitron', monospace; font-size: 8px;
+    color: rgba(42,139,154,0.5); letter-spacing: 2px;
+    text-align: left; padding: 4px;
+    border-bottom: 1px solid rgba(180,90,20,0.15); cursor: pointer;
+  }}
+  .rank-table td {{
+    padding: 4px; border-bottom: 1px solid rgba(180,90,20,0.06);
+    color: rgba(44,24,16,0.7); font-weight: 500;
+  }}
+  .rank-table tr:hover {{ background: rgba(42,139,154,0.05); cursor: pointer; }}
+  .rank-table tr:hover td {{ color: #2C1810; }}
+
+  /* ── Export buttons ── */
+  .export-bar {{
+    position: absolute; bottom: 14px; right: 250px; z-index: 1000;
+    display: flex; gap: 6px;
+  }}
+  .export-btn {{
+    padding: 6px 14px; cursor: pointer;
+    font-family: 'Orbitron', monospace; font-size: 8px;
+    letter-spacing: 2px; color: rgba(42,139,154,0.6);
+    border: none; background: none; transition: all 0.2s;
+  }}
+  .export-btn:hover {{ color: #2A8B9A; text-shadow: 0 0 8px rgba(42,139,154,0.2); }}
+
+  /* ── Dark mode toggle ── */
+  .dark-toggle {{
+    position: absolute; top: 14px; right: 280px; z-index: 1000;
+    padding: 8px 14px; cursor: pointer;
+    font-family: 'Orbitron', monospace; font-size: 9px;
+    letter-spacing: 2px; color: var(--teal, rgba(42,139,154,0.6));
+    border: none; background: none;
+  }}
+  .dark-toggle:hover {{ color: #2A8B9A; text-shadow: 0 0 8px rgba(42,139,154,0.2); }}
+
+  /* ── CSS custom properties for dark mode ── */
+  :root {{
+    --bg: #F2E2C6; --bg-alt: #E0CCA5;
+    --panel-bg: rgba(242,226,198,0.95); --panel-bg-alt: rgba(224,200,165,0.93);
+    --text: #2C1810; --text-muted: rgba(44,24,16,0.5);
+    --border: rgba(180,90,20,0.22); --accent: #B45A14; --teal: #2A8B9A;
+    --mask-fill: #F2E2C6;
+  }}
+  body.dark-mode {{
+    --bg: #1A1A2E; --bg-alt: #16213E;
+    --panel-bg: rgba(26,26,46,0.92); --panel-bg-alt: rgba(22,33,62,0.90);
+    --text: #E0D8CC; --text-muted: rgba(224,216,204,0.5);
+    --border: rgba(42,139,154,0.3); --accent: #E89030; --teal: #38B0C4;
+    --mask-fill: #1A1A2E;
+  }}
+  body.dark-mode {{ background: var(--bg); color: var(--text); }}
+  body.dark-mode #map {{ background: radial-gradient(ellipse at 40% 50%, #1A1A2E 0%, #16213E 70%); }}
+  body.dark-mode .panel {{
+    background: linear-gradient(135deg, var(--panel-bg) 0%, var(--panel-bg-alt) 100%);
+    border-color: var(--border);
+    box-shadow: 0 2px 24px rgba(0,0,0,0.3), 0 0 12px rgba(42,139,154,0.06);
+  }}
+  body.dark-mode .corner::before, body.dark-mode .corner::after {{ background: var(--accent); }}
+  body.dark-mode .search-panel input {{
+    background: rgba(26,26,46,0.95); color: var(--text);
+    border-color: var(--border);
+  }}
+  body.dark-mode .search-panel input::placeholder {{ color: rgba(42,139,154,0.3); }}
+  body.dark-mode .search-results {{ background: rgba(26,26,46,0.95); border-color: var(--border); }}
+  body.dark-mode .search-item:hover {{ background: rgba(42,139,154,0.1); }}
+  body.dark-mode .search-item .name {{ color: var(--text); }}
+  body.dark-mode .layer-control h3, body.dark-mode .choro-control h3, body.dark-mode .legend h3 {{ color: var(--teal); }}
+  body.dark-mode .lc-row .lc-name, body.dark-mode .choro-btn {{ color: var(--text-muted); }}
+  body.dark-mode .choro-btn.active {{ color: var(--accent); border-left-color: var(--accent); background: rgba(232,144,48,0.08); }}
+  body.dark-mode .choro-btn:hover {{ color: var(--teal); }}
+  body.dark-mode .info-panel h2 {{ color: var(--accent); }}
+  body.dark-mode .info-panel .subtitle {{ color: var(--teal); }}
+  body.dark-mode .info-panel .info-label {{ color: var(--text-muted); }}
+  body.dark-mode .info-panel .info-value {{ color: var(--text); }}
+  body.dark-mode .info-panel .close-btn {{ color: rgba(42,139,154,0.3); }}
+  body.dark-mode .info-panel .close-btn:hover {{ color: var(--teal); }}
+  body.dark-mode .nav-link {{ color: var(--teal); }}
+  body.dark-mode .legend-item {{ color: var(--text-muted); }}
+  body.dark-mode .map-title {{
+    background: linear-gradient(135deg, var(--panel-bg) 0%, var(--panel-bg-alt) 100%);
+    border-color: var(--border);
+  }}
+  body.dark-mode .map-title h1 {{
+    background: linear-gradient(180deg, #F0A820 0%, #E89030 40%, #D06A10 100%);
+    -webkit-background-clip: text; background-clip: text;
+  }}
+  body.dark-mode .map-title .year {{ color: var(--teal); }}
+  body.dark-mode .map-title p {{ color: var(--text-muted); }}
+  body.dark-mode .dashboard-strip .dash-value {{ color: var(--accent); }}
+  body.dark-mode .rank-table td {{ color: var(--text-muted); }}
+  body.dark-mode .rank-table tr:hover td {{ color: var(--text); }}
+  body.dark-mode .ambient-glow {{ opacity: 0.15; }}
+  body.dark-mode .vignette {{ background: radial-gradient(ellipse at center, transparent 45%, rgba(0,0,0,0.4) 100%); }}
+  body.dark-mode .holo-grid {{ opacity: 0.03; }}
+  body.dark-mode .leaflet-control-zoom a {{ background: var(--panel-bg) !important; color: var(--accent) !important; border-color: var(--border) !important; }}
+  body.dark-mode .leaflet-control-attribution {{ background: rgba(26,26,46,0.7) !important; color: rgba(224,216,204,0.3) !important; }}
+
   /* ── Legend ── */
   .legend {{
     position: absolute; bottom: 130px; right: 14px; z-index: 1000;
@@ -706,6 +966,8 @@ html = f"""<!DOCTYPE html>
   <div class="lc-row"><span class="lc-name">States</span><label><input type="checkbox" id="togState" checked></label><label><input type="checkbox" id="togStateLbl" checked></label></div>
   <div class="lc-row"><span class="lc-name">Districts</span><label><input type="checkbox" id="togDistrict" checked></label><label><input type="checkbox" id="togDistrictLbl" checked></label></div>
   <div class="lc-row"><span class="lc-name">LGAs</span><label><input type="checkbox" id="togLGA" checked></label><label><input type="checkbox" id="togLGALbl" checked></label></div>
+  <div class="lc-row"><span class="lc-name">Cities</span><label><input type="checkbox" id="togCities" checked></label><label></label></div>
+  <div class="lc-row"><span class="lc-name">Terrain</span><label><input type="checkbox" id="togTerrain"></label><label></label></div>
 </div>
 
 <!-- Choropleth control -->
@@ -722,6 +984,64 @@ html = f"""<!DOCTYPE html>
   </div>
   <div class="choro-btn" data-mode="poverty">Poverty</div>
   <div class="choro-btn" data-mode="education">Education</div>
+  <div class="choro-btn" data-mode="population">Population</div>
+  <div class="choro-btn" data-mode="bivariate">Poverty &times; Education</div>
+  <div class="glow-line"></div>
+  <div class="choro-btn" style="font-size:10px;letter-spacing:2px;color:rgba(42,139,154,0.4)" onclick="toggleRankPanel()">&#x2195; RANK</div>
+</div>
+
+<!-- Dashboard strip -->
+<div class="dashboard-strip panel" id="dashStrip">
+  <div class="panel-corners"><div class="corner corner-tl"></div><div class="corner corner-tr"></div><div class="corner corner-bl"></div><div class="corner corner-br"></div></div>
+  <div class="dash-item"><span class="dash-value" id="dashPop">&mdash;</span><span class="dash-label">Pop</span></div>
+  <div class="dash-item"><span class="dash-value" id="dashPov">&mdash;</span><span class="dash-label">Avg Pov</span></div>
+  <div class="dash-item"><span class="dash-value" id="dashLit">&mdash;</span><span class="dash-label">Avg Lit</span></div>
+  <div class="dash-item"><span class="dash-value" id="dashRel">&mdash;</span><span class="dash-label">Religion</span></div>
+  <div class="dash-item"><span class="dash-value" id="dashCount">&mdash;</span><span class="dash-label">LGAs</span></div>
+</div>
+
+<!-- Compare toggle -->
+<div class="compare-toggle panel" id="compareToggle" onclick="toggleCompareMode()">
+  <div class="panel-corners"><div class="corner corner-tl"></div><div class="corner corner-tr"></div><div class="corner corner-bl"></div><div class="corner corner-br"></div></div>
+  &#x2696; COMPARE
+</div>
+
+<!-- Compare panel -->
+<div class="compare-panel panel" id="comparePanel">
+  <div class="panel-corners"><div class="corner corner-tl"></div><div class="corner corner-tr"></div><div class="corner corner-bl"></div><div class="corner corner-br"></div></div>
+  <span class="close-btn" onclick="exitCompareMode();" style="position:absolute;top:12px;right:16px;cursor:pointer;color:rgba(180,90,20,0.3);font-size:18px;font-family:Orbitron,monospace;">&#x2715;</span>
+  <div id="comparePanelContent"></div>
+</div>
+
+<!-- Dark mode toggle -->
+<button class="dark-toggle panel" id="darkToggle" onclick="toggleDarkMode()">
+  <div class="panel-corners"><div class="corner corner-tl"></div><div class="corner corner-tr"></div><div class="corner corner-bl"></div><div class="corner corner-br"></div></div>
+  &#x263D; MODE
+</button>
+
+<!-- Ranking panel -->
+<div class="rank-panel panel" id="rankPanel">
+  <div class="panel-corners"><div class="corner corner-tl"></div><div class="corner corner-tr"></div><div class="corner corner-bl"></div><div class="corner corner-br"></div></div>
+  <span class="close-btn" onclick="document.getElementById('rankPanel').style.display='none'" style="position:absolute;top:12px;right:16px;cursor:pointer;color:rgba(180,90,20,0.3);font-size:18px;font-family:Orbitron,monospace;">&#x2715;</span>
+  <h3 style="font-family:Orbitron,monospace;font-size:8px;letter-spacing:4px;color:rgba(42,139,154,0.6);margin-bottom:8px">RANKING</h3>
+  <div id="rankContent"></div>
+</div>
+
+<!-- Export buttons -->
+<div class="export-bar">
+  <button class="export-btn panel" onclick="exportPNG()">
+    <div class="panel-corners"><div class="corner corner-tl"></div><div class="corner corner-tr"></div><div class="corner corner-bl"></div><div class="corner corner-br"></div></div>
+    PNG
+  </button>
+  <button class="export-btn panel" onclick="exportCSV()">
+    <div class="panel-corners"><div class="corner corner-tl"></div><div class="corner corner-tr"></div><div class="corner corner-bl"></div><div class="corner corner-br"></div></div>
+    CSV
+  </button>
+</div>
+
+<!-- Minimap -->
+<div class="minimap-container" id="minimapContainer">
+  <div id="minimap" style="width:100%;height:100%"></div>
 </div>
 
 <!-- Info panel -->
@@ -761,6 +1081,8 @@ const lgaCenters = {centers_json};
 const stateCenters = {state_centers_json};
 const districtCenters = {district_centers_json};
 const zoneCenters = {zone_centers_json};
+
+const capitalPoints = {capitals_json};
 
 // ── Zone colors — 70s afro-retrofuturist palette ──
 const ZC = {{
@@ -838,6 +1160,25 @@ function eduScore(f) {{
 }}
 function educationColor(f) {{ return seqScale(eduScore(f), 35, 100, EDU_SCALE); }}
 
+// Population: log scale
+const POP_SCALE = ['#F2E2C6','#D4A76A','#B45A14','#8B3A0A','#5A1A00'];
+function populationColor(f) {{
+  return seqScale(Math.log10(Math.max(f.properties.pop||20000, 1)), Math.log10(20000), Math.log10(6000000), POP_SCALE);
+}}
+
+// Bivariate: poverty x education 3x3 matrix
+const BIVAR = [
+  ['#E8D8C0', '#6A8A5A', '#2A8B9A'],
+  ['#D4870A', '#888860', '#4A6FA5'],
+  ['#C83838', '#7B4EC8', '#5A2A5A'],
+];
+function bivariateColor(f) {{
+  const p = f.properties;
+  const pov = Math.max(0, Math.min(2, Math.floor((p.pv||30) / 22)));
+  const edu = Math.max(0, Math.min(2, Math.floor((eduScore(f) - 35) / 22)));
+  return BIVAR[pov][edu];
+}}
+
 // Master style function
 function lgaStyle(f) {{
   let fillColor, fillOpacity, strokeColor, strokeOpacity;
@@ -845,8 +1186,10 @@ function lgaStyle(f) {{
     case 'religion':  fillColor=religionColor(f); fillOpacity=0.55; break;
     case 'ethnicity': fillColor=(ethSubMode==='diversity')?diversityColor(f):dominantEthColor(f); fillOpacity=0.55; break;
     case 'poverty':   fillColor=povertyColor(f); fillOpacity=0.55; break;
-    case 'education': fillColor=educationColor(f); fillOpacity=0.55; break;
-    default:          fillColor=ZC[f.properties.z]||'#222'; fillOpacity=0.18; break;
+    case 'education':   fillColor=educationColor(f); fillOpacity=0.55; break;
+    case 'population':  fillColor=populationColor(f); fillOpacity=0.55; break;
+    case 'bivariate':   fillColor=bivariateColor(f); fillOpacity=0.55; break;
+    default:            fillColor=ZC[f.properties.z]||'#222'; fillOpacity=0.18; break;
   }}
   const isChoro = choroMode !== 'zones';
   return {{
@@ -899,19 +1242,187 @@ function updateLegend(mode) {{
   }} else if (mode === 'education') {{
     title.textContent = 'Education Score';
     items.innerHTML = gradientBar(['#5A2A0A','#B45A14','#2A8B9A','#38B0C4'],'35','100','Low \u2192 High');
+  }} else if (mode === 'population') {{
+    title.textContent = 'Population';
+    items.innerHTML = gradientBar(POP_SCALE, '20K', '6M', 'Log Scale');
+  }} else if (mode === 'bivariate') {{
+    title.textContent = 'Poverty \u00d7 Education';
+    let g = '<div class="bivar-axis" style="text-align:center;margin-bottom:2px">\u2190 Education \u2192</div>';
+    g += '<div style="display:flex;align-items:center;gap:4px">';
+    g += '<div class="bivar-axis" style="writing-mode:vertical-lr;transform:rotate(180deg)">Poverty \u2192</div>';
+    g += '<div class="bivar-legend">';
+    for (let pi = 0; pi < 3; pi++) for (let ei = 0; ei < 3; ei++) g += '<div style="background:'+BIVAR[pi][ei]+'"></div>';
+    g += '</div></div>';
+    items.innerHTML = g;
   }}
+  // Distribution chart (for non-zone/non-bivariate modes)
+  if (mode !== 'zones' && mode !== 'bivariate') {{
+    items.innerHTML += distroChart(getActiveValues(), 6);
+  }}
+  // Filter slider
+  items.innerHTML += buildFilterSlider(mode);
+  setTimeout(attachFilterListeners, 0);
+}}
+
+// ── Distribution chart ──
+function distroChart(values, numBins) {{
+  if (!values.length) return '';
+  numBins = numBins || 5;
+  const min = Math.min(...values), max = Math.max(...values);
+  const range = max - min || 1;
+  const bins = new Array(numBins).fill(0);
+  values.forEach(v => {{
+    const idx = Math.min(numBins - 1, Math.floor((v - min) / range * numBins));
+    bins[idx]++;
+  }});
+  const maxCount = Math.max(...bins);
+  const w = 160, h = 30, bw = w / numBins - 1;
+  let svg = '<svg width="' + w + '" height="' + (h+12) + '" viewBox="0 0 ' + w + ' ' + (h+12) + '">';
+  bins.forEach((count, i) => {{
+    const bh = (count / maxCount) * h;
+    const x = i * (bw + 1);
+    svg += '<rect x="' + x + '" y="' + (h - bh) + '" width="' + bw + '" height="' + bh + '" fill="rgba(42,139,154,0.4)" rx="1"/>';
+    svg += '<text x="' + (x + bw/2) + '" y="' + (h + 10) + '" text-anchor="middle" font-size="7" fill="rgba(44,24,16,0.35)">' + count + '</text>';
+  }});
+  svg += '</svg>';
+  return '<div class="distro-chart">' + svg + '</div>';
+}}
+function getActiveValues() {{
+  const vals = [];
+  lgaData.features.forEach(f => {{
+    const p = f.properties;
+    switch (choroMode) {{
+      case 'religion': vals.push(Math.max(p.rm||0, p.rc||0, p.rt||0)); break;
+      case 'ethnicity': vals.push(ethSubMode === 'diversity' ? (p.ed||0) : (p.ep||0)); break;
+      case 'poverty': vals.push(p.pv||0); break;
+      case 'education': vals.push(eduScore(f)); break;
+      case 'population': vals.push(p.pop||0); break;
+      default: break;
+    }}
+  }});
+  return vals;
+}}
+
+// ── Filter/threshold slider ──
+let filterMin = 0, filterMax = 100;
+function getFilterRange(mode) {{
+  switch (mode) {{
+    case 'poverty': return [0, 65, f => f.properties.pv];
+    case 'education': return [35, 100, f => eduScore(f)];
+    case 'population': return [20000, 6000000, f => f.properties.pop];
+    case 'religion': return [33, 100, f => Math.max(f.properties.rm||0, f.properties.rc||0, f.properties.rt||0)];
+    case 'ethnicity':
+      return ethSubMode === 'diversity' ? [0, 0.85, f => f.properties.ed] : [0, 100, f => f.properties.ep];
+    default: return null;
+  }}
+}}
+function buildFilterSlider(mode) {{
+  const range = getFilterRange(mode);
+  if (!range) return '';
+  const [mn, mx] = range;
+  const step = ((mx - mn) / 100).toFixed(4);
+  return '<div class="filter-slider">' +
+    '<div style="font-size:8px;color:rgba(42,139,154,0.5);letter-spacing:2px;font-family:Orbitron,monospace;margin-bottom:6px">THRESHOLD FILTER</div>' +
+    '<div class="filter-row-label">MIN</div>' +
+    '<input type="range" id="filterMinSlider" min="' + mn + '" max="' + mx + '" value="' + mn + '" step="' + step + '">' +
+    '<div class="filter-row-label">MAX</div>' +
+    '<input type="range" id="filterMaxSlider" min="' + mn + '" max="' + mx + '" value="' + mx + '" step="' + step + '">' +
+    '<div class="filter-labels"><span>' + mn + '</span><span>' + mx + '</span></div>' +
+    '<div class="filter-count" id="filterCount">774 / 774 LGAs</div></div>';
+}}
+function attachFilterListeners() {{
+  const minS = document.getElementById('filterMinSlider');
+  const maxS = document.getElementById('filterMaxSlider');
+  if (!minS || !maxS) return;
+  function onSlide() {{
+    filterMin = parseFloat(minS.value);
+    filterMax = parseFloat(maxS.value);
+    applyFilter();
+  }}
+  minS.addEventListener('input', onSlide);
+  maxS.addEventListener('input', onSlide);
+}}
+function applyFilter() {{
+  const range = getFilterRange(choroMode);
+  if (!range) return;
+  const [,,getter] = range;
+  let count = 0;
+  lgaLayer.eachLayer(l => {{
+    const val = getter(l.feature);
+    const inRange = val >= filterMin && val <= filterMax;
+    if (inRange) count++;
+    l.setStyle({{ fillOpacity: inRange ? 0.55 : 0.03 }});
+  }});
+  const el = document.getElementById('filterCount');
+  if (el) el.textContent = count + ' / 774 LGAs';
+}}
+
+// ── Tooltip ──
+function tooltipContent(f) {{
+  const p = f.properties;
+  let stat = '';
+  switch (choroMode) {{
+    case 'religion':
+      const maxR = Math.max(p.rm||0, p.rc||0, p.rt||0);
+      const rName = (p.rm>=p.rc && p.rm>=p.rt) ? 'Muslim' : (p.rc>=p.rm && p.rc>=p.rt) ? 'Christian' : 'Trad.';
+      stat = maxR + '% ' + rName; break;
+    case 'ethnicity':
+      stat = (ethSubMode === 'diversity') ? 'ELF: ' + (p.ed||0).toFixed(2) : (p.eg||'\u2014') + ' ' + (p.ep||0) + '%'; break;
+    case 'poverty': stat = 'Poverty: ' + (p.pv||0) + '%'; break;
+    case 'education': stat = 'Edu: ' + eduScore(f).toFixed(0); break;
+    case 'population': stat = 'Pop: ' + fmt(p.pop); break;
+    case 'bivariate': stat = 'Pov ' + (p.pv||0) + '% / Edu ' + eduScore(f).toFixed(0); break;
+    default: stat = p.zn || ('AZ' + p.z);
+  }}
+  return '<div>' + p.n + '</div><div class="tt-stat">' + stat + '</div>';
+}}
+
+// ── Animated transitions ──
+let animating = false;
+function animateChoroTransition(newStyleFn, duration) {{
+  if (animating) return;
+  const oldColors = {{}};
+  lgaLayer.eachLayer(l => {{ oldColors[l._leaflet_id] = l.options.fillColor || '#F2E2C6'; }});
+  const newColors = {{}};
+  lgaLayer.eachLayer(l => {{ newColors[l._leaflet_id] = newStyleFn(l.feature).fillColor; }});
+  animating = true;
+  const start = performance.now();
+  duration = duration || 400;
+  function step(now) {{
+    const t = Math.min(1, (now - start) / duration);
+    const ease = t * (2 - t);
+    lgaLayer.eachLayer(l => {{
+      const c = hexLerp(oldColors[l._leaflet_id] || '#F2E2C6', newColors[l._leaflet_id] || '#F2E2C6', ease);
+      l.setStyle({{ fillColor: c }});
+    }});
+    if (t < 1) requestAnimationFrame(step);
+    else {{ animating = false; lgaLayer.eachLayer(l => l.setStyle(lgaStyle(l.feature))); }}
+  }}
+  requestAnimationFrame(step);
 }}
 
 // ── Mode switching ──
 function setChoroMode(mode) {{
+  const oldMode = choroMode;
   choroMode = mode;
   document.querySelectorAll('.choro-btn').forEach(b => {{
     b.classList.toggle('active', b.dataset.mode === mode);
   }});
   document.getElementById('ethSub').style.display = (mode === 'ethnicity') ? 'block' : 'none';
-  lgaLayer.eachLayer(l => l.setStyle(lgaStyle(l.feature)));
+  if (oldMode !== mode && !animating) {{
+    animateChoroTransition(lgaStyle, 400);
+  }} else {{
+    lgaLayer.eachLayer(l => l.setStyle(lgaStyle(l.feature)));
+  }}
   updateLegend(mode);
   clearHighlight();
+  // Update tooltips
+  lgaLayer.eachLayer(l => {{
+    if (l.getTooltip) l.setTooltipContent(tooltipContent(l.feature));
+  }});
+  updateDashboard();
+  if (document.getElementById('rankPanel').style.display === 'block') buildRankTable();
+  scheduleHashUpdate();
 }}
 document.querySelectorAll('.choro-btn').forEach(btn => {{
   btn.addEventListener('click', () => setChoroMode(btn.dataset.mode));
@@ -935,13 +1446,25 @@ const map = L.map('map', {{
 }});
 L.control.zoom({{ position: 'topleft' }}).addTo(map);
 // Light basemap — fully visible
-L.tileLayer('https://{{s}}.basemaps.cartocdn.com/light_nolabels/{{z}}/{{x}}/{{y}}{{r}}.png', {{
+const basemapLayer = L.tileLayer('https://{{s}}.basemaps.cartocdn.com/light_nolabels/{{z}}/{{x}}/{{y}}{{r}}.png', {{
   attribution: '&copy; OSM &copy; CARTO', subdomains: 'abcd', maxZoom: 19,
   opacity: 1,
 }}).addTo(map);
 
+// Terrain pane (above mask z400, below interactive overlays z450+)
+map.createPane('terrainPane');
+map.getPane('terrainPane').style.zIndex = 401;
+map.getPane('terrainPane').style.pointerEvents = 'none';
+const terrainLayer = L.tileLayer(
+  'https://{{s}}.tile.opentopomap.org/{{z}}/{{x}}/{{y}}.png',
+  {{ attribution: '&copy; OpenTopoMap', subdomains: 'abc', maxZoom: 17, opacity: 0.25, pane: 'terrainPane' }}
+);
+document.getElementById('togTerrain').onchange = function() {{
+  this.checked ? terrainLayer.addTo(map) : map.removeLayer(terrainLayer);
+}};
+
 // Nigeria-shaped mask: opaque warm parchment fill hides basemap under the country
-L.geoJSON(maskData, {{
+const maskLayer = L.geoJSON(maskData, {{
   style: {{ fillColor: '#F2E2C6', fillOpacity: 1, stroke: false }},
   interactive: false,
 }}).addTo(map);
@@ -953,6 +1476,9 @@ let hlLGA = null;
 const lgaLayer = L.geoJSON(lgaData, {{
   style: lgaStyle,
   onEachFeature: function(f, layer) {{
+    layer.bindTooltip(tooltipContent(f), {{
+      className: 'lga-tooltip', direction: 'top', offset: [0, -10], sticky: true,
+    }});
     layer.on({{
       mouseover: function() {{
         if (hlActive) return;
@@ -971,6 +1497,7 @@ const lgaLayer = L.geoJSON(lgaData, {{
         if (hlLGA === layer) {{ lgaLayer.resetStyle(layer); hlLGA = null; }}
       }},
       click: function() {{
+        if (compareMode) {{ handleCompareClick(f.properties); return; }}
         // Zoom-based selection: click picks entity type matching current zoom
         const z = map.getZoom();
         const p = f.properties;
@@ -1012,17 +1539,46 @@ const zoneLayer = L.geoJSON(zoneGeo, {{
     }};
   }},
 }}).addTo(map);
-// Double-stroke glow layer underneath
-L.geoJSON(zoneGeo, {{
-  style: function(f) {{
-    return {{
-      fillColor: 'transparent', fillOpacity: 0,
-      color: ZC[f.properties.z] || '#fff',
-      weight: 8, opacity: 0.15,
-    }};
-  }},
+// Double-stroke glow layer managed by zone pulse animation (zoneGlowLayer)
+
+// ── City markers layer ──
+const cityLayer = L.layerGroup(capitalPoints.map(c => {{
+  return L.marker([c.lat, c.lon], {{
+    icon: L.divIcon({{
+      className: '',
+      html: '<div class="city-marker"></div><div class="city-label" style="position:absolute;left:12px;top:-4px">' + c.name + '</div>',
+      iconSize: [8, 8], iconAnchor: [4, 4],
+    }}),
+    interactive: false,
+  }});
+}}));
+function updateCities() {{
+  const z = map.getZoom();
+  (z >= 8 && document.getElementById('togCities').checked) ?
+    (map.hasLayer(cityLayer) || map.addLayer(cityLayer)) :
+    map.removeLayer(cityLayer);
+}}
+map.on('zoomend', updateCities);
+updateCities();
+document.getElementById('togCities').onchange = updateCities;
+
+// ── Zone pulse animation ──
+let zonePulseAnim = null;
+const zoneGlowLayer = L.geoJSON(zoneGeo, {{
+  style: function(f) {{ return {{ fillColor:'transparent', fillOpacity:0, color:ZC[f.properties.z]||'#fff', weight:8, opacity:0.15 }}; }},
   interactive: false,
 }}).addTo(map);
+(function startZonePulse() {{
+  const start = performance.now();
+  function pulse(now) {{
+    const t = ((now - start) % 4000) / 4000;
+    const op = 0.6 + 0.4 * (0.5 + 0.5 * Math.sin(2 * Math.PI * t));
+    zoneLayer.eachLayer(l => l.setStyle({{ opacity: op }}));
+    zoneGlowLayer.eachLayer(l => l.setStyle({{ opacity: op * 0.2 }}));
+    zonePulseAnim = requestAnimationFrame(pulse);
+  }}
+  zonePulseAnim = requestAnimationFrame(pulse);
+}})();
 
 // ── Zoom-dependent labels for all entity types ──
 function makeLabel(lat, lon, text, style) {{
@@ -1135,12 +1691,15 @@ function clearHighlight() {{
   zoneLayer.eachLayer(l => zoneLayer.resetStyle(l));
   hlBorderLayer = null;
   hlBorderRef = null;
+  updateDashboard();
 }}
 
 function selectLGA(props) {{
   clearHighlight();
   highlightLGAs(f => f.properties.n === props.n && f.properties.s === props.s);
   showLGAInfo(props);
+  updateDashboard(lgaData.features.filter(f => f.properties.n === props.n && f.properties.s === props.s));
+  scheduleHashUpdate();
 }}
 
 function selectDistrict(did) {{
@@ -1148,6 +1707,8 @@ function selectDistrict(did) {{
   highlightLGAs(f => f.properties.d === did);
   highlightBorder(districtLayer, f => f.properties.d === did);
   showDistrictInfo(did);
+  updateDashboard(lgaData.features.filter(f => f.properties.d === did));
+  scheduleHashUpdate();
 }}
 
 function selectState(name) {{
@@ -1155,6 +1716,8 @@ function selectState(name) {{
   highlightLGAs(f => f.properties.s === name);
   highlightBorder(stateLayer, f => f.properties.n === name);
   showStateInfo(name);
+  updateDashboard(lgaData.features.filter(f => f.properties.s === name));
+  scheduleHashUpdate();
 }}
 
 function selectZone(az) {{
@@ -1162,6 +1725,8 @@ function selectZone(az) {{
   highlightLGAs(f => f.properties.z == az);
   highlightBorder(zoneLayer, f => f.properties.z == az);
   showZoneInfo(az);
+  updateDashboard(lgaData.features.filter(f => f.properties.z == az));
+  scheduleHashUpdate();
 }}
 
 // ── Info panels ──
@@ -1202,6 +1767,13 @@ function showLGAInfo(p) {{
     h += row('Secondary Enrollment', (p.se||0) + '%');
     h += row('Gender Parity', (p.gp||0));
     h += row('Composite Score', eduScore({{properties:p}}).toFixed(1));
+  }} else if (choroMode === 'population' && p.pop != null) {{
+    h += GL + '<div class="subtitle">LGA Population</div>';
+    h += row('Population', fmt(p.pop));
+  }} else if (choroMode === 'bivariate' && p.pv != null) {{
+    h += GL + '<div class="subtitle">Poverty &times; Education</div>';
+    h += row('Poverty Rate', (p.pv||0) + '%');
+    h += row('Edu Score', eduScore({{properties:p}}).toFixed(1));
   }}
   showPanel(h);
 }}
@@ -1328,10 +1900,255 @@ function findLayer(group, pred) {{
 document.addEventListener('keydown', function(e) {{
   if (e.key === 'Escape') {{
     document.getElementById('infoPanel').style.display = 'none';
+    document.getElementById('comparePanel').style.display = 'none';
+    document.getElementById('rankPanel').style.display = 'none';
     sResults.style.display = 'none';
+    if (compareMode) exitCompareMode();
     clearHighlight();
   }}
 }});
+
+// ── URL Hash State ──
+function encodeHash() {{
+  const c = map.getCenter();
+  const parts = [
+    'z=' + map.getZoom(),
+    'lat=' + c.lat.toFixed(3),
+    'lng=' + c.lng.toFixed(3),
+    'mode=' + choroMode,
+  ];
+  if (choroMode === 'ethnicity') parts.push('esm=' + ethSubMode);
+  return '#' + parts.join('&');
+}}
+function decodeHash() {{
+  const hash = location.hash.slice(1);
+  if (!hash) return;
+  const params = {{}};
+  hash.split('&').forEach(pair => {{
+    const [k, v] = pair.split('=');
+    if (k && v) params[k] = decodeURIComponent(v);
+  }});
+  if (params.z && params.lat && params.lng) {{
+    map.setView([parseFloat(params.lat), parseFloat(params.lng)], parseInt(params.z));
+  }}
+  if (params.mode) {{
+    if (params.esm) ethSubMode = params.esm;
+    setChoroMode(params.mode);
+  }}
+}}
+let hashTimer = null;
+function scheduleHashUpdate() {{
+  clearTimeout(hashTimer);
+  hashTimer = setTimeout(() => {{ history.replaceState(null, '', encodeHash()); }}, 300);
+}}
+map.on('moveend', scheduleHashUpdate);
+decodeHash();
+
+// ── Comparison Mode ──
+let compareMode = false;
+let compareA = null, compareB = null;
+function toggleCompareMode() {{
+  compareMode = !compareMode;
+  document.getElementById('compareToggle').classList.toggle('active', compareMode);
+  if (!compareMode) exitCompareMode();
+}}
+function exitCompareMode() {{
+  compareMode = false;
+  compareA = null; compareB = null;
+  document.getElementById('compareToggle').classList.remove('active');
+  document.getElementById('comparePanel').style.display = 'none';
+  clearHighlight();
+}}
+function handleCompareClick(props) {{
+  if (!compareA) {{
+    compareA = props;
+    highlightLGAs(f => f.properties.n === props.n && f.properties.s === props.s);
+  }} else if (!compareB) {{
+    compareB = props;
+    showComparison(compareA, compareB);
+  }} else {{
+    compareA = props; compareB = null;
+    clearHighlight();
+    highlightLGAs(f => f.properties.n === props.n && f.properties.s === props.s);
+    document.getElementById('comparePanel').style.display = 'none';
+  }}
+}}
+function showComparison(a, b) {{
+  const fields = [
+    ['State','s'],['District','d'],['Zone','zn'],
+    ['Muslim %','rm'],['Christian %','rc'],['Trad %','rt'],
+    ['Dom. Group','eg'],['Group %','ep'],['Diversity','ed'],
+    ['Poverty %','pv'],['Literacy %','al'],['Primary %','pe'],['Secondary %','se'],
+    ['Population','pop'],
+  ];
+  let h = '<div class="compare-cols">';
+  h += '<div></div><div class="cmp-header">' + a.n + '</div><div class="cmp-header">' + b.n + '</div>';
+  fields.forEach(([label, key]) => {{
+    const va = a[key] != null ? a[key] : '\u2014';
+    const vb = b[key] != null ? b[key] : '\u2014';
+    h += '<div class="cmp-label">' + label + '</div>';
+    h += '<div class="cmp-val">' + va + '</div>';
+    h += '<div class="cmp-val">' + vb + '</div>';
+  }});
+  h += '</div>';
+  document.getElementById('comparePanelContent').innerHTML = h;
+  document.getElementById('comparePanel').style.display = 'block';
+  document.getElementById('infoPanel').style.display = 'none';
+  highlightLGAs(f => {{
+    const p = f.properties;
+    return (p.n === a.n && p.s === a.s) || (p.n === b.n && p.s === b.s);
+  }});
+}}
+
+// ── Dashboard ──
+function updateDashboard(features) {{
+  if (!features) features = lgaData.features;
+  const n = features.length;
+  let totalPop = 0, totalPov = 0, totalLit = 0;
+  let relCounts = {{ Muslim: 0, Christian: 0, Trad: 0 }};
+  features.forEach(f => {{
+    const p = f.properties;
+    totalPop += (p.pop || 0);
+    totalPov += (p.pv || 0);
+    totalLit += (p.al || 0);
+    if ((p.rm||0) >= (p.rc||0) && (p.rm||0) >= (p.rt||0)) relCounts.Muslim++;
+    else if ((p.rc||0) >= (p.rm||0)) relCounts.Christian++;
+    else relCounts.Trad++;
+  }});
+  document.getElementById('dashPop').textContent = n ? (totalPop/1e6).toFixed(1) + 'M' : '\u2014';
+  document.getElementById('dashPov').textContent = n ? (totalPov/n).toFixed(1) + '%' : '\u2014';
+  document.getElementById('dashLit').textContent = n ? (totalLit/n).toFixed(1) + '%' : '\u2014';
+  const domRel = Object.entries(relCounts).sort((a,b) => b[1]-a[1])[0];
+  document.getElementById('dashRel').textContent = domRel ? domRel[0] : '\u2014';
+  document.getElementById('dashCount').textContent = n;
+}}
+updateDashboard();
+
+// ── Ranking Panel ──
+function toggleRankPanel() {{
+  const panel = document.getElementById('rankPanel');
+  panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
+  if (panel.style.display === 'block') buildRankTable();
+}}
+let rankSortDir = 'desc';
+function buildRankTable(dir) {{
+  if (dir) rankSortDir = dir;
+  const getter = getRankGetter(choroMode);
+  if (!getter) {{ document.getElementById('rankContent').innerHTML = '<em style="color:rgba(44,24,16,0.35)">N/A for zones</em>'; return; }}
+  const ranked = lgaData.features.map(f => ({{
+    name: f.properties.n, state: f.properties.s,
+    value: getter(f), props: f.properties,
+  }})).sort((a, b) => rankSortDir === 'desc' ? b.value - a.value : a.value - b.value);
+  let h = '<table class="rank-table"><thead><tr>';
+  h += '<th>#</th><th>LGA</th><th>ST</th>';
+  h += '<th onclick="rankSortDir=(rankSortDir===\\'desc\\'?\\'asc\\':\\'desc\\');buildRankTable();" style="cursor:pointer">VAL ' + (rankSortDir === 'desc' ? '\u25BE' : '\u25B4') + '</th>';
+  h += '</tr></thead><tbody>';
+  ranked.slice(0, 50).forEach((r, i) => {{
+    h += '<tr data-lga="' + r.name + '" data-state="' + r.state + '">';
+    h += '<td>' + (i+1) + '</td><td>' + r.name + '</td>';
+    h += '<td style="font-size:10px">' + r.state.slice(0,8) + '</td>';
+    h += '<td style="font-weight:700;color:#B45A14">' + (typeof r.value === 'number' ? r.value.toFixed(1) : r.value) + '</td>';
+    h += '</tr>';
+  }});
+  h += '</tbody></table>';
+  document.getElementById('rankContent').innerHTML = h;
+  // Delegated click handler for rank rows
+  document.querySelector('#rankContent table').addEventListener('click', function(e) {{
+    const tr = e.target.closest('tr[data-lga]');
+    if (!tr) return;
+    const lga = tr.dataset.lga, st = tr.dataset.state;
+    const ly = findLayer(lgaLayer, l => l.feature.properties.n === lga && l.feature.properties.s === st);
+    if (ly) {{ map.fitBounds(ly.getBounds(), {{ maxZoom: 11, padding: [50,50] }}); }}
+    const feat = lgaData.features.find(f => f.properties.n === lga && f.properties.s === st);
+    if (feat) selectLGA(feat.properties);
+  }});
+}}
+function getRankGetter(mode) {{
+  switch (mode) {{
+    case 'poverty': return f => f.properties.pv || 0;
+    case 'education': return f => eduScore(f);
+    case 'population': return f => f.properties.pop || 0;
+    case 'religion': return f => Math.max(f.properties.rm||0, f.properties.rc||0, f.properties.rt||0);
+    case 'ethnicity': return ethSubMode === 'diversity' ? (f => f.properties.ed||0) : (f => f.properties.ep||0);
+    default: return null;
+  }}
+}}
+
+// ── Minimap ──
+const minimap = L.map('minimap', {{
+  zoomControl: false, attributionControl: false,
+  dragging: false, scrollWheelZoom: false, doubleClickZoom: false,
+  touchZoom: false, boxZoom: false, keyboard: false,
+  center: [9.05, 7.49], zoom: 5,
+}});
+L.tileLayer('https://{{s}}.basemaps.cartocdn.com/light_nolabels/{{z}}/{{x}}/{{y}}{{r}}.png', {{
+  subdomains: 'abcd', maxZoom: 8,
+}}).addTo(minimap);
+L.geoJSON(maskData, {{
+  style: {{ fillColor: 'rgba(180,90,20,0.1)', fillOpacity: 1, color: '#B45A14', weight: 1 }},
+  interactive: false,
+}}).addTo(minimap);
+let viewRect = null;
+function updateMinimap() {{
+  const b = map.getBounds();
+  const bounds = [[b.getSouth(), b.getWest()], [b.getNorth(), b.getEast()]];
+  if (viewRect) minimap.removeLayer(viewRect);
+  viewRect = L.rectangle(bounds, {{
+    color: '#2A8B9A', weight: 2, fillColor: 'rgba(42,139,154,0.15)',
+    fillOpacity: 1, dashArray: '4,3',
+  }}).addTo(minimap);
+}}
+map.on('moveend', updateMinimap);
+updateMinimap();
+
+// ── Export ──
+function exportPNG() {{
+  if (typeof html2canvas === 'undefined') {{ alert('html2canvas not loaded'); return; }}
+  html2canvas(document.getElementById('map'), {{
+    useCORS: true, allowTaint: true, scale: 2,
+  }}).then(canvas => {{
+    const link = document.createElement('a');
+    link.download = 'nigeria_2058_map.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  }});
+}}
+function exportCSV() {{
+  let features = lgaData.features;
+  const headers = ['LGA','State','District','Zone','Muslim%','Christian%','Trad%',
+    'DomGroup','GroupPct','Diversity','Poverty%','Literacy%','PrimaryEnroll%',
+    'SecEnroll%','GenderParity','Population'];
+  const rows = features.map(f => {{
+    const p = f.properties;
+    return [p.n,p.s,p.d,p.zn,p.rm,p.rc,p.rt,p.eg,p.ep,p.ed,p.pv,p.al,p.pe,p.se,p.gp,p.pop].join(',');
+  }});
+  const csv = headers.join(',') + '\\n' + rows.join('\\n');
+  const blob = new Blob([csv], {{ type: 'text/csv' }});
+  const link = document.createElement('a');
+  link.download = 'nigeria_2058_lga_data.csv';
+  link.href = URL.createObjectURL(blob);
+  link.click();
+}}
+
+// ── Dark Mode ──
+function toggleDarkMode() {{
+  const isDark = document.body.classList.toggle('dark-mode');
+  localStorage.setItem('darkMode', isDark ? '1' : '0');
+  if (isDark) {{
+    basemapLayer.setUrl('https://{{s}}.basemaps.cartocdn.com/dark_nolabels/{{z}}/{{x}}/{{y}}{{r}}.png');
+    maskLayer.setStyle({{ fillColor: '#1A1A2E' }});
+  }} else {{
+    basemapLayer.setUrl('https://{{s}}.basemaps.cartocdn.com/light_nolabels/{{z}}/{{x}}/{{y}}{{r}}.png');
+    maskLayer.setStyle({{ fillColor: '#F2E2C6' }});
+  }}
+}}
+if (localStorage.getItem('darkMode') === '1') {{
+  document.body.classList.add('dark-mode');
+  setTimeout(() => {{
+    basemapLayer.setUrl('https://{{s}}.basemaps.cartocdn.com/dark_nolabels/{{z}}/{{x}}/{{y}}{{r}}.png');
+    maskLayer.setStyle({{ fillColor: '#1A1A2E' }});
+  }}, 100);
+}}
 </script>
 </body>
 </html>
