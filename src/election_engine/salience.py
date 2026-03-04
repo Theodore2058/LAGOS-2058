@@ -1485,6 +1485,35 @@ def compute_all_lga_salience(
     bio_enh_pct = _col("Biological Enhancement Pct")
     pent_col = _col("Pentecostal Growth")
 
+    # Additional columns for vectorized conditionals
+    poverty_arr = _col("Poverty Rate Pct", 30.0)
+    oil_prod_arr = _col("Oil Producing")
+    gini_arr = _col("Gini Proxy", 0.4)
+    youth_unemp_arr = _col("Youth Unemployment Rate Pct", 46.0)
+    unemp_arr = _col("Unemployment Rate Pct", 33.0)
+    fertility_arr = _col("Fertility Rate Est", 5.0)
+    osc_arr = _col("Out of School Children Pct", 20.0)
+    internet_arr = _col("Internet Access Pct", 30.0)
+    mobile_arr = _col("Mobile Phone Penetration Pct", 50.0)
+    housing_afford_arr = _col("Housing Affordability", 5.0)
+    chinese_arr = _col("Chinese Economic Presence")
+    mandarin_arr = _col("Mandarin Presence")
+    planned_arr = _col("Planned City")
+    trad_auth_arr = _col("Trad Authority Index")
+    trad_present_arr = _col("Traditional Authority")
+    land_form_arr = _col("Land Formalization Pct")
+    almajiri_arr = _col("Almajiri Index")
+    arabic_arr = _col("Arabic Prestige")
+    english_arr = _col("English Prestige", 5.0)
+    gpi_arr = _col("Gender Parity Index", 0.8)
+    ag_pct_arr = _col("Pct Livelihood Agriculture", 20.0)
+    manuf_arr = _col("Pct Livelihood Manufacturing", 15.0)
+    informal_arr = _col("Pct Livelihood Informal", 30.0)
+    fulani_arr = _col("% Fulani")
+    oil_active_cond = _col("Oil Extraction Active")
+    trad_practice_arr = _col("Traditionalist Practice")
+    bic_eff_arr = _col("BIC Effectiveness", 5.0)
+
     # --- Build salience matrix ---
     result = np.zeros((n_lga, n_issues))
 
@@ -1519,36 +1548,154 @@ def compute_all_lga_salience(
             # Market Access Index has negative coeff: salience ∝ (10 - market_access)/10 * 0.3
             w += 0.3
 
-        # Vectorised conditional terms
+        # Vectorised conditional terms — all 28 issue conditionals
         if rule.conditional is not None:
             if rule.issue_name == "sharia_jurisdiction":
-                # Sharia conditional: Pentecostal growth at Muslim-Christian interface
                 mask_sc = (muslim_arr > 30) & (christian_arr > 10)
-                cond_val = np.where(mask_sc, (pent_col / 3.0) * 0.6, 0.0)
-                w += cond_val
-                # Al-Shahid politicises Sharia in Muslim-majority areas
+                w += np.where(mask_sc, (pent_col / 3.0) * 0.6, 0.0)
                 mask_as = (al_shahid_arr > 2) & (muslim_arr > 50)
                 w += np.where(mask_as, 0.3 * (al_shahid_arr / 5.0), 0.0)
+            elif rule.issue_name == "fiscal_autonomy":
+                w += np.where((oil_prod_arr > 0) & (poverty_arr > 40),
+                              0.3 * np.minimum(poverty_arr, 80.0) / 80.0, 0.0)
+                w += np.where((extraction_int > 2) & (gini_arr > 0.45),
+                              0.2 * np.minimum(extraction_int, 5.0) / 5.0, 0.0)
+            elif rule.issue_name == "chinese_relations":
+                w += np.where((chinese_arr > 3) & (unemp_arr > 35),
+                              0.3 * np.minimum(chinese_arr, 8.0) / 8.0, 0.0)
+                w += np.where((planned_arr > 0) & (mandarin_arr > 2), 0.25, 0.0)
+            elif rule.issue_name == "bic_reform":
+                w += np.where((pada_arr > 5) & (bic_eff_arr < 4),
+                              0.3 * np.minimum(pada_arr, 30.0) / 30.0, 0.0)
+                w += np.where((pada_arr > 3) & (urban > 60), 0.15, 0.0)
+            elif rule.issue_name == "ethnic_quotas":
+                w += np.where((eth_frag > 0.7) & (youth_unemp_arr > 50),
+                              0.25 * eth_frag, 0.0)
+                w += np.where((unemp_arr > 40) & (eth_frag > 0.6),
+                              0.2 * np.minimum(unemp_arr, 70.0) / 70.0, 0.0)
+            elif rule.issue_name == "fertility_policy":
+                w += np.where((fertility_arr > 5.5) & (poverty_arr > 50),
+                              0.3 * np.minimum(fertility_arr, 8.0) / 8.0, 0.0)
+                w += np.where((osc_arr > 40) & (fertility_arr > 5),
+                              0.2 * np.minimum(osc_arr, 80.0) / 80.0, 0.0)
+            elif rule.issue_name == "constitutional_structure":
+                w += np.where((eth_frag > 0.6) & (conflict >= 2),
+                              0.3 * np.minimum(conflict, 5.0) / 5.0, 0.0)
+                w += np.where((trad_auth_arr > 3) & (eth_frag > 0.5),
+                              0.15 * (trad_auth_arr / 5.0), 0.0)
             elif rule.issue_name == "resource_revenue":
-                # Resource-conflict interaction
                 mask_rc = (conflict >= 2) & (extraction_int >= 2)
                 w += np.where(mask_rc,
                               0.5 * np.minimum(conflict, 5.0) / 5.0
                               * np.minimum(extraction_int, 5.0) / 5.0, 0.0)
+            elif rule.issue_name == "housing":
+                w += np.where((density > 1000) & (housing_afford_arr < 4),
+                              0.3 * np.minimum(density, 10000.0) / 10000.0, 0.0)
+                w += np.where((urban > 70) & (housing_afford_arr < 3), 0.2, 0.0)
+            elif rule.issue_name == "education":
+                w += np.where((osc_arr > 40) & (youth_unemp_arr > 50),
+                              0.25 * np.minimum(osc_arr, 80.0) / 80.0, 0.0)
+                w += np.where((almajiri_arr > 2) & (osc_arr > 30),
+                              0.2 * np.minimum(almajiri_arr, 5.0) / 5.0, 0.0)
+            elif rule.issue_name == "labor_automation":
+                w += np.where((youth_unemp_arr > 60) & (chinese_arr > 3),
+                              0.3 * np.minimum(youth_unemp_arr, 80.0) / 80.0, 0.0)
+                w += np.where((youth_unemp_arr > 50) & (internet_arr > 60), 0.15, 0.0)
             elif rule.issue_name == "military_role":
-                # Military salience spikes in active conflict zones
                 mask_mc = conflict >= 3
                 w += np.where(mask_mc, 0.5 * (conflict / 5.0), 0.0)
-                mask_fed = mask_mc & (federal_ctrl > 0)
-                w += np.where(mask_fed, 0.3, 0.0)
+                w += np.where(mask_mc & (federal_ctrl > 0), 0.3, 0.0)
+            elif rule.issue_name == "immigration":
+                w += np.where((border_prox > 0.5) & (unemp_arr > 30),
+                              0.3 * np.minimum(unemp_arr, 60.0) / 60.0, 0.0)
+                w += np.where((border_prox > 0.5) & (housing_afford_arr < 4), 0.2, 0.0)
+            elif rule.issue_name == "language_policy":
+                w += np.where((arabic_arr > 3) & (english_arr > 3),
+                              0.25 * np.minimum(arabic_arr, 8.0) / 8.0, 0.0)
+                w += np.where((mandarin_arr > 2) & (arabic_arr > 2),
+                              0.2 * np.minimum(mandarin_arr, 8.0) / 8.0, 0.0)
+                w += np.where(almajiri_arr > 3,
+                              0.15 * np.minimum(almajiri_arr, 5.0) / 5.0, 0.0)
+                w += np.where((fem_lit < 40) & (osc_arr > 30),
+                              0.2 * (1.0 - fem_lit / 100.0), 0.0)
+                w += np.where((osc_arr > 40) & (arabic_arr > 3),
+                              0.15 * np.minimum(osc_arr, 80.0) / 80.0, 0.0)
+            elif rule.issue_name == "womens_rights":
+                w += np.where((gpi_arr < 0.6) & (internet_arr > 20),
+                              0.3 * (1.0 - gpi_arr), 0.0)
+                w += np.where((fem_lit < 40) & (pent_col > 1),
+                              0.2 * (1.0 - fem_lit / 100.0), 0.0)
+            elif rule.issue_name == "traditional_authority":
+                w += np.where((trad_auth_arr > 3) & (urban > 40),
+                              0.25 * np.minimum(trad_auth_arr, 5.0) / 5.0, 0.0)
+                w += np.where((trad_present_arr > 0) & (internet_arr > 30), 0.2, 0.0)
+                w += np.where((conflict >= 2) & (trad_auth_arr > 2),
+                              0.2 * (conflict / 5.0), 0.0)
+                w += np.where((land_form_arr > 30) & (trad_auth_arr > 3),
+                              0.15 * np.minimum(land_form_arr, 80.0) / 80.0, 0.0)
+            elif rule.issue_name == "infrastructure":
+                w += np.where((elec < 40) & (density > 500),
+                              0.3 * (1.0 - elec / 100.0), 0.0)
+                w += np.where((water < 30) & (density > 300),
+                              0.2 * (1.0 - water / 100.0), 0.0)
+            elif rule.issue_name == "land_tenure":
+                w += np.where((fulani_arr > 5) & (ag_pct_arr > 40),
+                              0.3 * np.minimum(fulani_arr, 30.0) / 30.0, 0.0)
+                w += np.where((conflict >= 2) & (fulani_arr > 5),
+                              0.2 * (conflict / 5.0), 0.0)
+            elif rule.issue_name == "taxation":
+                w += np.where((gini_arr > 0.45) & (extraction_int > 2),
+                              0.25 * np.minimum(extraction_int, 5.0) / 5.0, 0.0)
+                w += np.where((poverty_arr > 50) & (gini_arr > 0.40),
+                              0.2 * np.minimum(poverty_arr, 80.0) / 80.0, 0.0)
+            elif rule.issue_name == "agricultural_policy":
+                w += np.where((ag_pct_arr > 40) & (poverty_arr > 50),
+                              0.3 * np.minimum(ag_pct_arr, 80.0) / 80.0, 0.0)
+                w += np.where((fertility_arr > 5) & (ag_pct_arr > 30),
+                              0.2 * np.minimum(fertility_arr, 8.0) / 8.0, 0.0)
             elif rule.issue_name == "biological_enhancement":
-                # Bio-enhancement: high-Pada + university towns + high adoption
-                mask_bio = bio_enh_pct > 10
-                w += np.where(mask_bio, 0.3 * (bio_enh_pct / 100.0), 0.0)
-                mask_padu = (pada_arr > 5) & (tertiary_inst > 0)
-                w += np.where(mask_padu, 0.2, 0.0)
+                w += np.where(bio_enh_pct > 10, 0.3 * (bio_enh_pct / 100.0), 0.0)
+                w += np.where((pada_arr > 5) & (tertiary_inst > 0), 0.2, 0.0)
+            elif rule.issue_name == "trade_policy":
+                w += np.where((manuf_arr > 15) & (chinese_arr > 3),
+                              0.25 * np.minimum(chinese_arr, 8.0) / 8.0, 0.0)
+                w += np.where((informal_arr > 40) & (chinese_arr > 2),
+                              0.2 * np.minimum(informal_arr, 70.0) / 70.0, 0.0)
+            elif rule.issue_name == "environmental_regulation":
+                w += np.where((oil_prod_arr > 0) & (poverty_arr > 40),
+                              0.3 * np.minimum(poverty_arr, 80.0) / 80.0, 0.0)
+                w += np.where((extraction_int > 3) & (poverty_arr > 35),
+                              0.2 * np.minimum(extraction_int, 5.0) / 5.0, 0.0)
+            elif rule.issue_name == "media_freedom":
+                w += np.where((internet_arr > 40) & (conflict > 2),
+                              0.25 * np.minimum(internet_arr, 80.0) / 80.0, 0.0)
+                w += np.where((federal_ctrl > 0) & (mobile_arr > 50), 0.2, 0.0)
+                w += np.where((al_shahid_arr > 2) & (internet_arr > 20),
+                              0.2 * (al_shahid_arr / 5.0), 0.0)
+                w += np.where((pent_col > 1.5) & (internet_arr > 40),
+                              0.15 * np.minimum(pent_col, 3.0) / 3.0, 0.0)
+            elif rule.issue_name == "healthcare":
+                w += np.where((health < 30) & (fertility_arr > 5),
+                              0.3 * (1.0 - health / 100.0), 0.0)
+                w += np.where((poverty_arr > 50) & (health < 40),
+                              0.2 * np.minimum(poverty_arr, 80.0) / 80.0, 0.0)
+            elif rule.issue_name == "pada_status":
+                w += np.where((pada_arr > 5) & (trad_practice_arr > 2),
+                              0.25 * np.minimum(pada_arr, 25.0) / 25.0, 0.0)
+                w += np.where((bio_enh_pct > 15) & (pada_arr > 10),
+                              0.2 * np.minimum(bio_enh_pct, 50.0) / 50.0, 0.0)
+            elif rule.issue_name == "energy_policy":
+                w += np.where((elec < 40) & (manuf_arr > 10),
+                              0.25 * (1.0 - elec / 100.0), 0.0)
+                w += np.where((oil_active_cond > 0) & (elec < 50),
+                              0.3 * (1.0 - elec / 100.0), 0.0)
+            elif rule.issue_name == "az_restructuring":
+                w += np.where((eth_frag > 0.7) & (conflict > 2),
+                              0.3 * eth_frag, 0.0)
+                w += np.where((extraction_int > 2) & (eth_frag > 0.6),
+                              0.2 * np.minimum(extraction_int, 5.0) / 5.0, 0.0)
             else:
-                # Generic fallback for custom conditionals
+                # Generic fallback for any future custom conditionals
                 for idx in range(n_lga):
                     w[idx] += rule.conditional(lga_data.iloc[idx])
 
