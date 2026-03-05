@@ -17,7 +17,6 @@ import numpy as np
 import pandas as pd
 from .campaign_state import CampaignState, ActiveEffect
 from .campaign_modifiers import cohesion_multiplier
-from .config import N_ISSUES
 
 
 # ---------------------------------------------------------------------------
@@ -75,10 +74,6 @@ def compute_action_cost(action_type: str, params: dict) -> int:
             base += 2
         elif scale > 1.0:
             base += 1
-    elif action_type == "ethnic_mobilization":
-        # Higher cost if targeting a specific ethnicity (more aggressive)
-        if params.get("target_ethnicity"):
-            base += 0  # base 3 is already high
     elif action_type == "eto_engagement":
         score_change = params.get("score_change", 1.0)
         if score_change > 3.0:
@@ -336,6 +331,22 @@ def resolve_advertising(action: ActionSpec, state: CampaignState,
         reach = 0.06 * budget_scale * mf
 
     state.raise_awareness(party_idx, action.target_lgas, reach.astype(np.float32))
+
+    # Heavy advertising creates general political awareness → slight turnout boost
+    if budget_scale >= 1.5:
+        tau_mag = -0.02 * budget_scale
+        tau_effect = ActiveEffect(
+            source_party=action.party,
+            source_action="advertising",
+            source_turn=state.turn,
+            channel="tau",
+            target_lgas=action.target_lgas,
+            target_dimensions=None,
+            target_party=None,
+            magnitude=tau_mag,
+            effect_key=_effect_key(action.party, "tau", "", "ad", ""),
+        )
+        state.apply_effect(tau_effect)
 
 
 def resolve_manifesto(action: ActionSpec, state: CampaignState,

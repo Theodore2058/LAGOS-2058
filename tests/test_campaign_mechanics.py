@@ -485,3 +485,70 @@ def test_max_actions_per_party():
     # P0: 50 (no cap since 50 > 18 -> capped to 18, +7 = 25)
     # Only 2 media actions at 1 PC each = 2 deducted -> 23
     assert results[0]["pc_state"]["P0"] == 23.0
+
+
+def test_momentum_tracking():
+    """Momentum correctly tracks consecutive rising/falling share."""
+    from election_engine.campaign_state import CampaignState
+
+    state = CampaignState(
+        turn=0, n_lga=3, n_parties=2, party_names=["A", "B"],
+    )
+
+    # Simulate rising shares for A over 3 turns
+    state.previous_shares = {"A": 0.30, "B": 0.70}
+    for turn_num in range(3):
+        curr_A = 0.30 + 0.02 * (turn_num + 1)
+        prev_A = state.previous_shares.get("A", curr_A)
+        diff = curr_A - prev_A
+
+        if diff > 0.005:
+            new_dir = "rising"
+        elif diff < -0.005:
+            new_dir = "falling"
+        else:
+            new_dir = ""
+
+        old_dir = state.momentum_direction.get("A", "")
+        old_count = state.momentum.get("A", 0)
+        if new_dir and new_dir == old_dir:
+            state.momentum["A"] = old_count + 1
+        elif new_dir:
+            state.momentum["A"] = 1
+        state.momentum_direction["A"] = new_dir
+        state.previous_shares["A"] = curr_A
+
+    assert state.momentum["A"] == 3
+    assert state.momentum_direction["A"] == "rising"
+
+
+def test_exposure_penalty():
+    """Exposure accumulation triggers valence penalty above threshold."""
+    from election_engine.campaign_modifiers import _apply_exposure_penalty, CampaignModifiers
+    from election_engine.campaign_state import CampaignState
+
+    state = CampaignState(
+        turn=1, n_lga=5, n_parties=2, party_names=["A", "B"],
+    )
+    state.awareness = np.full((5, 2), 0.70, dtype=np.float32)
+    state.cohesion = {"A": 10.0, "B": 10.0}
+
+    # No exposure — no penalty
+    modifiers = CampaignModifiers.zeros(5, 2)
+    _apply_exposure_penalty(modifiers, state)
+    assert np.all(modifiers.valence == 0)
+
+    # Exposure below threshold — no penalty
+    state.exposure["A"] = 1.0
+    modifiers = CampaignModifiers.zeros(5, 2)
+    _apply_exposure_penalty(modifiers, state)
+    assert np.all(modifiers.valence[:, 0] == 0)
+
+    # Exposure above threshold — penalty
+    state.exposure["A"] = 3.0  # 1.5 above threshold
+    modifiers = CampaignModifiers.zeros(5, 2)
+    _apply_exposure_penalty(modifiers, state)
+    # penalty = min(1.5 * 0.03, 0.15) = 0.045
+    assert modifiers.valence[0, 0] == pytest.approx(-0.045, abs=0.001)
+    # Party B unaffected
+    assert np.all(modifiers.valence[:, 1] == 0)

@@ -154,7 +154,35 @@ def compile_modifiers(
     # Momentum → valence
     _apply_momentum_valence(modifiers, state)
 
+    # Exposure → valence penalty (patronage, ethnic mobilization accumulate risk)
+    _apply_exposure_penalty(modifiers, state)
+
     return modifiers
+
+
+def _apply_exposure_penalty(
+    modifiers: CampaignModifiers,
+    state: CampaignState,
+) -> None:
+    """
+    Apply valence penalty for accumulated exposure from risky actions.
+
+    Exposure accumulates from ethnic_mobilization (+0.5) and patronage (+0.3).
+    Above threshold 1.5, parties suffer a national valence penalty proportional
+    to excess exposure: -0.03 per point above threshold, capped at -0.15.
+    """
+    if modifiers.valence is None:
+        return
+    EXPOSURE_THRESHOLD = 1.5
+    PENALTY_PER_POINT = 0.03
+    MAX_PENALTY = 0.15
+    for party_name in state.party_names:
+        exp = state.exposure.get(party_name, 0.0)
+        if exp > EXPOSURE_THRESHOLD:
+            excess = exp - EXPOSURE_THRESHOLD
+            penalty = min(excess * PENALTY_PER_POINT, MAX_PENALTY)
+            party_idx = state.party_names.index(party_name)
+            modifiers.valence[:, party_idx] -= penalty
 
 
 def concentration_penalty(n_turns: int) -> float:
