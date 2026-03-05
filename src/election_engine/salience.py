@@ -1710,6 +1710,74 @@ def compute_all_lga_salience(
     return result
 
 
+def compute_base_awareness(
+    parties: list,
+    lga_data: pd.DataFrame,
+) -> np.ndarray:
+    """
+    Compute initial awareness (n_lga, J) before any campaign actions.
+
+    Factors:
+    - Floor: every party has minimal name recognition (0.05)
+    - Ethnic match: voters are more aware of parties whose candidate
+      shares their ethnicity (information travels through ethnic networks)
+    - Religious alignment: parties with strong religious signals are
+      more known in their religious community
+    - Media infrastructure: high-connectivity LGAs hear about everyone
+    - Major urban / planned cities: political junkies, high information
+
+    In campaign mode, this is the starting state. Campaigns raise awareness
+    through rallies, advertising, media, manifesto publication, etc.
+
+    In static mode (no campaign), this function is NOT called -- awareness
+    defaults to 1.0 everywhere, preserving existing engine behavior.
+    """
+    n_lga = len(lga_data)
+    J = len(parties)
+    awareness = np.full((n_lga, J), 0.05, dtype=np.float32)
+
+    def _col(name: str, default: float = 0.0) -> np.ndarray:
+        if name in lga_data.columns:
+            s = lga_data[name]
+            arr = pd.to_numeric(s, errors="coerce").fillna(default).values.astype(float)
+            np.nan_to_num(arr, copy=False, nan=default)
+            return arr
+        return np.full(n_lga, default)
+
+    # Media infrastructure: high-connectivity LGAs hear about all parties
+    urban = _col("Urban Pct", 30.0) / 100.0
+    internet = _col("Internet Access Pct", 50.0) / 100.0
+    mobile = _col("Mobile Phone Penetration Pct", 50.0) / 100.0
+    literacy = _col("Adult Literacy Rate Pct", 50.0) / 100.0
+    media_factor = 0.3 * urban + 0.25 * internet + 0.25 * mobile + 0.2 * literacy
+    awareness += 0.20 * media_factor[:, np.newaxis].astype(np.float32)
+
+    # Major urban centers + planned cities: high political awareness
+    major_urban = _col("Major Urban Center", 0.0)
+    planned = _col("Planned City", 0.0)
+    awareness += 0.10 * major_urban[:, np.newaxis].astype(np.float32)
+    awareness += 0.08 * planned[:, np.newaxis].astype(np.float32)
+
+    for j, party in enumerate(parties):
+        # Ethnic match: voters know parties whose leader shares their ethnicity
+        leader_eth = getattr(party, "leader_ethnicity", "")
+        if leader_eth:
+            eth_col_name = f"% {leader_eth}"
+            if eth_col_name in lga_data.columns:
+                eth_pct = lga_data[eth_col_name].fillna(0).values.astype(float) / 100.0
+                awareness[:, j] += (0.25 * eth_pct).astype(np.float32)
+
+        # Religious alignment
+        rel_align = getattr(party, "religious_alignment", "")
+        if rel_align:
+            rel_col = f"% {rel_align}"
+            if rel_col in lga_data.columns:
+                rel_pct = lga_data[rel_col].fillna(0).values.astype(float) / 100.0
+                awareness[:, j] += (0.10 * rel_pct).astype(np.float32)
+
+    return np.clip(awareness, 0.05, 1.0)
+
+
 def compute_turnout_ceiling(lga_data: pd.DataFrame) -> np.ndarray:
     """
     Compute maximum achievable turnout from infrastructure/logistics.
