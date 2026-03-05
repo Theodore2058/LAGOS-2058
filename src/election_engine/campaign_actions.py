@@ -509,6 +509,7 @@ def resolve_ethnic_mobilization(action: ActionSpec, state: CampaignState,
 
     # Exposure accumulation
     state.exposure[action.party] = state.exposure.get(action.party, 0.0) + 0.5
+    state._last_exposure_turn[action.party] = state.turn
 
 
 def resolve_patronage(action: ActionSpec, state: CampaignState,
@@ -536,8 +537,9 @@ def resolve_patronage(action: ActionSpec, state: CampaignState,
     # Small awareness boost
     state.raise_awareness(party_idx, action.target_lgas, np.float32(0.02 * scale))
 
-    # Exposure
+    # Exposure — scaled by patronage size
     state.exposure[action.party] = state.exposure.get(action.party, 0.0) + 0.3 * scale
+    state._last_exposure_turn[action.party] = state.turn
 
 
 def resolve_opposition_research(action: ActionSpec, state: CampaignState,
@@ -587,8 +589,18 @@ def resolve_media(action: ActionSpec, state: CampaignState,
     success = action.params.get("success", 0.5)  # 0-1 scale
     party_idx = state.party_names.index(action.party)
 
-    # Volatile: can backfire
+    # Volatile: ×1.5 multiplier on deviation from 0.5 (doc: score deviation from 5)
+    # success=0.8 → effective 0.95; success=0.3 → effective 0.2
     magnitude = 0.02 * (2.0 * success - 0.5)  # range: -0.01 to +0.03
+    volatility_amplifier = 1.0 + 0.5 * abs(success - 0.5) / 0.5  # 1.0 at center, 1.5 at extremes
+    magnitude *= volatility_amplifier
+
+    # Volatile momentum penalizes media effectiveness
+    if state._momentum_history.get(action.party):
+        recent = state._momentum_history[action.party][-3:]
+        if len(recent) >= 3 and len(set(recent)) >= 3:
+            # Direction changes frequently → volatile, -25% media effectiveness
+            magnitude *= 0.75
 
     for dim, w in zip(dims, weights):
         effect = ActiveEffect(
@@ -660,9 +672,75 @@ def resolve_crisis_response(action: ActionSpec, state: CampaignState,
 
 def resolve_fundraising(action: ActionSpec, state: CampaignState,
                         lga_data: pd.DataFrame, parties: list) -> None:
-    """Fundraising: PC generation (bookkeeping). No engine effect."""
-    # Pure bookkeeping — no effects on engine channels
-    pass
+    """
+    Fundraising: source-dependent PC generation with side effects.
+
+    Sources:
+    - business_elite: High yield (4 PC), +1 exposure (donors expect favors)
+    - diaspora: Medium yield (3 PC), no side effects
+    - grassroots: Low yield (2 PC), small turnout bonus in target region
+    - membership: Yield scales with cohesion (1-3 PC), no side effect
+
+    Consecutive fundraising from the same source: -1 PC yield per repeat.
+    """
+    source = action.params.get("source", "diaspora")
+    party = action.party
+
+    # Track consecutive same-source fundraising
+    if party not in state._fundraising_history:
+        state._fundraising_history[party] = {}
+    hist = state._fundraising_history[party]
+    consecutive = hist.get(source, 0)
+
+    # Base yields per source
+    if source == "business_elite":
+        base_yield = 4
+        # Side effect: exposure from donor expectations
+        state.exposure[party] = state.exposure.get(party, 0.0) + 1.0
+        state._last_exposure_turn[party] = state.turn
+    elif source == "grassroots":
+        base_yield = 2
+        # Side effect: small turnout boost in target region
+        if action.target_lgas is not None:
+            tau_effect = ActiveEffect(
+                source_party=party,
+                source_action="fundraising_gotv",
+                source_turn=state.turn,
+                channel="tau",
+                target_lgas=action.target_lgas,
+                target_dimensions=None,
+                target_party=None,
+                magnitude=-0.02,
+                effect_key=_effect_key(party, "tau", "", "fund_grass", ""),
+            )
+            state.apply_effect(tau_effect)
+    elif source == "membership":
+        # Yield scales with cohesion: cohesion 10 = 3 PC, cohesion 5 = 2, cohesion 2 = 1
+        coh = state.cohesion.get(party, 10.0)
+        base_yield = max(1, min(3, int(coh / 3.5) + 1))
+    else:  # diaspora or unspecified
+        base_yield = PC_FUNDRAISING_YIELD  # 3 PC
+
+    # Economic ETO multiplier: score 7+ gives 20% bonus
+    eto_bonus = 0
+    for (p, cat, az), score in state.eto_scores.items():
+        if p == party and cat == "economic" and score >= 7.0:
+            eto_bonus = 1
+            break
+
+    # Consecutive same-source penalty: -1 per repeat
+    penalty = min(consecutive, base_yield - 1)  # don't go below 1
+    final_yield = max(1, base_yield - penalty + eto_bonus)
+
+    # Apply yield — override the flat PC_FUNDRAISING_YIELD in the campaign loop
+    # We store the computed yield so the campaign loop can use it
+    state.political_capital[party] = state.political_capital.get(party, 0.0) + final_yield
+
+    # Update consecutive tracking: increment this source, reset others
+    for s in hist:
+        if s != source:
+            hist[s] = 0
+    hist[source] = consecutive + 1
 
 
 def resolve_poll(action: ActionSpec, state: CampaignState,
@@ -690,6 +768,28 @@ def _col_safe(lga_data: pd.DataFrame, name: str, default: float, n: int) -> np.n
     if name in lga_data.columns:
         return pd.to_numeric(lga_data[name], errors="coerce").fillna(default).values.astype(float)
     return np.full(n, default)
+
+
+# ---------------------------------------------------------------------------
+# Action Resolution Order — actions resolve in this fixed sequence
+# ---------------------------------------------------------------------------
+
+ACTION_RESOLUTION_ORDER: dict[str, int] = {
+    "manifesto": 0,              # Positions updated first
+    "eto_engagement": 1,         # ETO scores updated early
+    "endorsement": 2,            # Coalition/endorsement effects
+    "pledge": 2,                 # Pledges alongside endorsements
+    "rally": 3,                  # Campaign actions resolve simultaneously
+    "advertising": 3,
+    "media": 3,
+    "ethnic_mobilization": 3,
+    "patronage": 3,
+    "ground_game": 3,
+    "crisis_response": 3,
+    "opposition_research": 4,    # After campaign actions (uses current exposure)
+    "fundraising": 5,            # Resolved last; PC available next turn
+    "poll": 6,                   # Data from post-resolution state
+}
 
 
 # ---------------------------------------------------------------------------

@@ -620,3 +620,396 @@ def test_compile_modifiers_aggregates_effects():
     assert mods.valence[0, 1] == pytest.approx(0.0, abs=0.01)
     # Tau should be negative (reducing abstention)
     assert mods.tau_modifier[0] == pytest.approx(-0.20, abs=0.01)
+
+
+# ===========================================================================
+# NEW MECHANICS TESTS
+# ===========================================================================
+
+# ---------------------------------------------------------------------------
+# Scandal system
+# ---------------------------------------------------------------------------
+
+def test_scandal_probability_table():
+    """Scandal probability increases with exposure."""
+    from election_engine.campaign_modifiers import get_scandal_probability
+    assert get_scandal_probability(0.0) == 0.0
+    assert get_scandal_probability(2.0) == 0.0
+    assert get_scandal_probability(3.0) == 0.10
+    assert get_scandal_probability(5.0) == 0.25
+    assert get_scandal_probability(7.0) == 0.45
+    assert get_scandal_probability(10.0) == 0.70
+
+
+def test_scandal_roll_no_exposure():
+    """No scandal when exposure is below threshold."""
+    from election_engine.campaign_modifiers import roll_scandals
+    state = CampaignState(turn=5, n_lga=5, n_parties=2, party_names=["A", "B"])
+    state.cohesion = {"A": 10.0, "B": 10.0}
+    state.exposure = {"A": 1.0, "B": 0.0}
+    state.political_capital = {"A": 10.0, "B": 10.0}
+
+    rng = np.random.default_rng(42)
+    scandals = roll_scandals(state, rng)
+    assert len(scandals) == 0  # exposure < 3 → probability = 0
+
+
+def test_scandal_roll_high_exposure():
+    """High exposure party eventually triggers a scandal."""
+    from election_engine.campaign_modifiers import roll_scandals
+    state = CampaignState(turn=5, n_lga=5, n_parties=2, party_names=["A", "B"])
+    state.cohesion = {"A": 10.0, "B": 10.0}
+    state.exposure = {"A": 10.0, "B": 0.0}  # 70% probability
+    state.political_capital = {"A": 20.0, "B": 10.0}
+
+    # Run many times — should trigger at least once
+    triggered = False
+    for seed in range(50):
+        # Reset state each time
+        state.exposure["A"] = 10.0
+        state.cohesion["A"] = 10.0
+        state.political_capital["A"] = 20.0
+        rng = np.random.default_rng(seed)
+        scandals = roll_scandals(state, rng)
+        if scandals:
+            triggered = True
+            break
+    assert triggered, "Scandal should trigger with 70% probability over 50 attempts"
+
+
+def test_scandal_consequences():
+    """Scandal halves exposure, costs PC, hits cohesion, adds valence effect."""
+    from election_engine.campaign_modifiers import roll_scandals, SCANDAL_PC_DAMAGE, SCANDAL_COHESION_HIT
+    state = CampaignState(turn=5, n_lga=5, n_parties=1, party_names=["A"])
+    state.cohesion = {"A": 8.0}
+    state.exposure = {"A": 10.0}
+    state.political_capital = {"A": 15.0}
+
+    # Find a seed that triggers
+    for seed in range(100):
+        state.exposure["A"] = 10.0
+        state.cohesion["A"] = 8.0
+        state.political_capital["A"] = 15.0
+        state.effects.clear()
+        state.scandal_history.clear()
+        rng = np.random.default_rng(seed)
+        scandals = roll_scandals(state, rng)
+        if scandals:
+            assert state.exposure["A"] == pytest.approx(5.0)  # halved
+            assert state.political_capital["A"] == pytest.approx(15.0 - SCANDAL_PC_DAMAGE)
+            assert state.cohesion["A"] == pytest.approx(8.0 - SCANDAL_COHESION_HIT)
+            assert len(state.scandal_history) == 1
+            # Valence effect should be applied
+            assert any("scandal" in k for k in state.effects)
+            return
+    pytest.skip("No seed triggered a scandal in 100 attempts")
+
+
+# ---------------------------------------------------------------------------
+# Exposure decay
+# ---------------------------------------------------------------------------
+
+def test_exposure_decay_after_clean_turns():
+    """Exposure decays by 1/turn after 3 clean turns."""
+    from election_engine.campaign_modifiers import apply_exposure_decay
+    state = CampaignState(turn=5, n_lga=5, n_parties=2, party_names=["A", "B"])
+    state.exposure = {"A": 4.0, "B": 2.0}
+    state._last_exposure_turn = {"A": 1, "B": 4}
+
+    # Turn 5: A has been clean since turn 1 (4 turns clean) → decay
+    #          B was dirty at turn 4 (1 turn clean) → no decay
+    apply_exposure_decay(state)
+    assert state.exposure["A"] == pytest.approx(3.0)
+    assert state.exposure["B"] == pytest.approx(2.0)
+
+
+def test_exposure_decay_no_underflow():
+    """Exposure doesn't go below 0."""
+    from election_engine.campaign_modifiers import apply_exposure_decay
+    state = CampaignState(turn=10, n_lga=5, n_parties=1, party_names=["A"])
+    state.exposure = {"A": 0.5}
+    state._last_exposure_turn = {"A": 1}
+
+    apply_exposure_decay(state)
+    assert state.exposure["A"] == 0.0
+
+
+def test_exposure_no_decay_within_3_turns():
+    """No decay when exposure was recent (within 3 turns)."""
+    from election_engine.campaign_modifiers import apply_exposure_decay
+    state = CampaignState(turn=4, n_lga=5, n_parties=1, party_names=["A"])
+    state.exposure = {"A": 5.0}
+    state._last_exposure_turn = {"A": 2}  # 2 turns clean → no decay
+
+    apply_exposure_decay(state)
+    assert state.exposure["A"] == pytest.approx(5.0)
+
+
+# ---------------------------------------------------------------------------
+# Fundraising sources
+# ---------------------------------------------------------------------------
+
+def test_fundraising_default_source():
+    """Default (diaspora) fundraising yields base amount."""
+    state = CampaignState(turn=1, n_lga=5, n_parties=1, party_names=["A"])
+    state.awareness = np.full((5, 1), 0.70, dtype=np.float32)
+    state.cohesion = {"A": 10.0}
+    state.political_capital = {"A": 0.0}
+
+    import pandas as pd
+    lga_data = pd.DataFrame({"Administrative Zone": [1, 1, 2, 2, 3]})
+
+    action = ActionSpec(party="A", action_type="fundraising", params={"source": "diaspora"})
+    from election_engine.campaign_actions import resolve_fundraising
+    resolve_fundraising(action, state, lga_data, [])
+
+    # Diaspora yields 3 PC (same as old flat rate)
+    assert state.political_capital["A"] == pytest.approx(3.0)
+
+
+def test_fundraising_business_elite_high_yield_plus_exposure():
+    """Business elite fundraising: 4 PC yield + 1 exposure."""
+    state = CampaignState(turn=1, n_lga=5, n_parties=1, party_names=["A"])
+    state.awareness = np.full((5, 1), 0.70, dtype=np.float32)
+    state.cohesion = {"A": 10.0}
+    state.political_capital = {"A": 0.0}
+    state.exposure = {"A": 0.0}
+
+    import pandas as pd
+    lga_data = pd.DataFrame({"Administrative Zone": [1, 1, 2, 2, 3]})
+
+    action = ActionSpec(party="A", action_type="fundraising", params={"source": "business_elite"})
+    from election_engine.campaign_actions import resolve_fundraising
+    resolve_fundraising(action, state, lga_data, [])
+
+    assert state.political_capital["A"] == pytest.approx(4.0)
+    assert state.exposure["A"] == pytest.approx(1.0)
+
+
+def test_fundraising_membership_scales_with_cohesion():
+    """Membership fundraising yield scales with party cohesion."""
+    import pandas as pd
+    lga_data = pd.DataFrame({"Administrative Zone": [1, 1, 2, 2, 3]})
+    from election_engine.campaign_actions import resolve_fundraising
+
+    # High cohesion → 3 PC
+    state = CampaignState(turn=1, n_lga=5, n_parties=1, party_names=["A"])
+    state.awareness = np.full((5, 1), 0.70, dtype=np.float32)
+    state.cohesion = {"A": 10.0}
+    state.political_capital = {"A": 0.0}
+    action = ActionSpec(party="A", action_type="fundraising", params={"source": "membership"})
+    resolve_fundraising(action, state, lga_data, [])
+    high_yield = state.political_capital["A"]
+
+    # Low cohesion → 1 PC
+    state2 = CampaignState(turn=1, n_lga=5, n_parties=1, party_names=["A"])
+    state2.awareness = np.full((5, 1), 0.70, dtype=np.float32)
+    state2.cohesion = {"A": 2.0}
+    state2.political_capital = {"A": 0.0}
+    action2 = ActionSpec(party="A", action_type="fundraising", params={"source": "membership"})
+    resolve_fundraising(action2, state2, lga_data, [])
+    low_yield = state2.political_capital["A"]
+
+    assert high_yield > low_yield
+
+
+def test_fundraising_consecutive_penalty():
+    """Consecutive fundraising from same source reduces yield."""
+    import pandas as pd
+    lga_data = pd.DataFrame({"Administrative Zone": [1, 1, 2, 2, 3]})
+    from election_engine.campaign_actions import resolve_fundraising
+
+    state = CampaignState(turn=1, n_lga=5, n_parties=1, party_names=["A"])
+    state.awareness = np.full((5, 1), 0.70, dtype=np.float32)
+    state.cohesion = {"A": 10.0}
+    state.political_capital = {"A": 0.0}
+
+    # First diaspora fundraise
+    action = ActionSpec(party="A", action_type="fundraising", params={"source": "diaspora"})
+    resolve_fundraising(action, state, lga_data, [])
+    first_yield = state.political_capital["A"]
+
+    # Second consecutive from same source
+    old_balance = state.political_capital["A"]
+    state.turn = 2
+    resolve_fundraising(action, state, lga_data, [])
+    second_yield = state.political_capital["A"] - old_balance
+
+    assert second_yield < first_yield, "Consecutive same-source yield should decrease"
+
+
+# ---------------------------------------------------------------------------
+# Action resolution order
+# ---------------------------------------------------------------------------
+
+def test_action_resolution_order():
+    """Actions are sorted by resolution order."""
+    from election_engine.campaign_actions import ACTION_RESOLUTION_ORDER
+
+    actions = [
+        ActionSpec(party="A", action_type="fundraising", params={}),
+        ActionSpec(party="A", action_type="manifesto", params={}),
+        ActionSpec(party="A", action_type="rally", language="english", params={}),
+        ActionSpec(party="A", action_type="opposition_research", params={"target_party": "B"}),
+    ]
+
+    sorted_actions = sorted(actions, key=lambda a: ACTION_RESOLUTION_ORDER.get(a.action_type, 3))
+
+    assert sorted_actions[0].action_type == "manifesto"  # order 0
+    assert sorted_actions[1].action_type == "rally"       # order 3
+    assert sorted_actions[2].action_type == "opposition_research"  # order 4
+    assert sorted_actions[3].action_type == "fundraising"  # order 5
+
+
+# ---------------------------------------------------------------------------
+# Volatile momentum
+# ---------------------------------------------------------------------------
+
+def test_volatile_momentum_detection():
+    """Volatile momentum detected when direction changes frequently."""
+    from election_engine.campaign_modifiers import is_volatile_momentum
+
+    state = CampaignState(turn=5, n_lga=5, n_parties=1, party_names=["A"])
+
+    # Not volatile: consistent direction
+    state._momentum_history["A"] = ["rising", "rising", "rising", "rising"]
+    assert not is_volatile_momentum(state, "A")
+
+    # Volatile: frequent changes
+    state._momentum_history["A"] = ["rising", "falling", "rising", "falling"]
+    assert is_volatile_momentum(state, "A")
+
+    # Barely volatile: 2 changes in 3 entries
+    state._momentum_history["A"] = ["rising", "falling", "rising"]
+    assert is_volatile_momentum(state, "A")
+
+    # Not volatile: only 1 change
+    state._momentum_history["A"] = ["rising", "rising", "falling"]
+    assert not is_volatile_momentum(state, "A")
+
+
+def test_volatile_momentum_no_valence_bonus():
+    """Volatile momentum suppresses valence bonus."""
+    import pandas as pd
+    from election_engine.campaign_modifiers import compile_modifiers
+
+    state = CampaignState(turn=5, n_lga=5, n_parties=2, party_names=["A", "B"])
+    state.awareness = np.full((5, 2), 0.70, dtype=np.float32)
+    state.cohesion = {"A": 10.0, "B": 10.0}
+
+    # A has rising momentum but volatile history
+    state.momentum = {"A": 3, "B": 3}
+    state.momentum_direction = {"A": "rising", "B": "rising"}
+    state._momentum_history = {
+        "A": ["rising", "falling", "rising", "falling"],  # volatile
+        "B": ["rising", "rising", "rising", "rising"],     # consistent
+    }
+
+    lga_data = pd.DataFrame({"Administrative Zone": [1, 1, 2, 2, 3]})
+    mods = compile_modifiers(state, lga_data)
+
+    # A should get no momentum bonus (volatile)
+    # B should get +0.06 (3 turns rising, capped)
+    assert mods.valence[0, 0] == pytest.approx(0.0, abs=0.01)
+    assert mods.valence[0, 1] == pytest.approx(0.06, abs=0.01)
+
+
+# ---------------------------------------------------------------------------
+# Cohesion: region neglect and engagement bonus
+# ---------------------------------------------------------------------------
+
+def test_cohesion_region_neglect():
+    """Cohesion drops when support region neglected 3+ turns."""
+    import pandas as pd
+    from election_engine.campaign import update_post_turn
+
+    state = CampaignState(turn=4, n_lga=5, n_parties=1, party_names=["A"])
+    state.cohesion = {"A": 8.0}
+    state.previous_shares = {"A": 0.5}
+    state._region_engagement = {"A": {1: 1}}  # AZ 1 last engaged turn 1
+
+    lga_data = pd.DataFrame({"Administrative Zone": [1, 1, 2, 2, 3]})
+
+    # Fake result with population
+    result = {
+        "lga_results_base": pd.DataFrame({
+            "A_share": [0.5, 0.5, 0.5, 0.5, 0.5],
+            "Estimated Population": [100, 100, 100, 100, 100],
+        }),
+        "_parties": [],
+    }
+
+    # Turn 4: AZ 1 last engaged turn 1 → 3 turns neglected → penalty
+    # No actions this turn targeting AZ 1
+    post_log = update_post_turn(state, result, [], lga_data=lga_data)
+
+    # Cohesion should reflect: +1 recovery, -1 neglect = net 0 change
+    # (recovery happens first, then neglect penalty)
+    assert state.cohesion["A"] <= 8.0
+
+
+def test_cohesion_broad_engagement_bonus():
+    """Cohesion bonus for campaigning in 3+ AZs."""
+    import pandas as pd
+    from election_engine.campaign import update_post_turn
+
+    state = CampaignState(turn=2, n_lga=6, n_parties=1, party_names=["A"])
+    state.cohesion = {"A": 7.0}
+    state.previous_shares = {"A": 0.5}
+
+    lga_data = pd.DataFrame({"Administrative Zone": [1, 2, 3, 4, 5, 6]})
+
+    result = {
+        "lga_results_base": pd.DataFrame({
+            "A_share": [0.5] * 6,
+            "Estimated Population": [100] * 6,
+        }),
+        "_parties": [],
+    }
+
+    # Actions targeting 3 different AZs
+    az1_mask = np.array([True, False, False, False, False, False])
+    az2_mask = np.array([False, True, False, False, False, False])
+    az3_mask = np.array([False, False, True, False, False, False])
+    actions = [
+        ActionSpec(party="A", action_type="rally", target_lgas=az1_mask, params={}),
+        ActionSpec(party="A", action_type="rally", target_lgas=az2_mask, params={}),
+        ActionSpec(party="A", action_type="rally", target_lgas=az3_mask, params={}),
+    ]
+
+    post_log = update_post_turn(state, result, actions, lga_data=lga_data)
+
+    # Should get: +1 recovery + +1 broad engagement = 9.0
+    assert state.cohesion["A"] >= 9.0
+
+
+# ---------------------------------------------------------------------------
+# Exposure tracking on ethnic_mobilization and patronage
+# ---------------------------------------------------------------------------
+
+def test_ethnic_mobilization_tracks_exposure_turn():
+    """Ethnic mobilization records the last exposure turn."""
+    import pandas as pd
+    from election_engine.campaign_actions import resolve_action
+    from election_engine.config import ElectionConfig, EngineParams, Party, N_ISSUES
+
+    state = CampaignState(turn=3, n_lga=5, n_parties=1, party_names=["A"])
+    state.awareness = np.full((5, 1), 0.70, dtype=np.float32)
+    state.cohesion = {"A": 10.0}
+
+    config = ElectionConfig(
+        params=EngineParams(),
+        parties=[Party(name="A", positions=np.zeros(N_ISSUES),
+                        leader_ethnicity="Yoruba", religious_alignment="Christian")],
+        n_monte_carlo=1,
+    )
+    lga_data = pd.DataFrame({
+        "Administrative Zone": [1, 1, 2, 2, 3],
+        "% Yoruba": [80, 60, 10, 5, 0],
+    })
+
+    action = ActionSpec(party="A", action_type="ethnic_mobilization",
+                        params={"target_ethnicity": "Yoruba"})
+    resolve_action(action, state, lga_data, config)
+
+    assert state._last_exposure_turn.get("A") == 3

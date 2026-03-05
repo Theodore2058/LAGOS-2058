@@ -19,8 +19,9 @@ from .campaign_actions import (
     ActionSpec, resolve_action, compute_action_cost,
     PC_INCOME_PER_TURN, PC_HOARDING_CAP, PC_FUNDRAISING_YIELD,
     PC_ETO_DIVIDEND_THRESHOLD, PC_ETO_DIVIDEND_AMOUNT, PC_ETO_DIVIDEND_CAP,
+    ACTION_RESOLUTION_ORDER,
 )
-from .campaign_modifiers import compile_modifiers
+from .campaign_modifiers import compile_modifiers, roll_scandals, apply_exposure_decay
 from .campaign_state import CampaignState, CampaignModifiers, CrisisEvent, ActiveEffect
 from .config import ElectionConfig
 from .data_loader import load_lga_data
@@ -112,12 +113,13 @@ def validate_and_deduct_pc(
         affordable.append(action)
         action_counts[party] = count + 1
 
-        # Fundraising immediately generates PC
+        # Fundraising PC generation is now handled in resolve_fundraising()
+        # which supports source-dependent yields and side effects.
+        # Log the balance after fundraising resolves (via resolve_action).
         if action.action_type == "fundraising":
-            state.political_capital[party] += PC_FUNDRAISING_YIELD
             logger.info(
-                "  %s fundraising: +%d PC (balance: %.0f)",
-                party, PC_FUNDRAISING_YIELD,
+                "  %s fundraising queued (source=%s, balance after deduct: %.0f)",
+                party, action.params.get("source", "diaspora"),
                 state.political_capital[party],
             )
 
@@ -185,18 +187,38 @@ def apply_crisis(
         state.apply_effect(effect)
 
 
+def _extract_az_from_lga_mask(lga_mask: np.ndarray | None, lga_data: pd.DataFrame) -> set[int]:
+    """Extract which AZs are covered by an LGA mask."""
+    if lga_mask is None:
+        # National action covers all AZs
+        if "Administrative Zone" in lga_data.columns:
+            return set(lga_data["Administrative Zone"].dropna().astype(int).unique())
+        return set(range(1, 9))
+    if "Administrative Zone" in lga_data.columns:
+        return set(lga_data.loc[lga_mask, "Administrative Zone"].dropna().astype(int).unique())
+    return set()
+
+
 def update_post_turn(
     state: CampaignState,
     result: dict,
     turn_actions: list[ActionSpec],
-) -> None:
+    lga_data: pd.DataFrame | None = None,
+    rng: np.random.Generator | None = None,
+) -> dict:
     """
     Update campaign state after a turn's election is computed.
 
-    - Momentum tracking (consecutive rising/falling share)
+    - Momentum tracking (consecutive rising/falling share, volatile detection)
     - Geographic concentration tracking
-    - Cohesion recovery
+    - Scandal rolls (probability-based, from exposure)
+    - Exposure decay (3 clean turns → -1/turn)
+    - Cohesion: recovery, region neglect penalty, engagement bonus
+
+    Returns a dict with post-turn event log (scandals, cohesion changes, etc.).
     """
+    post_turn_log: dict = {"scandals": [], "cohesion_changes": {}, "exposure_decay": {}}
+
     # Extract national shares from results
     lga_df = result["lga_results_base"]
     pop_col = "Estimated Population"
@@ -213,7 +235,7 @@ def update_post_turn(
             weighted = (lga_df[share_col].values * pop).sum() / total_pop
             current_shares[party_name] = weighted
 
-    # Momentum
+    # --- Momentum tracking with volatile state detection ---
     for party_name in state.party_names:
         curr = current_shares.get(party_name, 0.0)
         prev = state.previous_shares.get(party_name, curr)
@@ -227,9 +249,19 @@ def update_post_turn(
         elif diff < -0.005:
             new_dir = "falling"
         else:
-            new_dir = ""
+            new_dir = "stable"
+
+        # Track momentum direction history for volatile detection
+        if party_name not in state._momentum_history:
+            state._momentum_history[party_name] = []
+        state._momentum_history[party_name].append(new_dir)
+        # Keep last 4 entries
+        if len(state._momentum_history[party_name]) > 4:
+            state._momentum_history[party_name] = state._momentum_history[party_name][-4:]
+
+        if new_dir == "stable":
             state.momentum[party_name] = 0
-            state.momentum_direction[party_name] = ""
+            state.momentum_direction[party_name] = "stable"
             state.previous_shares[party_name] = curr
             continue
 
@@ -241,16 +273,19 @@ def update_post_turn(
 
     state.previous_shares = current_shares
 
-    # Geographic concentration: track per-party which regions they target.
-    # If a party targets the same region consecutively, concentration counter
-    # increments; otherwise resets.
+    # --- Geographic concentration tracking ---
     turn_party_regions: dict[str, set[str]] = {}
+    turn_party_azs: dict[str, set[int]] = {}
     for action in turn_actions:
         if action.target_lgas is not None:
             region_key = str(action.target_lgas.sum())
             turn_party_regions.setdefault(action.party, set()).add(region_key)
         else:
             turn_party_regions.setdefault(action.party, set()).add("national")
+        # Track which AZs each party engaged this turn
+        if lga_data is not None:
+            azs = _extract_az_from_lga_mask(action.target_lgas, lga_data)
+            turn_party_azs.setdefault(action.party, set()).update(azs)
 
     for party_name in state.party_names:
         current_regions = turn_party_regions.get(party_name, set())
@@ -262,11 +297,78 @@ def update_post_turn(
             state.concentration[party_name] = 0
         state._prev_regions[party_name] = current_regions
 
-    # Cohesion recovery: +1 per turn if below 10, max 10
+    # --- Scandal rolls ---
+    if rng is not None:
+        scandals = roll_scandals(state, rng)
+        post_turn_log["scandals"] = scandals
+
+    # --- Exposure decay (3 clean turns → -1/turn) ---
+    apply_exposure_decay(state)
+    for party_name in state.party_names:
+        exp = state.exposure.get(party_name, 0.0)
+        if exp > 0:
+            post_turn_log["exposure_decay"][party_name] = exp
+
+    # --- Cohesion: recovery, region neglect, engagement bonus ---
     for party_name in state.party_names:
         old_coh = state.cohesion.get(party_name, 10.0)
-        if old_coh < 10.0:
-            state.cohesion[party_name] = min(10.0, old_coh + 1.0)
+        new_coh = old_coh
+        coh_changes: list[str] = []
+
+        # Base recovery: +1 per turn if below 10
+        if new_coh < 10.0:
+            new_coh = min(10.0, new_coh + 1.0)
+            coh_changes.append("+1.0 recovery")
+
+        # Region engagement tracking & neglect penalty
+        if lga_data is not None:
+            engaged_azs = turn_party_azs.get(party_name, set())
+            if party_name not in state._region_engagement:
+                state._region_engagement[party_name] = {}
+
+            # Update engagement timestamps
+            for az in engaged_azs:
+                state._region_engagement[party_name][az] = state.turn
+
+            # Check for neglected support regions (not engaged in 3+ turns)
+            # A party's "support regions" are AZs where it has regional_strongholds > 0
+            party_obj = None
+            for p in (result.get("_parties", []) or []):
+                if hasattr(p, "name") and p.name == party_name:
+                    party_obj = p
+                    break
+
+            if party_obj is None:
+                # Fall back: check all AZs the party has ever engaged
+                support_azs = set(state._region_engagement.get(party_name, {}).keys())
+            elif hasattr(party_obj, "regional_strongholds") and party_obj.regional_strongholds:
+                support_azs = {az for az, bonus in party_obj.regional_strongholds.items() if bonus > 0}
+            else:
+                support_azs = set()
+
+            neglected = False
+            for az in support_azs:
+                last_engaged = state._region_engagement.get(party_name, {}).get(az, 0)
+                if state.turn - last_engaged >= 3:
+                    neglected = True
+                    break
+
+            if neglected:
+                new_coh = max(0.0, new_coh - 1.0)
+                coh_changes.append("-1.0 region neglect")
+
+            # Engagement bonus: +1 if party campaigns in 3+ distinct AZs this turn
+            if len(engaged_azs) >= 3 and new_coh < 10.0:
+                new_coh = min(10.0, new_coh + 1.0)
+                coh_changes.append("+1.0 broad engagement")
+
+        state.cohesion[party_name] = new_coh
+        if coh_changes:
+            post_turn_log["cohesion_changes"][party_name] = {
+                "old": old_coh, "new": new_coh, "changes": coh_changes,
+            }
+
+    return post_turn_log
 
 
 def run_campaign(
@@ -366,6 +468,9 @@ def run_campaign(
         for p in party_names:
             state.political_capital[p] = 0.0  # Will get income on first turn
 
+    # RNG for scandal rolls and other stochastic mechanics
+    campaign_rng = np.random.default_rng(seed) if seed is not None else np.random.default_rng()
+
     results = []
     for turn_idx, turn_actions in enumerate(turns):
         state.turn = turn_idx + 1
@@ -391,10 +496,15 @@ def run_campaign(
                     if verbose:
                         logger.info("  Crisis: %s", crisis.name)
 
-        # Validate PC and resolve player actions
+        # Validate PC and resolve player actions in fixed resolution order
         if enforce_pc:
             turn_actions = validate_and_deduct_pc(state, turn_actions, max_actions_per_party)
-        for action in turn_actions:
+        # Sort by resolution order: manifesto first, fundraising last
+        turn_actions_sorted = sorted(
+            turn_actions,
+            key=lambda a: ACTION_RESOLUTION_ORDER.get(a.action_type, 3),
+        )
+        for action in turn_actions_sorted:
             resolve_action(action, state, df, election_config)
 
         # Compile modifiers and run engine
@@ -405,12 +515,17 @@ def run_campaign(
             seed=seed,
             verbose=verbose,
         )
-        # Attach PC state to result
+        # Attach PC state and party references to result
         result["pc_state"] = dict(state.political_capital)
+        result["_parties"] = election_config.parties
         results.append(result)
 
-        # Post-turn updates
-        update_post_turn(state, result, turn_actions)
+        # Post-turn updates (momentum, scandals, exposure decay, cohesion)
+        post_log = update_post_turn(
+            state, result, turn_actions_sorted,
+            lga_data=df, rng=campaign_rng,
+        )
+        result["post_turn_log"] = post_log
 
         if verbose:
             # Print summary
@@ -422,5 +537,19 @@ def run_campaign(
                 state.turn,
                 ", ".join(f"{k}: {v:.1%}" for k, v in top3),
             )
+            # Log scandals
+            for scandal in post_log.get("scandals", []):
+                logger.warning(
+                    "  SCANDAL: %s (exposure=%.1f, valence penalty=%.2f, PC lost=%d)",
+                    scandal["party"], scandal["exposure_at_trigger"],
+                    scandal["valence_penalty"], scandal["pc_damage"],
+                )
+            # Log cohesion changes
+            for party_name, coh_info in post_log.get("cohesion_changes", {}).items():
+                logger.info(
+                    "  %s cohesion: %.0f → %.0f (%s)",
+                    party_name, coh_info["old"], coh_info["new"],
+                    ", ".join(coh_info["changes"]),
+                )
 
     return results

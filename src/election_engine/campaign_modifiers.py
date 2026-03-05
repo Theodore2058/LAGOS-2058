@@ -91,6 +91,20 @@ def _apply_eto_effects(
                 modifiers.tau_modifier[az_mask] -= 0.15 * normalized
 
 
+def is_volatile_momentum(state: CampaignState, party_name: str) -> bool:
+    """
+    Check if a party has volatile momentum (direction changes frequently).
+
+    Volatile = at least 3 direction changes in last 4 turns.
+    """
+    history = state._momentum_history.get(party_name, [])
+    if len(history) < 3:
+        return False
+    recent = history[-4:] if len(history) >= 4 else history
+    changes = sum(1 for i in range(1, len(recent)) if recent[i] != recent[i - 1])
+    return changes >= 2
+
+
 def _apply_momentum_valence(
     modifiers: CampaignModifiers,
     state: CampaignState,
@@ -100,13 +114,20 @@ def _apply_momentum_valence(
 
     Rising 1/2/3 turns: +0.02/+0.04/+0.06
     Falling 1/2/3 turns: -0.02/-0.04/-0.06
+    Volatile: no valence effect (media penalty handled in resolve_media)
+    Stable: no effect
     """
     if modifiers.valence is None:
         return
     for party_name in state.party_names:
         turns = state.momentum.get(party_name, 0)
         direction = state.momentum_direction.get(party_name, "")
-        if turns <= 0:
+
+        # Volatile momentum: no valence bonus/penalty
+        if is_volatile_momentum(state, party_name):
+            continue
+
+        if turns <= 0 or direction == "stable":
             continue
         capped = min(turns, 3)
         bonus = 0.02 * capped
@@ -183,6 +204,108 @@ def _apply_exposure_penalty(
             penalty = min(excess * PENALTY_PER_POINT, MAX_PENALTY)
             party_idx = state.party_names.index(party_name)
             modifiers.valence[:, party_idx] -= penalty
+
+
+# ---------------------------------------------------------------------------
+# Scandal system
+# ---------------------------------------------------------------------------
+
+# Probability of scandal triggering at each exposure tier, per turn
+SCANDAL_PROBABILITY_TABLE: dict[tuple[float, float], float] = {
+    (0.0, 3.0): 0.0,
+    (3.0, 4.0): 0.10,
+    (4.0, 6.0): 0.25,
+    (6.0, 9.0): 0.45,
+    (9.0, float("inf")): 0.70,
+}
+
+SCANDAL_VALENCE_PENALTY = 0.12       # National valence hit
+SCANDAL_PC_DAMAGE = 3                # PC lost to damage control
+SCANDAL_COHESION_HIT = 1.0           # Cohesion lost
+
+
+def get_scandal_probability(exposure: float) -> float:
+    """Return the per-turn scandal probability for a given exposure level."""
+    for (lo, hi), prob in SCANDAL_PROBABILITY_TABLE.items():
+        if lo <= exposure < hi:
+            return prob
+    return 0.0
+
+
+def roll_scandals(
+    state: CampaignState,
+    rng: np.random.Generator,
+) -> list[dict]:
+    """
+    Roll for scandal triggers based on each party's cumulative exposure.
+
+    A triggered scandal causes:
+    - Immediate national valence penalty (applied via scandal_history)
+    - PC damage (deducted from balance)
+    - Exposure halved (floor(exposure / 2))
+    - Cohesion hit (-1)
+
+    Returns list of scandal event dicts for logging.
+    """
+    scandals: list[dict] = []
+    for party_name in state.party_names:
+        exp = state.exposure.get(party_name, 0.0)
+        prob = get_scandal_probability(exp)
+        if prob <= 0.0:
+            continue
+        if rng.random() < prob:
+            scandal = {
+                "party": party_name,
+                "turn": state.turn,
+                "exposure_at_trigger": exp,
+                "valence_penalty": SCANDAL_VALENCE_PENALTY,
+                "pc_damage": SCANDAL_PC_DAMAGE,
+            }
+            scandals.append(scandal)
+            state.scandal_history.append(scandal)
+
+            # Apply consequences
+            # Exposure halved
+            state.exposure[party_name] = exp / 2.0
+
+            # PC damage
+            old_pc = state.political_capital.get(party_name, 0.0)
+            state.political_capital[party_name] = max(0.0, old_pc - SCANDAL_PC_DAMAGE)
+
+            # Cohesion hit
+            old_coh = state.cohesion.get(party_name, 10.0)
+            state.cohesion[party_name] = max(0.0, old_coh - SCANDAL_COHESION_HIT)
+
+            # Valence penalty applied via effect
+            effect = ActiveEffect(
+                source_party=party_name,
+                source_action="scandal",
+                source_turn=state.turn,
+                channel="valence",
+                target_lgas=None,
+                target_dimensions=None,
+                target_party=party_name,
+                magnitude=-SCANDAL_VALENCE_PENALTY,
+                effect_key=f"{party_name}:valence:{party_name}::scandal:{state.turn}",
+            )
+            state.apply_effect(effect)
+
+    return scandals
+
+
+def apply_exposure_decay(state: CampaignState) -> None:
+    """
+    Decay exposure for parties that haven't accumulated new exposure recently.
+
+    After 3 consecutive turns with no new exposure, exposure decays by 1/turn.
+    """
+    for party_name in state.party_names:
+        last_turn = state._last_exposure_turn.get(party_name, 0)
+        turns_clean = state.turn - last_turn
+        if turns_clean >= 3:
+            exp = state.exposure.get(party_name, 0.0)
+            if exp > 0:
+                state.exposure[party_name] = max(0.0, exp - 1.0)
 
 
 def concentration_penalty(n_turns: int) -> float:

@@ -117,6 +117,21 @@ class CampaignState:
     # Political Capital (PC) tracking: party -> current PC balance
     political_capital: dict[str, float] = field(default_factory=dict)
 
+    # Scandal history: list of {party, turn, exposure_at_trigger, valence_penalty}
+    scandal_history: list[dict] = field(default_factory=list)
+
+    # Exposure tracking: turn of last new exposure per party (for decay)
+    _last_exposure_turn: dict[str, int] = field(default_factory=dict)
+
+    # Fundraising tracking: party -> {source: consecutive_count}
+    _fundraising_history: dict[str, dict[str, int]] = field(default_factory=dict)
+
+    # Region engagement tracking: party -> {az: last_turn_engaged}
+    _region_engagement: dict[str, dict[int, int]] = field(default_factory=dict)
+
+    # Momentum direction history: party -> list of last 3 directions
+    _momentum_history: dict[str, list[str]] = field(default_factory=dict)
+
     def raise_awareness(
         self,
         party_idx: int,
