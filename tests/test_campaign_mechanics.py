@@ -1013,3 +1013,414 @@ def test_ethnic_mobilization_tracks_exposure_turn():
     resolve_action(action, state, lga_data, config)
 
     assert state._last_exposure_turn.get("A") == 3
+
+
+# ===========================================================================
+# NEW MECHANICS TESTS (batch 2)
+# ===========================================================================
+
+# ---------------------------------------------------------------------------
+# 1. Opposition research valence penalty
+# ---------------------------------------------------------------------------
+
+def test_oppo_research_valence_penalty():
+    """Opposition research applies negative valence to target party."""
+    import pandas as pd
+    from election_engine.campaign_actions import resolve_action
+    from election_engine.config import ElectionConfig, EngineParams, Party, N_ISSUES
+
+    state = CampaignState(turn=1, n_lga=5, n_parties=2, party_names=["A", "B"])
+    state.awareness = np.full((5, 2), 0.70, dtype=np.float32)
+    state.cohesion = {"A": 10.0, "B": 10.0}
+
+    config = ElectionConfig(
+        params=EngineParams(),
+        parties=[
+            Party(name="A", positions=np.zeros(N_ISSUES),
+                  leader_ethnicity="Yoruba", religious_alignment="Christian"),
+            Party(name="B", positions=np.zeros(N_ISSUES),
+                  leader_ethnicity="Hausa-Fulani", religious_alignment="Muslim"),
+        ],
+        n_monte_carlo=1,
+    )
+    lga_data = pd.DataFrame({"Administrative Zone": [1, 1, 2, 2, 3]})
+
+    action = ActionSpec(
+        party="A", action_type="opposition_research",
+        params={"target_party": "B", "target_dimensions": [0, 1]},
+    )
+    resolve_action(action, state, lga_data, config)
+
+    # Should have a negative valence effect on party B
+    valence_effects = [e for e in state.effects.values()
+                       if e.channel == "valence" and e.target_party == "B"]
+    assert len(valence_effects) >= 1
+    assert valence_effects[0].magnitude < 0
+
+
+# ---------------------------------------------------------------------------
+# 2. Poll generates noisy results
+# ---------------------------------------------------------------------------
+
+def test_poll_generates_results():
+    """Poll action produces noisy share estimates stored in state."""
+    import pandas as pd
+    from election_engine.campaign_actions import resolve_poll
+
+    state = CampaignState(turn=3, n_lga=5, n_parties=3, party_names=["A", "B", "C"])
+    state.awareness = np.full((5, 3), 0.70, dtype=np.float32)
+    state.cohesion = {"A": 10.0, "B": 10.0, "C": 10.0}
+    state.previous_shares = {"A": 0.40, "B": 0.35, "C": 0.25}
+
+    lga_data = pd.DataFrame({"Administrative Zone": [1, 1, 2, 2, 3]})
+
+    action = ActionSpec(party="A", action_type="poll", params={"sample_size": 2000})
+    resolve_poll(action, state, lga_data, [])
+
+    assert len(state.poll_results) == 1
+    poll = state.poll_results[0]
+    assert poll["turn"] == 3
+    assert poll["commissioned_by"] == "A"
+    assert poll["sample_size"] == 2000
+    # Shares should sum to ~1
+    total = sum(poll["party_shares"].values())
+    assert abs(total - 1.0) < 1e-6
+    # All parties present
+    assert set(poll["party_shares"].keys()) == {"A", "B", "C"}
+
+
+def test_poll_no_previous_shares():
+    """Poll works even with no previous election data (equal shares)."""
+    import pandas as pd
+    from election_engine.campaign_actions import resolve_poll
+
+    state = CampaignState(turn=1, n_lga=5, n_parties=2, party_names=["A", "B"])
+    state.awareness = np.full((5, 2), 0.70, dtype=np.float32)
+    state.cohesion = {"A": 10.0, "B": 10.0}
+
+    lga_data = pd.DataFrame({"Administrative Zone": [1, 1, 2, 2, 3]})
+
+    action = ActionSpec(party="A", action_type="poll", params={})
+    resolve_poll(action, state, lga_data, [])
+
+    assert len(state.poll_results) == 1
+    # Should not crash, shares sum to 1
+    total = sum(state.poll_results[0]["party_shares"].values())
+    assert abs(total - 1.0) < 1e-6
+
+
+# ---------------------------------------------------------------------------
+# 3. Pledge valence boost
+# ---------------------------------------------------------------------------
+
+def test_pledge_valence_boost():
+    """Pledge with high popularity creates positive valence effect."""
+    import pandas as pd
+    from election_engine.campaign_actions import resolve_pledge
+
+    state = CampaignState(turn=1, n_lga=5, n_parties=2, party_names=["A", "B"])
+    state.awareness = np.full((5, 2), 0.70, dtype=np.float32)
+    state.cohesion = {"A": 10.0, "B": 10.0}
+
+    lga_data = pd.DataFrame({"Administrative Zone": [1, 1, 2, 2, 3]})
+
+    action = ActionSpec(
+        party="A", action_type="pledge",
+        params={"pledge": {"topic": "infrastructure"}, "dimensions": [16], "popularity": 0.8},
+    )
+    resolve_pledge(action, state, lga_data, [])
+
+    # Should have a valence effect for A
+    valence_effects = [e for e in state.effects.values()
+                       if e.channel == "valence" and e.target_party == "A"]
+    assert len(valence_effects) == 1
+    assert valence_effects[0].magnitude == pytest.approx(0.04 * 0.8, abs=0.001)
+    # Pledge stored
+    assert len(state.pledges.get("A", [])) == 1
+
+
+def test_pledge_zero_popularity_no_effect():
+    """Pledge with zero popularity produces no valence effect."""
+    import pandas as pd
+    from election_engine.campaign_actions import resolve_pledge
+
+    state = CampaignState(turn=1, n_lga=5, n_parties=1, party_names=["A"])
+    state.awareness = np.full((5, 1), 0.70, dtype=np.float32)
+    state.cohesion = {"A": 10.0}
+
+    lga_data = pd.DataFrame({"Administrative Zone": [1, 1, 2, 2, 3]})
+
+    action = ActionSpec(
+        party="A", action_type="pledge",
+        params={"pledge": {}, "dimensions": [], "popularity": 0.0},
+    )
+    resolve_pledge(action, state, lga_data, [])
+
+    assert len(state.effects) == 0
+    assert len(state.pledges.get("A", [])) == 1  # still recorded
+
+
+# ---------------------------------------------------------------------------
+# 4. Media valence effect
+# ---------------------------------------------------------------------------
+
+def test_media_positive_valence():
+    """Successful media (success > 0.5) produces positive valence."""
+    import pandas as pd
+    from election_engine.campaign_actions import resolve_media
+
+    state = CampaignState(turn=1, n_lga=5, n_parties=2, party_names=["A", "B"])
+    state.awareness = np.full((5, 2), 0.70, dtype=np.float32)
+    state.cohesion = {"A": 10.0, "B": 10.0}
+
+    lga_data = pd.DataFrame({
+        "Administrative Zone": [1, 1, 2, 2, 3],
+        "Urban Pct": [50, 60, 30, 40, 70],
+        "Internet Access Pct": [50, 50, 50, 50, 50],
+        "Mobile Phone Penetration Pct": [50, 50, 50, 50, 50],
+        "Adult Literacy Rate Pct": [50, 50, 50, 50, 50],
+    })
+
+    action = ActionSpec(party="A", action_type="media",
+                        language="english", params={"success": 0.9})
+    resolve_media(action, state, lga_data, [])
+
+    # Should have positive valence for A
+    valence_effects = [e for e in state.effects.values()
+                       if e.channel == "valence" and e.target_party == "A"]
+    assert len(valence_effects) == 1
+    assert valence_effects[0].magnitude > 0
+
+
+def test_media_negative_valence():
+    """Failed media (success < 0.5) produces negative valence."""
+    import pandas as pd
+    from election_engine.campaign_actions import resolve_media
+
+    state = CampaignState(turn=1, n_lga=5, n_parties=2, party_names=["A", "B"])
+    state.awareness = np.full((5, 2), 0.70, dtype=np.float32)
+    state.cohesion = {"A": 10.0, "B": 10.0}
+
+    lga_data = pd.DataFrame({
+        "Administrative Zone": [1, 1, 2, 2, 3],
+        "Urban Pct": [50, 60, 30, 40, 70],
+        "Internet Access Pct": [50, 50, 50, 50, 50],
+        "Mobile Phone Penetration Pct": [50, 50, 50, 50, 50],
+        "Adult Literacy Rate Pct": [50, 50, 50, 50, 50],
+    })
+
+    action = ActionSpec(party="A", action_type="media",
+                        language="english", params={"success": 0.1})
+    resolve_media(action, state, lga_data, [])
+
+    # Should have negative valence for A
+    valence_effects = [e for e in state.effects.values()
+                       if e.channel == "valence" and e.target_party == "A"]
+    assert len(valence_effects) == 1
+    assert valence_effects[0].magnitude < 0
+
+
+# ---------------------------------------------------------------------------
+# 5. Action synergies
+# ---------------------------------------------------------------------------
+
+def test_rally_ground_game_synergy():
+    """Rally + ground_game in same turn creates a valence synergy bonus."""
+    from election_engine.campaign_actions import apply_synergies
+
+    state = CampaignState(turn=1, n_lga=5, n_parties=2, party_names=["A", "B"])
+    state.awareness = np.full((5, 2), 0.70, dtype=np.float32)
+    state.cohesion = {"A": 10.0, "B": 10.0}
+
+    mask = np.array([True, True, False, False, False])
+    actions = [
+        ActionSpec(party="A", action_type="rally", target_lgas=mask, params={}),
+        ActionSpec(party="A", action_type="ground_game", target_lgas=mask, params={}),
+    ]
+
+    synergies = apply_synergies(actions, state)
+
+    assert len(synergies) == 1
+    assert synergies[0]["party"] == "A"
+    assert set(synergies[0]["actions"]) == {"rally", "ground_game"}
+    # Valence effect should exist for A
+    valence_effects = [e for e in state.effects.values()
+                       if e.channel == "valence" and "synergy" in e.effect_key]
+    assert len(valence_effects) >= 1
+    assert valence_effects[0].magnitude > 0
+
+
+def test_no_synergy_different_parties():
+    """Synergies don't trigger across different parties."""
+    from election_engine.campaign_actions import apply_synergies
+
+    state = CampaignState(turn=1, n_lga=5, n_parties=2, party_names=["A", "B"])
+    state.awareness = np.full((5, 2), 0.70, dtype=np.float32)
+    state.cohesion = {"A": 10.0, "B": 10.0}
+
+    actions = [
+        ActionSpec(party="A", action_type="rally", params={}),
+        ActionSpec(party="B", action_type="ground_game", params={}),
+    ]
+
+    synergies = apply_synergies(actions, state)
+    assert len(synergies) == 0
+
+
+def test_no_synergy_unrelated_actions():
+    """Non-synergistic action pairs produce no bonus."""
+    from election_engine.campaign_actions import apply_synergies
+
+    state = CampaignState(turn=1, n_lga=5, n_parties=1, party_names=["A"])
+    state.awareness = np.full((5, 1), 0.70, dtype=np.float32)
+    state.cohesion = {"A": 10.0}
+
+    actions = [
+        ActionSpec(party="A", action_type="poll", params={}),
+        ActionSpec(party="A", action_type="fundraising", params={}),
+    ]
+
+    synergies = apply_synergies(actions, state)
+    assert len(synergies) == 0
+
+
+# ---------------------------------------------------------------------------
+# 6. Patronage turnout boost
+# ---------------------------------------------------------------------------
+
+def test_patronage_tau_effect():
+    """Patronage creates a negative tau effect (turnout boost)."""
+    import pandas as pd
+    from election_engine.campaign_actions import resolve_patronage
+
+    state = CampaignState(turn=1, n_lga=5, n_parties=1, party_names=["A"])
+    state.awareness = np.full((5, 1), 0.70, dtype=np.float32)
+    state.cohesion = {"A": 10.0}
+    state.political_capital = {"A": 10.0}
+
+    lga_data = pd.DataFrame({"Administrative Zone": [1, 1, 2, 2, 3]})
+
+    action = ActionSpec(party="A", action_type="patronage", params={"scale": 1.0})
+    resolve_patronage(action, state, lga_data, [])
+
+    tau_effects = [e for e in state.effects.values() if e.channel == "tau"]
+    assert len(tau_effects) >= 1
+    # Should be negative (reducing abstention)
+    assert tau_effects[0].magnitude < 0
+
+
+# ---------------------------------------------------------------------------
+# 7. Action fatigue
+# ---------------------------------------------------------------------------
+
+def test_action_fatigue_multiplier_curve():
+    """Fatigue multiplier decreases with consecutive turns."""
+    from election_engine.campaign_actions import action_fatigue_multiplier
+
+    assert action_fatigue_multiplier(0) == 1.0
+    assert action_fatigue_multiplier(1) == pytest.approx(1.0 / 1.2, abs=0.01)
+    assert action_fatigue_multiplier(3) == pytest.approx(1.0 / 1.6, abs=0.01)
+    assert action_fatigue_multiplier(-1) == 1.0
+
+
+def test_action_fatigue_tracking():
+    """Fatigue counters increment for repeated types, reset for unused."""
+    from election_engine.campaign_actions import update_action_fatigue
+
+    state = CampaignState(turn=1, n_lga=5, n_parties=2, party_names=["A", "B"])
+
+    # Turn 1: A does rally
+    actions1 = [ActionSpec(party="A", action_type="rally", params={})]
+    update_action_fatigue(state, actions1)
+    assert state._action_fatigue["A"]["rally"] == 1
+
+    # Turn 2: A does rally again
+    actions2 = [ActionSpec(party="A", action_type="rally", params={})]
+    update_action_fatigue(state, actions2)
+    assert state._action_fatigue["A"]["rally"] == 2
+
+    # Turn 3: A does advertising instead
+    actions3 = [ActionSpec(party="A", action_type="advertising", params={})]
+    update_action_fatigue(state, actions3)
+    assert state._action_fatigue["A"]["rally"] == 0  # reset
+    assert state._action_fatigue["A"]["advertising"] == 1
+
+
+def test_fatigue_exempt_actions():
+    """Fundraising, poll, pledge, manifesto are exempt from fatigue."""
+    from election_engine.campaign_actions import get_fatigue_multiplier
+
+    state = CampaignState(turn=1, n_lga=5, n_parties=1, party_names=["A"])
+    state._action_fatigue = {"A": {"fundraising": 5, "poll": 3, "pledge": 2, "manifesto": 4}}
+
+    assert get_fatigue_multiplier(state, "A", "fundraising") == 1.0
+    assert get_fatigue_multiplier(state, "A", "poll") == 1.0
+    assert get_fatigue_multiplier(state, "A", "pledge") == 1.0
+    assert get_fatigue_multiplier(state, "A", "manifesto") == 1.0
+
+
+# ---------------------------------------------------------------------------
+# 8. Endorsement withdrawal
+# ---------------------------------------------------------------------------
+
+def test_endorsement_withdrawal():
+    """Endorsement can be withdrawn, removing the valence effect."""
+    import pandas as pd
+    from election_engine.campaign_actions import resolve_endorsement, withdraw_endorsement
+
+    state = CampaignState(turn=1, n_lga=5, n_parties=2, party_names=["A", "B"])
+    state.awareness = np.full((5, 2), 0.70, dtype=np.float32)
+    state.cohesion = {"A": 10.0, "B": 10.0}
+
+    lga_data = pd.DataFrame({"Administrative Zone": [1, 1, 2, 2, 3]})
+
+    # Apply endorsement
+    action = ActionSpec(
+        party="A", action_type="endorsement",
+        params={"endorser_type": "traditional_ruler"},
+    )
+    resolve_endorsement(action, state, lga_data, [])
+
+    # Verify endorsement exists
+    assert any("endorse" in k for k in state.effects)
+    assert len(state._endorsements) == 1
+
+    # Withdraw it
+    removed = withdraw_endorsement("A", "traditional_ruler", state)
+    assert removed is True
+    assert not any("endorse" in k and "traditional_ruler" in k for k in state.effects)
+    assert len(state._endorsements) == 0
+
+
+def test_endorsement_withdrawal_nonexistent():
+    """Withdrawing a non-existent endorsement returns False."""
+    from election_engine.campaign_actions import withdraw_endorsement
+
+    state = CampaignState(turn=1, n_lga=5, n_parties=1, party_names=["A"])
+
+    removed = withdraw_endorsement("A", "celebrity", state)
+    assert removed is False
+
+
+def test_endorsement_tracked_for_withdrawal():
+    """Endorsements are tracked in _endorsements dict after application."""
+    import pandas as pd
+    from election_engine.campaign_actions import resolve_endorsement
+
+    state = CampaignState(turn=2, n_lga=5, n_parties=1, party_names=["A"])
+    state.awareness = np.full((5, 1), 0.70, dtype=np.float32)
+    state.cohesion = {"A": 10.0}
+
+    lga_data = pd.DataFrame({"Administrative Zone": [1, 1, 2, 2, 3]})
+
+    action = ActionSpec(
+        party="A", action_type="endorsement",
+        params={"endorser_type": "religious_leader"},
+    )
+    resolve_endorsement(action, state, lga_data, [])
+
+    assert len(state._endorsements) == 1
+    endo = list(state._endorsements.values())[0]
+    assert endo["endorser_type"] == "religious_leader"
+    assert endo["source_party"] == "A"
+    assert endo["turn_applied"] == 2

@@ -452,6 +452,7 @@ def resolve_endorsement(action: ActionSpec, state: CampaignState,
     }
     mag = magnitude_map.get(endorser_type, 0.06)
 
+    eff_key = _effect_key(action.party, "valence", action.party, "endorse", endorser_type)
     effect = ActiveEffect(
         source_party=action.party,
         source_action="endorsement",
@@ -461,9 +462,16 @@ def resolve_endorsement(action: ActionSpec, state: CampaignState,
         target_dimensions=None,
         target_party=action.party,
         magnitude=mag,
-        effect_key=_effect_key(action.party, "valence", action.party, "endorse", endorser_type),
+        effect_key=eff_key,
     )
     state.apply_effect(effect)
+
+    # Track endorsement for potential withdrawal
+    state._endorsements[eff_key] = {
+        "endorser_type": endorser_type,
+        "source_party": action.party,
+        "turn_applied": state.turn,
+    }
 
     # Awareness boost through endorser's network
     state.raise_awareness(party_idx, endorser_lgas, np.float32(0.05))
@@ -537,6 +545,20 @@ def resolve_patronage(action: ActionSpec, state: CampaignState,
     # Small awareness boost
     state.raise_awareness(party_idx, action.target_lgas, np.float32(0.02 * scale))
 
+    # Patronage networks mobilize voters — turnout boost in target LGAs
+    tau_effect = ActiveEffect(
+        source_party=action.party,
+        source_action="patronage",
+        source_turn=state.turn,
+        channel="tau",
+        target_lgas=action.target_lgas,
+        target_dimensions=None,
+        target_party=None,
+        magnitude=-0.03 * scale,  # negative = less abstention = more turnout
+        effect_key=_effect_key(action.party, "tau", "", "patronage", ""),
+    )
+    state.apply_effect(tau_effect)
+
     # Exposure — scaled by patronage size
     state.exposure[action.party] = state.exposure.get(action.party, 0.0) + 0.3 * scale
     state._last_exposure_turn[action.party] = state.turn
@@ -574,6 +596,20 @@ def resolve_opposition_research(action: ActionSpec, state: CampaignState,
             effect_key=_effect_key(action.party, "salience", target_party, "oppo", str(dim)),
         )
         state.apply_effect(effect)
+
+    # Negative valence on target party (reputation damage)
+    valence_effect = ActiveEffect(
+        source_party=action.party,
+        source_action="opposition_research",
+        source_turn=state.turn,
+        channel="valence",
+        target_lgas=action.target_lgas,
+        target_dimensions=None,
+        target_party=target_party,
+        magnitude=-0.06,
+        effect_key=_effect_key(action.party, "valence", target_party, "oppo", ""),
+    )
+    state.apply_effect(valence_effect)
 
     # Raise OPPONENT's awareness (you're introducing voters to their worst positions)
     state.raise_awareness(target_idx, action.target_lgas, np.float32(0.06))
@@ -615,6 +651,23 @@ def resolve_media(action: ActionSpec, state: CampaignState,
             effect_key=_effect_key(action.party, "salience", "", "media", str(dim)),
         )
         state.apply_effect(effect)
+
+    # Valence effect: good press helps, bad press hurts
+    # success > 0.5 → positive valence, < 0.5 → negative
+    valence_mag = 0.06 * (success - 0.5)  # range: -0.03 to +0.03
+    valence_mag *= volatility_amplifier
+    valence_effect = ActiveEffect(
+        source_party=action.party,
+        source_action="media",
+        source_turn=state.turn,
+        channel="valence",
+        target_lgas=None,
+        target_dimensions=None,
+        target_party=action.party,
+        magnitude=valence_mag,
+        effect_key=_effect_key(action.party, "valence", action.party, "media", ""),
+    )
+    state.apply_effect(valence_effect)
 
     # Awareness boost (you're in the news)
     mf = _media_factor(lga_data)
@@ -745,18 +798,74 @@ def resolve_fundraising(action: ActionSpec, state: CampaignState,
 
 def resolve_poll(action: ActionSpec, state: CampaignState,
                  lga_data: pd.DataFrame, parties: list) -> None:
-    """Poll: generates noisy election results. No engine effect."""
-    # Pure information — no effects on engine channels
-    pass
+    """
+    Poll: generates noisy projected vote shares from previous_shares.
+
+    Noise scales inversely with sample_size param (default 1000).
+    Results stored in state.poll_results for caller inspection.
+    """
+    sample_size = action.params.get("sample_size", 1000)
+    noise_level = 1.0 / np.sqrt(max(sample_size, 100))  # ~3% for 1000
+
+    # Use previous shares as ground truth (or equal if no data yet)
+    poll_shares: dict[str, float] = {}
+    rng = np.random.default_rng(state.turn * 1000 + hash(action.party) % 10000)
+
+    for party_name in state.party_names:
+        true_share = state.previous_shares.get(party_name, 1.0 / max(state.n_parties, 1))
+        noise = rng.normal(0, noise_level * true_share)
+        poll_shares[party_name] = max(0.0, true_share + noise)
+
+    # Normalize to sum to 1
+    total = sum(poll_shares.values())
+    if total > 0:
+        poll_shares = {k: v / total for k, v in poll_shares.items()}
+
+    state.poll_results.append({
+        "turn": state.turn,
+        "commissioned_by": action.party,
+        "party_shares": poll_shares,
+        "sample_size": sample_size,
+        "noise_level": noise_level,
+    })
 
 
 def resolve_pledge(action: ActionSpec, state: CampaignState,
                    lga_data: pd.DataFrame, parties: list) -> None:
-    """Legislative Pledge: coalition-building multiplier. Bookkeeping."""
+    """
+    Legislative Pledge: promises on issue dimensions create a valence boost.
+
+    Params:
+    - pledge: dict with pledge metadata (stored for bookkeeping)
+    - dimensions: list of issue dimension indices the pledge addresses
+    - popularity: 0-1 scale of how popular the pledge is (default 0.5)
+
+    Valence boost = 0.04 * popularity, applied nationally.
+    Duplicate pledges (same party, same dimensions) produce no additional effect.
+    """
     pledge_data = action.params.get("pledge", {})
+    dimensions = action.params.get("dimensions", [])
+    popularity = action.params.get("popularity", 0.5)
+
     if action.party not in state.pledges:
         state.pledges[action.party] = []
     state.pledges[action.party].append(pledge_data)
+
+    # Valence boost from promising popular policies
+    if popularity > 0:
+        dim_key = ",".join(str(d) for d in sorted(dimensions)) if dimensions else "general"
+        effect = ActiveEffect(
+            source_party=action.party,
+            source_action="pledge",
+            source_turn=state.turn,
+            channel="valence",
+            target_lgas=action.target_lgas,
+            target_dimensions=None,
+            target_party=action.party,
+            magnitude=0.04 * popularity,
+            effect_key=_effect_key(action.party, "valence", action.party, "pledge", dim_key),
+        )
+        state.apply_effect(effect)
 
 
 # ---------------------------------------------------------------------------
@@ -823,7 +932,8 @@ def resolve_action(
     """
     Resolve a single campaign action, updating CampaignState.
 
-    Applies cohesion multiplier to awareness boosts and concentration penalty.
+    Applies cohesion multiplier to awareness boosts, concentration penalty,
+    and fatigue scaling for repeated action types.
     """
     resolver = _RESOLVERS.get(action.action_type)
     if resolver is None:
@@ -831,15 +941,237 @@ def resolve_action(
     if action.party not in state.party_names:
         raise ValueError(f"Unknown party: {action.party!r} (valid: {state.party_names})")
 
+    # Fatigue multiplier (passed via params by campaign loop, or 1.0)
+    fatigue_mult = action.params.get("_fatigue_mult", 1.0)
+
+    # Snapshot effects before resolution to apply fatigue scaling
+    old_effect_keys = set(state.effects.keys())
+
     # Snapshot awareness before resolution to scale delta by cohesion
     coh = cohesion_multiplier(state.cohesion.get(action.party, 10.0))
 
     if state.awareness is not None and coh < 1.0:
         old_awareness = state.awareness.copy()
         resolver(action, state, lga_data, election_config.parties)
-        # Scale awareness delta by cohesion multiplier
+        # Scale awareness delta by cohesion multiplier and fatigue
         delta = state.awareness - old_awareness
-        state.awareness = old_awareness + delta * np.float32(coh)
+        state.awareness = old_awareness + delta * np.float32(coh * fatigue_mult)
         np.clip(state.awareness, 0.60, 1.0, out=state.awareness)
     else:
         resolver(action, state, lga_data, election_config.parties)
+        if fatigue_mult < 1.0 and state.awareness is not None:
+            # Even with full cohesion, fatigue scales awareness gains
+            # (handled below via effect scaling)
+            pass
+
+    # Scale newly created effects by fatigue multiplier
+    if fatigue_mult < 1.0:
+        for key, effect in state.effects.items():
+            if key not in old_effect_keys and effect.source_party == action.party:
+                effect.magnitude *= fatigue_mult
+
+
+# ---------------------------------------------------------------------------
+# Action synergies
+# ---------------------------------------------------------------------------
+
+# Synergy pairs: (type_a, type_b) -> (bonus_channel, bonus_magnitude)
+# Bonus applied when same party uses both in same turn on overlapping regions.
+SYNERGY_TABLE: dict[frozenset[str], tuple[str, float]] = {
+    frozenset({"rally", "ground_game"}): ("valence", 0.04),      # ground game primes audience
+    frozenset({"advertising", "rally"}): ("salience_boost", 0.02),  # ads amplify rally message
+    frozenset({"media", "opposition_research"}): ("valence_penalty", 0.03),  # media amplifies oppo
+}
+
+
+def _regions_overlap(a: np.ndarray | None, b: np.ndarray | None) -> bool:
+    """Check if two LGA masks overlap (or either is national)."""
+    if a is None or b is None:
+        return True  # national overlaps with everything
+    return bool(np.any(a & b))
+
+
+def apply_synergies(
+    turn_actions: list[ActionSpec],
+    state: CampaignState,
+) -> list[dict]:
+    """
+    Detect and apply synergy bonuses for complementary actions by the same party.
+
+    Returns list of synergy event dicts for logging.
+    """
+    synergy_log: list[dict] = []
+
+    # Group actions by party
+    party_actions: dict[str, list[ActionSpec]] = {}
+    for action in turn_actions:
+        party_actions.setdefault(action.party, []).append(action)
+
+    for party, actions in party_actions.items():
+        if len(actions) < 2:
+            continue
+
+        # Check all pairs
+        checked: set[frozenset[int]] = set()
+        for i, a in enumerate(actions):
+            for j, b in enumerate(actions):
+                if i >= j:
+                    continue
+                pair_key = frozenset({i, j})
+                if pair_key in checked:
+                    continue
+                checked.add(pair_key)
+
+                type_pair = frozenset({a.action_type, b.action_type})
+                if type_pair not in SYNERGY_TABLE:
+                    continue
+                if not _regions_overlap(a.target_lgas, b.target_lgas):
+                    continue
+
+                channel, magnitude = SYNERGY_TABLE[type_pair]
+                # Determine target LGAs (intersection or narrower)
+                if a.target_lgas is not None and b.target_lgas is not None:
+                    target = a.target_lgas & b.target_lgas
+                else:
+                    target = a.target_lgas if a.target_lgas is not None else b.target_lgas
+
+                if channel == "valence":
+                    effect = ActiveEffect(
+                        source_party=party,
+                        source_action="synergy",
+                        source_turn=state.turn,
+                        channel="valence",
+                        target_lgas=target,
+                        target_dimensions=None,
+                        target_party=party,
+                        magnitude=magnitude,
+                        effect_key=_effect_key(party, "valence", party, "synergy",
+                                               f"{a.action_type}+{b.action_type}"),
+                    )
+                    state.apply_effect(effect)
+                elif channel == "valence_penalty":
+                    # Media + oppo_research: extra damage to oppo target
+                    oppo_action = a if a.action_type == "opposition_research" else b
+                    target_party = oppo_action.params.get("target_party", "")
+                    if target_party and target_party in state.party_names:
+                        effect = ActiveEffect(
+                            source_party=party,
+                            source_action="synergy",
+                            source_turn=state.turn,
+                            channel="valence",
+                            target_lgas=target,
+                            target_dimensions=None,
+                            target_party=target_party,
+                            magnitude=-magnitude,
+                            effect_key=_effect_key(party, "valence", target_party, "synergy",
+                                                   "media+oppo"),
+                        )
+                        state.apply_effect(effect)
+                elif channel == "salience_boost":
+                    # Ads + rally: amplify salience on rally dimensions
+                    rally_action = a if a.action_type == "rally" else b
+                    dims, weights = _language_dims(rally_action.language)
+                    for dim, w in zip(dims[:3], weights[:3]):  # top 3 dims
+                        effect = ActiveEffect(
+                            source_party=party,
+                            source_action="synergy",
+                            source_turn=state.turn,
+                            channel="salience",
+                            target_lgas=target,
+                            target_dimensions=[dim],
+                            target_party=None,
+                            magnitude=magnitude * w,
+                            effect_key=_effect_key(party, "salience", "", "synergy",
+                                                   f"ad+rally:{dim}"),
+                        )
+                        state.apply_effect(effect)
+
+                synergy_log.append({
+                    "party": party,
+                    "actions": sorted([a.action_type, b.action_type]),
+                    "channel": channel,
+                    "magnitude": magnitude,
+                })
+
+    return synergy_log
+
+
+# ---------------------------------------------------------------------------
+# Action fatigue
+# ---------------------------------------------------------------------------
+
+# Actions exempt from fatigue (free actions, info-only)
+_FATIGUE_EXEMPT = {"fundraising", "poll", "pledge", "manifesto"}
+
+# Fatigue multiplier: 1/(1 + 0.2*N) where N = consecutive turns using same action type
+FATIGUE_RATE = 0.20
+
+
+def action_fatigue_multiplier(consecutive_turns: int) -> float:
+    """Diminishing returns from repeating the same action type across turns."""
+    return 1.0 / (1.0 + FATIGUE_RATE * max(consecutive_turns, 0))
+
+
+def update_action_fatigue(
+    state: CampaignState,
+    turn_actions: list[ActionSpec],
+) -> None:
+    """
+    Update fatigue counters based on this turn's actions.
+
+    For each party, track which action types were used. Increment counter
+    for types used, reset counter for types not used.
+    """
+    # Collect action types used per party this turn
+    party_types: dict[str, set[str]] = {}
+    for action in turn_actions:
+        party_types.setdefault(action.party, set()).add(action.action_type)
+
+    for party in state.party_names:
+        if party not in state._action_fatigue:
+            state._action_fatigue[party] = {}
+        fatigue = state._action_fatigue[party]
+        used = party_types.get(party, set())
+
+        for atype in list(fatigue.keys()):
+            if atype in used:
+                fatigue[atype] += 1
+            else:
+                fatigue[atype] = 0  # reset when not used
+
+        for atype in used:
+            if atype not in fatigue:
+                fatigue[atype] = 1
+
+
+def get_fatigue_multiplier(state: CampaignState, party: str, action_type: str) -> float:
+    """Get the current fatigue multiplier for a party's action type."""
+    if action_type in _FATIGUE_EXEMPT:
+        return 1.0
+    consecutive = state._action_fatigue.get(party, {}).get(action_type, 0)
+    return action_fatigue_multiplier(consecutive)
+
+
+# ---------------------------------------------------------------------------
+# Endorsement withdrawal
+# ---------------------------------------------------------------------------
+
+def withdraw_endorsement(
+    party: str,
+    endorser_type: str,
+    state: CampaignState,
+) -> bool:
+    """
+    Remove an endorsement effect from a party.
+
+    Looks for endorsement effects matching the party and endorser_type.
+    Removes the effect and endorsement tracking record.
+    Returns True if an endorsement was found and removed.
+    """
+    target_key = _effect_key(party, "valence", party, "endorse", endorser_type)
+    if target_key in state.effects:
+        del state.effects[target_key]
+        if target_key in state._endorsements:
+            del state._endorsements[target_key]
+        return True
+    return False

@@ -20,6 +20,7 @@ from .campaign_actions import (
     PC_INCOME_PER_TURN, PC_HOARDING_CAP, PC_FUNDRAISING_YIELD,
     PC_ETO_DIVIDEND_THRESHOLD, PC_ETO_DIVIDEND_AMOUNT, PC_ETO_DIVIDEND_CAP,
     ACTION_RESOLUTION_ORDER,
+    apply_synergies, update_action_fatigue, get_fatigue_multiplier,
 )
 from .campaign_modifiers import compile_modifiers, roll_scandals, apply_exposure_decay
 from .campaign_state import CampaignState, CampaignModifiers, CrisisEvent, ActiveEffect
@@ -505,7 +506,24 @@ def run_campaign(
             key=lambda a: ACTION_RESOLUTION_ORDER.get(a.action_type, 3),
         )
         for action in turn_actions_sorted:
+            # Apply fatigue: scale effect magnitudes for repeated action types
+            fatigue_mult = get_fatigue_multiplier(state, action.party, action.action_type)
+            if fatigue_mult < 1.0:
+                # Temporarily scale params that affect magnitude
+                action = ActionSpec(
+                    party=action.party,
+                    action_type=action.action_type,
+                    target_lgas=action.target_lgas,
+                    language=action.language,
+                    params={**action.params, "_fatigue_mult": fatigue_mult},
+                )
             resolve_action(action, state, df, election_config)
+
+        # Apply synergies for complementary same-turn actions
+        synergy_log = apply_synergies(turn_actions_sorted, state)
+
+        # Update fatigue counters for next turn
+        update_action_fatigue(state, turn_actions_sorted)
 
         # Compile modifiers and run engine
         modifiers = compile_modifiers(state, df)
@@ -526,6 +544,7 @@ def run_campaign(
             lga_data=df, rng=campaign_rng,
         )
         result["post_turn_log"] = post_log
+        result["synergy_log"] = synergy_log
 
         if verbose:
             # Print summary
@@ -543,6 +562,13 @@ def run_campaign(
                     "  SCANDAL: %s (exposure=%.1f, valence penalty=%.2f, PC lost=%d)",
                     scandal["party"], scandal["exposure_at_trigger"],
                     scandal["valence_penalty"], scandal["pc_damage"],
+                )
+            # Log synergies
+            for syn in synergy_log:
+                logger.info(
+                    "  SYNERGY: %s — %s → %s +%.2f",
+                    syn["party"], "+".join(syn["actions"]),
+                    syn["channel"], syn["magnitude"],
                 )
             # Log cohesion changes
             for party_name, coh_info in post_log.get("cohesion_changes", {}).items():

@@ -132,6 +132,15 @@ class CampaignState:
     # Momentum direction history: party -> list of last 3 directions
     _momentum_history: dict[str, list[str]] = field(default_factory=dict)
 
+    # Action fatigue: party -> {action_type: consecutive_turn_count}
+    _action_fatigue: dict[str, dict[str, int]] = field(default_factory=dict)
+
+    # Poll results: list of {turn, party_shares: {party: share}, noise_level}
+    poll_results: list[dict] = field(default_factory=list)
+
+    # Active endorsements: {effect_key: {endorser_type, source_party, turn_applied}}
+    _endorsements: dict[str, dict] = field(default_factory=dict)
+
     def raise_awareness(
         self,
         party_idx: int,
