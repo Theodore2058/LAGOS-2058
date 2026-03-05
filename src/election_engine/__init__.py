@@ -15,6 +15,14 @@ from .results import (
     sainte_lague,
     allocate_district_seats,
 )
+from .campaign_state import (
+    CampaignModifiers,
+    CampaignState,
+    ActiveEffect,
+    CrisisEvent,
+)
+from .campaign_actions import ActionSpec
+from .campaign import run_campaign
 
 __all__ = [
     "ISSUE_NAMES",
@@ -28,4 +36,10 @@ __all__ = [
     "compute_competitiveness",
     "sainte_lague",
     "allocate_district_seats",
+    "CampaignModifiers",
+    "CampaignState",
+    "ActiveEffect",
+    "CrisisEvent",
+    "ActionSpec",
+    "run_campaign",
 ]
