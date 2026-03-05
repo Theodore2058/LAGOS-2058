@@ -566,7 +566,7 @@ def run_campaign(
             # Log synergies
             for syn in synergy_log:
                 logger.info(
-                    "  SYNERGY: %s — %s → %s +%.2f",
+                    "  SYNERGY: %s - %s -> %s +%.2f",
                     syn["party"], "+".join(syn["actions"]),
                     syn["channel"], syn["magnitude"],
                 )
