@@ -910,7 +910,7 @@ def print_detailed_final(result, party_names, data_path):
     print(state_votes[available_sv].to_string(index=False))
 
     # --- Voting district results ---
-    project_root = Path(data_path).parent
+    project_root = Path(data_path).parent.parent
     district_file = project_root / "voting_districts_summary.xlsx"
     seat_file = project_root / "seat_allocation.xlsx"
     if district_file.exists() and seat_file.exists():
