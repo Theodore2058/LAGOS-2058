@@ -1708,3 +1708,44 @@ def compute_all_lga_salience(
     result = np.where(nonzero, result / np.maximum(row_sums, 1e-30), result)
 
     return result
+
+
+def compute_turnout_ceiling(lga_data: pd.DataFrame) -> np.ndarray:
+    """
+    Compute maximum achievable turnout from infrastructure/logistics.
+
+    Returns shape (n_lga,) with values in [0.25, 0.95].
+    """
+    n_lga = len(lga_data)
+
+    def _col(name: str, default: float = 0.0) -> np.ndarray:
+        if name in lga_data.columns:
+            s = lga_data[name]
+            arr = pd.to_numeric(s, errors="coerce").fillna(default).values.astype(float)
+            np.nan_to_num(arr, copy=False, nan=default)
+            return arr
+        return np.full(n_lga, default)
+
+    urban = _col("Urban Pct", 30.0) / 100.0
+    road = _col("Road Quality Index", 5.0) / 10.0
+    electricity = _col("Access Electricity Pct", 50.0) / 100.0
+    mobile = _col("Mobile Phone Penetration Pct", 50.0) / 100.0
+    conflict = _col("Conflict History", 0.0) / 5.0
+    fed_control = _col("Federal Control 2058", 0.0)
+    planned = _col("Planned City", 0.0)
+    major_urban = _col("Major Urban Center", 0.0)
+    al_shahid = _col("Al-Shahid Influence", 0.0) / 5.0
+
+    ceiling = (
+        0.40
+        + 0.20 * urban
+        + 0.15 * road
+        + 0.05 * electricity
+        + 0.05 * mobile
+        + 0.10 * planned
+        + 0.10 * major_urban
+        - 0.15 * np.clip(conflict, 0.0, 1.0)
+        - 0.10 * np.clip(al_shahid, 0.0, 1.0)
+        - 0.05 * fed_control
+    )
+    return np.clip(ceiling, 0.25, 0.95).astype(np.float32)

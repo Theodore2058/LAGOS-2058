@@ -31,7 +31,7 @@ from .voter_types import (
     precompute_all_lga_marginals,
     _build_type_indices, EDUCATIONS, AGE_COHORTS, SETTINGS,
 )
-from .salience import SalienceRule, DEFAULT_SALIENCE_RULES
+from .salience import SalienceRule, DEFAULT_SALIENCE_RULES, compute_turnout_ceiling
 from .utility import (
     compute_utility, compute_utilities_batch,
     precompute_ethnic_utility_table, precompute_religious_utility_table,
@@ -926,6 +926,15 @@ def compute_all_lga_results(
         _highly_religious, np.float32(-0.05), np.float32(0.0)
     )
 
+    # Compute turnout ceiling (only effective when campaign_modifiers present)
+    _turnout_ceiling = None
+    if campaign_modifiers is not None and campaign_modifiers.ceiling_boost is not None:
+        _base_ceiling = compute_turnout_ceiling(lga_data)
+        _turnout_ceiling = np.clip(
+            _base_ceiling + campaign_modifiers.ceiling_boost.astype(np.float32),
+            0.25, 0.95,
+        )
+
     # Pre-allocate output arrays for vote shares and turnout
     all_vote_shares = np.empty((n_lgas, J))
     all_turnout = np.empty(n_lgas)
@@ -1146,6 +1155,10 @@ def compute_all_lga_results(
         # Step 8: Aggregate
         vote_shares, turnout = aggregate_to_lga(
             tw[active_idx], exp_parties, tmp)
+
+        # Apply turnout ceiling (campaign ground game can raise it)
+        if _turnout_ceiling is not None:
+            turnout = min(turnout, float(_turnout_ceiling[idx]))
 
         all_vote_shares[idx] = vote_shares
         all_turnout[idx] = turnout
