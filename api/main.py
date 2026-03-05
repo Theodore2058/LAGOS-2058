@@ -1,11 +1,18 @@
 """LAGOS-2058 Game Master API — FastAPI backend."""
 
+import sys, os
+
+# Ensure the engine package is importable
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-import os
+
+from api.routes.config import router as config_router
 
 app = FastAPI(title="LAGOS-2058 GM API", version="0.1.0")
+app.include_router(config_router)
 
 app.add_middleware(
     CORSMiddleware,
