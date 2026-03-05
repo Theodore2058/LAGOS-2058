@@ -19,6 +19,7 @@ import logging
 import numpy as np
 import pandas as pd
 
+from .campaign_state import CampaignModifiers
 from .config import ElectionConfig, EngineParams, Party
 from .ethnic_affinity import EthnicAffinityMatrix, DEFAULT_ETHNIC_MATRIX
 from .religious_affinity import ReligiousAffinityMatrix, DEFAULT_RELIGIOUS_MATRIX
@@ -291,6 +292,7 @@ def compute_all_lga_results(
     salience_rules: list[SalienceRule] | None = None,
     ideal_point_coeff_table: list[dict] | None = None,
     precomputed_salience: np.ndarray | None = None,
+    campaign_modifiers: CampaignModifiers | None = None,
 ) -> pd.DataFrame:
     """
     Compute vote shares for all 774 LGAs (deterministic, no noise).
@@ -410,6 +412,17 @@ def compute_all_lga_results(
             lga_data, rules=salience_rules, national_median_gdp=national_median_gdp
         )
     salience_matrix = salience_matrix.astype(np.float32)
+
+    # Apply campaign salience shift (bounded by 50% of structural salience)
+    if campaign_modifiers is not None and campaign_modifiers.salience_shift is not None:
+        structural_salience = salience_matrix.copy()
+        raw_shift = campaign_modifiers.salience_shift.astype(np.float32)
+        max_shift = np.float32(0.5) * structural_salience
+        bounded_shift = np.clip(raw_shift, -max_shift, max_shift)
+        salience_matrix = structural_salience + bounded_shift
+        np.maximum(salience_matrix, 0.0, out=salience_matrix)
+        row_sums = salience_matrix.sum(axis=1, keepdims=True)
+        salience_matrix /= np.maximum(row_sums, np.float32(1e-12))
 
     # Precompute all LGA ideal offsets (vectorised over LGAs) — float32 for fast ops
     all_lga_offsets = compute_all_lga_ideal_offsets(lga_data, ideal_point_coeff_table)
@@ -1022,6 +1035,11 @@ def compute_all_lga_results(
         dot_products -= _q_half * sq_norms
         dot_products *= _beta_s
 
+        # Campaign awareness: scale spatial utility by party awareness in this LGA.
+        # awareness[idx] is (J,), broadcast over (n_active, J).
+        if campaign_modifiers is not None and campaign_modifiers.awareness is not None:
+            dot_products *= campaign_modifiers.awareness[idx]
+
         # Step 6: Total utility = spatial + fixed (ethnic+religious+valence)
         dot_products += fixed_type_utility[active_idx]
         # Add regional stronghold bonus (per-AZ, per-party)
@@ -1042,6 +1060,10 @@ def compute_all_lga_results(
         np.take(eth_only_utility, active_idx, axis=0, out=id_buf)
         id_buf *= eth_context_modifier[idx]
         dot_products += id_buf
+
+        # Campaign valence: per-LGA additive valence modifier
+        if campaign_modifiers is not None and campaign_modifiers.valence is not None:
+            dot_products += campaign_modifiers.valence[idx]
 
         u_total = dot_products  # alias — (n_active, J) total utilities
 
