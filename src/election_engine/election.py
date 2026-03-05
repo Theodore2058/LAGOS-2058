@@ -22,6 +22,7 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 
+from .campaign_state import CampaignModifiers
 from .config import ElectionConfig
 from .data_loader import load_lga_data
 from .ethnic_affinity import EthnicAffinityMatrix
@@ -47,6 +48,7 @@ def run_election(
     salience_rules: Optional[list[SalienceRule]] = None,
     ideal_point_coeff_table: Optional[list[dict]] = None,
     verbose: bool = True,
+    campaign_modifiers: Optional[CampaignModifiers] = None,
 ) -> dict:
     """
     Run a full election simulation.
@@ -135,6 +137,7 @@ def run_election(
         salience_rules=salience_rules,
         ideal_point_coeff_table=ideal_point_coeff_table,
         precomputed_salience=salience_matrix,
+        campaign_modifiers=campaign_modifiers,
     )
 
     if verbose:
