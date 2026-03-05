@@ -464,10 +464,10 @@ def test_pc_variable_costs():
 
 
 @pytest.mark.slow
-def test_max_actions_per_party():
-    """max_actions_per_party limits actions per party per turn."""
+def test_no_action_cap():
+    """Parties can take as many actions as they have PC for."""
     config = _make_config(n_parties=2, tau_0=1.0)
-    # P0 tries 5 actions but limit is 2
+    # P0 takes 5 media actions (1 PC each) — all should resolve
     turns = [
         [
             ActionSpec(party="P0", action_type="media", language="english", params={"success": 0.5}),
@@ -480,11 +480,9 @@ def test_max_actions_per_party():
     results = run_campaign(
         DATA_PATH, config, turns=turns, seed=42, verbose=False,
         enforce_pc=True, initial_pc={"P0": 50.0, "P1": 50.0},
-        max_actions_per_party=2,
     )
-    # P0: 50 (no cap since 50 > 18 -> capped to 18, +7 = 25)
-    # Only 2 media actions at 1 PC each = 2 deducted -> 23
-    assert results[0]["pc_state"]["P0"] == 23.0
+    # P0: 50 -> capped to 18, +7 income = 25, minus 5 media (1 PC each) = 20
+    assert results[0]["pc_state"]["P0"] == 20.0
 
 
 def test_momentum_tracking():
