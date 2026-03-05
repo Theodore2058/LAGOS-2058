@@ -1102,6 +1102,9 @@ def compute_all_lga_results(
         # 7b. Abstention utility
         np.multiply(min_dist_sq, _tau_1, out=v_abstain)
         v_abstain += _tau_0
+        # Campaign tau modifier: per-LGA shift to baseline abstention
+        if campaign_modifiers is not None and campaign_modifiers.tau_modifier is not None:
+            v_abstain += campaign_modifiers.tau_modifier[idx]
         np.divide(_tau_2, row_sum, out=tmp)
         v_abstain += tmp
 
