@@ -15,7 +15,6 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-
 from .campaign_state import CampaignState, ActiveEffect
 from .campaign_modifiers import cohesion_multiplier
 from .config import N_ISSUES
@@ -617,10 +616,23 @@ def resolve_action(
     """
     Resolve a single campaign action, updating CampaignState.
 
-    Applies cohesion multiplier to awareness boosts before calling resolver.
+    Applies cohesion multiplier to awareness boosts and concentration penalty.
     """
     resolver = _RESOLVERS.get(action.action_type)
     if resolver is None:
         raise ValueError(f"Unknown action type: {action.action_type}")
+    if action.party not in state.party_names:
+        raise ValueError(f"Unknown party: {action.party!r} (valid: {state.party_names})")
 
-    resolver(action, state, lga_data, election_config.parties)
+    # Snapshot awareness before resolution to scale delta by cohesion
+    coh = cohesion_multiplier(state.cohesion.get(action.party, 10.0))
+
+    if state.awareness is not None and coh < 1.0:
+        old_awareness = state.awareness.copy()
+        resolver(action, state, lga_data, election_config.parties)
+        # Scale awareness delta by cohesion multiplier
+        delta = state.awareness - old_awareness
+        state.awareness = old_awareness + delta * np.float32(coh)
+        np.clip(state.awareness, 0.60, 1.0, out=state.awareness)
+    else:
+        resolver(action, state, lga_data, election_config.parties)

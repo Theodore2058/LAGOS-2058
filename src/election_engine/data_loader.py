@@ -351,9 +351,15 @@ def _validate(df: pd.DataFrame, path: Path) -> None:
 # Public API
 # ---------------------------------------------------------------------------
 
+_lga_data_cache: dict[str, LGAData] = {}
+
+
 def load_lga_data(path: str | Path) -> LGAData:
     """
     Load and validate the LGA_DATA sheet from the polsim Excel file.
+
+    Results are cached by resolved path so repeated calls (e.g., across
+    campaign turns) return a deep copy without re-reading the xlsx.
 
     Parameters
     ----------
@@ -365,9 +371,17 @@ def load_lga_data(path: str | Path) -> LGAData:
     LGAData
         Validated, cleaned container with accessor methods.
     """
+    import copy
+
     path = Path(path)
     if not path.exists():
         raise FileNotFoundError(f"Data file not found: {path}")
+
+    cache_key = str(path.resolve())
+    if cache_key in _lga_data_cache:
+        logger.info("Using cached LGA data for %s", path)
+        cached = _lga_data_cache[cache_key]
+        return LGAData(df=cached.df.copy(), metadata=cached.metadata.copy())
 
     logger.info("Loading LGA data from %s", path)
 
@@ -387,4 +401,6 @@ def load_lga_data(path: str | Path) -> LGAData:
     df = _fill_missing(df)
 
     logger.info("Loaded %d LGA rows, %d columns", len(df), len(df.columns))
-    return LGAData(df=df, metadata=metadata)
+    result = LGAData(df=df, metadata=metadata)
+    _lga_data_cache[cache_key] = result
+    return LGAData(df=df.copy(), metadata=metadata.copy())

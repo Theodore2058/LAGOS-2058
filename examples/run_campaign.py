@@ -69,8 +69,10 @@ PARTY_C = Party(
     economic_positioning=0.5,
 )
 
+# NOTE: Default EngineParams (tau_0=4.5) are calibrated for 14-party elections.
+# For a 3-party demo, lower tau_0 to get realistic turnout (~40-50%).
 config = ElectionConfig(
-    params=EngineParams(),
+    params=EngineParams(tau_0=1.0),
     parties=[PARTY_A, PARTY_B, PARTY_C],
     n_monte_carlo=50,
 )

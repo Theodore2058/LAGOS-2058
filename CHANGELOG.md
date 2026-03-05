@@ -1,5 +1,61 @@
 # CHANGELOG — LAGOS-2058 Election Engine Calibration
 
+## 2026-03-05 — Cycle 8: Campaign Layer Audit & Calibration
+
+### Bug Fixes
+1. **B2: Awareness monotonicity violation** — `raise_awareness()` accepted negative amounts, allowing awareness to decrease. Fixed by clamping negative amounts to 0 and preserving old values with `np.maximum`.
+
+2. **B4: Cohesion multiplier not applied to awareness boosts** — `resolve_action()` documented cohesion scaling but didn't implement it. Fixed by snapshotting awareness before resolver, computing delta, and scaling by cohesion.
+
+3. **B6: Concentration penalty unimplemented** — `state.concentration` existed but was never populated or used. Implemented full geographic concentration tracking in `update_post_turn()` and `concentration_penalty()` function applied during modifier compilation. Diminishing returns: `1/(1 + 0.15*N)` for N consecutive turns targeting same region.
+
+4. **D1: Awareness floor too low (0.05→0.30→0.60)** — Base awareness averaging 0.50 halved spatial utility vs static election (awareness=1.0), causing dramatic turnout suppression in campaign mode. Raised floor to 0.60 and recalibrated coefficients so base awareness averages ~0.73, keeping campaign mode closer to static baseline while preserving room for campaign effects.
+
+5. **E5: xlsx reloaded every campaign turn** — Added path-based cache to `load_lga_data()` returning deep copies from cached data.
+
+6. **C6: No validation of party names in actions** — Added party name validation in `resolve_action()` with clear error message.
+
+### Calibration Changes
+| Parameter | Before | After | Rationale |
+|-----------|--------|-------|-----------|
+| Awareness floor | 0.05 | 0.60 | Campaign mode close to static baseline |
+| Media coefficient | 0.20 | 0.15 | Moderate media contribution |
+| Ethnic match coefficient | 0.25 | 0.15 | Less overwhelming identity signal |
+| Religious coefficient | 0.10 | 0.08 | Proportional reduction |
+| Urban center bonus | 0.10 | 0.05 | Reduced to avoid ceiling saturation |
+| Planned city bonus | 0.08 | 0.04 | Reduced proportionally |
+
+### Campaign Diagnostics (3-party demo, tau_0=1.0)
+| Metric | Static | Turn 1 | Turn 2 | Turn 3 |
+|--------|--------|--------|--------|--------|
+| NRP share | 21.9% | 24.1% | 18.6% | 18.8% |
+| ANPC share | 69.7% | 66.5% | 71.3% | 71.4% |
+| NDC share | 8.4% | 9.3% | 10.0% | 9.8% |
+| Turnout | 24.0% | 21.4% | 22.7% | 22.8% |
+| Mean awareness | ~0.73 | ~0.76 | ~0.80 | ~0.82 |
+
+### New Tests (11 total)
+- `test_awareness_reduces_spatial_effect` (F2)
+- `test_salience_shift_effect` (F3)
+- `test_turnout_ceiling_binding` (F5)
+- `test_campaign_turn_sequence` (F6)
+- `test_cohesion_multiplier_curve` (F7)
+- `test_concentration_penalty_curve` (F7)
+- `test_awareness_monotonicity` (F7)
+- `test_ema_blending` (F7)
+- `test_awareness_all_ones_matches_static` (F8)
+- `test_empty_turns` (F8)
+- `test_smoke_no_nan` (F9)
+
+### New Files
+- `diagnostics_campaign.py` — Campaign-specific diagnostics script
+- `tests/test_campaign_mechanics.py` — 11 comprehensive campaign tests
+
+### Test Results
+- 214 tests passed, 0 failed
+
+---
+
 ## 2026-03-05 — Cycle 7: Campaign Layer
 
 ### New Feature: Multi-Turn Campaign Simulation

@@ -36,7 +36,7 @@ def cohesion_multiplier(cohesion: float) -> float:
 # ---------------------------------------------------------------------------
 
 # AZ number → boolean LGA mask (computed lazily)
-_az_mask_cache: dict[int, np.ndarray] = {}
+_az_mask_cache: dict[tuple[int, int], np.ndarray] = {}
 
 
 def _get_az_mask(az: int, lga_data: pd.DataFrame) -> np.ndarray:
@@ -83,7 +83,7 @@ def _apply_eto_effects(
             if modifiers.awareness is not None:
                 modifiers.awareness[az_mask, party_idx] += 0.12 * normalized
                 np.clip(
-                    modifiers.awareness[az_mask, party_idx], 0.05, 1.0,
+                    modifiers.awareness[az_mask, party_idx], 0.60, 1.0,
                     out=modifiers.awareness[az_mask, party_idx],
                 )
         elif eto_cat == "legitimacy":
@@ -157,6 +157,15 @@ def compile_modifiers(
     return modifiers
 
 
+def concentration_penalty(n_turns: int) -> float:
+    """Diminishing returns from targeting the same region repeatedly.
+
+    Returns a multiplier in (0, 1]. No penalty for first turn (n=0).
+    Formula: 1 / (1 + 0.15 * n)
+    """
+    return 1.0 / (1.0 + 0.15 * max(n_turns, 0))
+
+
 def _apply_salience_effect(
     modifiers: CampaignModifiers,
     effect: ActiveEffect,
@@ -167,7 +176,8 @@ def _apply_salience_effect(
         return
     party_name = effect.source_party
     coh = cohesion_multiplier(state.cohesion.get(party_name, 10.0))
-    mag = effect.magnitude * coh
+    conc = concentration_penalty(state.concentration.get(party_name, 0))
+    mag = effect.magnitude * coh * conc
 
     for dim_idx in effect.target_dimensions:
         if effect.target_lgas is not None:
@@ -189,7 +199,8 @@ def _apply_valence_effect(
     party_idx = state.party_names.index(effect.target_party)
     party_name = effect.source_party
     coh = cohesion_multiplier(state.cohesion.get(party_name, 10.0))
-    mag = effect.magnitude * coh
+    conc = concentration_penalty(state.concentration.get(party_name, 0))
+    mag = effect.magnitude * coh * conc
 
     if effect.target_lgas is not None:
         modifiers.valence[effect.target_lgas, party_idx] += mag
@@ -207,7 +218,8 @@ def _apply_ceiling_effect(
         return
     party_name = effect.source_party
     coh = cohesion_multiplier(state.cohesion.get(party_name, 10.0))
-    mag = effect.magnitude * coh
+    conc = concentration_penalty(state.concentration.get(party_name, 0))
+    mag = effect.magnitude * coh * conc
 
     if effect.target_lgas is not None:
         modifiers.ceiling_boost[effect.target_lgas] += mag
@@ -225,7 +237,8 @@ def _apply_tau_effect(
         return
     party_name = effect.source_party
     coh = cohesion_multiplier(state.cohesion.get(party_name, 10.0))
-    mag = effect.magnitude * coh
+    conc = concentration_penalty(state.concentration.get(party_name, 0))
+    mag = effect.magnitude * coh * conc
 
     if effect.target_lgas is not None:
         modifiers.tau_modifier[effect.target_lgas] += mag

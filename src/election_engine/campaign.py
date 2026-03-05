@@ -143,14 +143,26 @@ def update_post_turn(
 
     state.previous_shares = current_shares
 
-    # Geographic concentration: track per-party which states they act in
-    turn_party_states: dict[str, set[str]] = {}
+    # Geographic concentration: track per-party which regions they target.
+    # If a party targets the same region consecutively, concentration counter
+    # increments; otherwise resets.
+    turn_party_regions: dict[str, set[str]] = {}
     for action in turn_actions:
         if action.target_lgas is not None:
-            # Approximate: this turn's action has a target
-            turn_party_states.setdefault(action.party, set()).add("targeted")
+            region_key = str(action.target_lgas.sum())
+            turn_party_regions.setdefault(action.party, set()).add(region_key)
         else:
-            turn_party_states.setdefault(action.party, set()).add("national")
+            turn_party_regions.setdefault(action.party, set()).add("national")
+
+    for party_name in state.party_names:
+        current_regions = turn_party_regions.get(party_name, set())
+        prev_regions = state._prev_regions.get(party_name, set())
+        overlap = current_regions & prev_regions
+        if overlap:
+            state.concentration[party_name] = state.concentration.get(party_name, 0) + 1
+        else:
+            state.concentration[party_name] = 0
+        state._prev_regions[party_name] = current_regions
 
     # Cohesion recovery: +1 per turn if below 10, max 10
     for party_name in state.party_names:

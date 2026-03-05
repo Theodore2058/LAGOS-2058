@@ -1734,7 +1734,11 @@ def compute_base_awareness(
     """
     n_lga = len(lga_data)
     J = len(parties)
-    awareness = np.full((n_lga, J), 0.05, dtype=np.float32)
+    # Floor: every party on the ballot has baseline name recognition.
+    # 0.60 keeps campaign mode close to static baseline (awareness=1.0).
+    # Voters know ~60% of any ballot party's positions through ballot
+    # access, news, and word-of-mouth. Campaign actions fill the gap.
+    awareness = np.full((n_lga, J), 0.60, dtype=np.float32)
 
     def _col(name: str, default: float = 0.0) -> np.ndarray:
         if name in lga_data.columns:
@@ -1744,28 +1748,30 @@ def compute_base_awareness(
             return arr
         return np.full(n_lga, default)
 
-    # Media infrastructure: high-connectivity LGAs hear about all parties
+    # Media infrastructure: high-connectivity LGAs hear about all parties.
+    # Coefficient 0.15 keeps total media contribution moderate (~0.075 mean).
     urban = _col("Urban Pct", 30.0) / 100.0
     internet = _col("Internet Access Pct", 50.0) / 100.0
     mobile = _col("Mobile Phone Penetration Pct", 50.0) / 100.0
     literacy = _col("Adult Literacy Rate Pct", 50.0) / 100.0
     media_factor = 0.3 * urban + 0.25 * internet + 0.25 * mobile + 0.2 * literacy
-    awareness += 0.20 * media_factor[:, np.newaxis].astype(np.float32)
+    awareness += 0.15 * media_factor[:, np.newaxis].astype(np.float32)
 
     # Major urban centers + planned cities: high political awareness
     major_urban = _col("Major Urban Center", 0.0)
     planned = _col("Planned City", 0.0)
-    awareness += 0.10 * major_urban[:, np.newaxis].astype(np.float32)
-    awareness += 0.08 * planned[:, np.newaxis].astype(np.float32)
+    awareness += 0.05 * major_urban[:, np.newaxis].astype(np.float32)
+    awareness += 0.04 * planned[:, np.newaxis].astype(np.float32)
 
     for j, party in enumerate(parties):
-        # Ethnic match: voters know parties whose leader shares their ethnicity
+        # Ethnic match: voters know parties whose leader shares their ethnicity.
+        # Ethnic networks are the primary awareness channel in Nigerian politics.
         leader_eth = getattr(party, "leader_ethnicity", "")
         if leader_eth:
             eth_col_name = f"% {leader_eth}"
             if eth_col_name in lga_data.columns:
                 eth_pct = lga_data[eth_col_name].fillna(0).values.astype(float) / 100.0
-                awareness[:, j] += (0.25 * eth_pct).astype(np.float32)
+                awareness[:, j] += (0.15 * eth_pct).astype(np.float32)
 
         # Religious alignment
         rel_align = getattr(party, "religious_alignment", "")
@@ -1773,9 +1779,9 @@ def compute_base_awareness(
             rel_col = f"% {rel_align}"
             if rel_col in lga_data.columns:
                 rel_pct = lga_data[rel_col].fillna(0).values.astype(float) / 100.0
-                awareness[:, j] += (0.10 * rel_pct).astype(np.float32)
+                awareness[:, j] += (0.08 * rel_pct).astype(np.float32)
 
-    return np.clip(awareness, 0.05, 1.0)
+    return np.clip(awareness, 0.60, 1.0)
 
 
 def compute_turnout_ceiling(lga_data: pd.DataFrame) -> np.ndarray:

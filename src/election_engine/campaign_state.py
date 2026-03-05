@@ -98,8 +98,11 @@ class CampaignState:
     # Legislative pledges: party -> list of pledge dicts
     pledges: dict[str, list] = field(default_factory=dict)
 
-    # Geographic concentration: (party, state) -> consecutive turns
-    concentration: dict[tuple[str, str], int] = field(default_factory=dict)
+    # Geographic concentration: party -> consecutive turns targeting same region
+    concentration: dict[str, int] = field(default_factory=dict)
+
+    # Previous turn's targeted regions per party (for concentration tracking)
+    _prev_regions: dict[str, set[str]] = field(default_factory=dict)
 
     # Position history for credibility penalty
     last_positions: dict[str, np.ndarray] = field(default_factory=dict)
@@ -118,10 +121,17 @@ class CampaignState:
     ) -> None:
         """
         Increase awareness for a party in specified LGAs.
-        Awareness only goes UP, never down. Clipped to [0.05, 1.0].
+        Awareness only goes UP, never down. Clipped to [0.30, 1.0].
+        Negative amounts are clamped to 0 to enforce monotonicity.
         """
         if self.awareness is None:
             return
+        # Enforce monotonicity: only allow positive increments
+        if np.isscalar(amount):
+            amount = max(float(amount), 0.0)
+        else:
+            amount = np.maximum(amount, 0.0)
+        old = self.awareness[:, party_idx].copy()
         if lga_mask is None:
             self.awareness[:, party_idx] += amount
         else:
@@ -129,8 +139,11 @@ class CampaignState:
                 self.awareness[lga_mask, party_idx] += amount
             else:
                 self.awareness[lga_mask, party_idx] += amount[lga_mask]
+        # Ensure monotonicity: never decrease below old value
+        np.maximum(self.awareness[:, party_idx], old,
+                   out=self.awareness[:, party_idx])
         np.clip(
-            self.awareness[:, party_idx], 0.05, 1.0,
+            self.awareness[:, party_idx], 0.60, 1.0,
             out=self.awareness[:, party_idx],
         )
 
