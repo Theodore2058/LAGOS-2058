@@ -22,7 +22,10 @@ sys.path.insert(0, "src")
 from election_engine.config import Party, EngineParams, ElectionConfig, N_ISSUES
 from election_engine.campaign_state import CampaignModifiers, CampaignState, ActiveEffect
 from election_engine.campaign_modifiers import compile_modifiers, cohesion_multiplier, concentration_penalty
-from election_engine.campaign_actions import ActionSpec, resolve_action
+from election_engine.campaign_actions import (
+    ActionSpec, resolve_action, compute_action_cost,
+    PC_COSTS, PC_INCOME_PER_TURN, PC_HOARDING_CAP, PC_FUNDRAISING_YIELD,
+)
 from election_engine.campaign import run_campaign
 
 DATA_PATH = "nigeria_lga_polsim_2058.xlsx"
@@ -352,3 +355,82 @@ def test_smoke_no_nan():
 
         turnout = lga_df["Turnout"].values
         assert np.all(turnout >= 0) and np.all(turnout <= 1)
+
+
+# ---------------------------------------------------------------------------
+# PC: Political Capital system tests
+# ---------------------------------------------------------------------------
+
+def test_pc_costs_defined_for_all_actions():
+    """Every action type has a defined PC cost."""
+    from election_engine.campaign_actions import _RESOLVERS
+    for action_type in _RESOLVERS:
+        assert action_type in PC_COSTS, f"Missing PC cost for {action_type}"
+
+
+def test_pc_cost_advertising_surcharge():
+    """Advertising cost scales with budget parameter."""
+    assert compute_action_cost("advertising", {"budget": 1.0}) == 2
+    assert compute_action_cost("advertising", {"budget": 1.6}) == 3
+    assert compute_action_cost("advertising", {"budget": 2.5}) == 4
+
+
+def test_pc_hoarding_cap():
+    """PC above hoarding cap is lost before income."""
+    config = _make_config(n_parties=2, tau_0=1.0)
+    # Give parties excessive starting PC
+    turns = [[]]  # One empty turn
+    results = run_campaign(
+        DATA_PATH, config, turns=turns, seed=42, verbose=False,
+        enforce_pc=True, initial_pc={"P0": 25.0, "P1": 10.0},
+    )
+    # P0: 25 -> capped to 18, +7 income = 25
+    # P1: 10 -> no cap, +7 income = 17
+    assert results[0]["pc_state"]["P0"] == 25.0
+    assert results[0]["pc_state"]["P1"] == 17.0
+
+
+@pytest.mark.slow
+def test_pc_insufficient_skips_action():
+    """Actions exceeding PC balance are skipped."""
+    config = _make_config(n_parties=2, tau_0=1.0)
+    # Give P0 very little PC so it can't afford patronage (cost=4)
+    turns = [
+        [ActionSpec(party="P0", action_type="patronage", params={"scale": 1.0})],
+    ]
+    results = run_campaign(
+        DATA_PATH, config, turns=turns, seed=42, verbose=False,
+        enforce_pc=True, initial_pc={"P0": 1.0, "P1": 10.0},
+    )
+    # P0 starts at 1, gets 7 income = 8. Patronage costs 4. 8-4=4.
+    assert results[0]["pc_state"]["P0"] == 4.0
+
+
+@pytest.mark.slow
+def test_pc_fundraising_generates_pc():
+    """Fundraising action generates PC immediately."""
+    config = _make_config(n_parties=2, tau_0=1.0)
+    turns = [
+        [ActionSpec(party="P0", action_type="fundraising", params={})],
+    ]
+    results = run_campaign(
+        DATA_PATH, config, turns=turns, seed=42, verbose=False,
+        enforce_pc=True, initial_pc={"P0": 0.0, "P1": 0.0},
+    )
+    # P0: 0 + 7 income + 3 fundraising yield = 10
+    assert results[0]["pc_state"]["P0"] == 7.0 + PC_FUNDRAISING_YIELD
+
+
+@pytest.mark.slow
+def test_pc_disabled_legacy_mode():
+    """enforce_pc=False allows all actions regardless of balance."""
+    config = _make_config(n_parties=2, tau_0=1.0)
+    turns = [
+        [ActionSpec(party="P0", action_type="patronage", params={"scale": 1.0})],
+    ]
+    results = run_campaign(
+        DATA_PATH, config, turns=turns, seed=42, verbose=False,
+        enforce_pc=False,
+    )
+    # Should complete without error, no pc_state tracking
+    assert len(results) == 1

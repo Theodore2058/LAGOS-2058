@@ -21,7 +21,7 @@ from .campaign_state import (
     ActiveEffect,
     CrisisEvent,
 )
-from .campaign_actions import ActionSpec
+from .campaign_actions import ActionSpec, PC_COSTS, compute_action_cost
 from .campaign import run_campaign
 
 __all__ = [
@@ -41,5 +41,7 @@ __all__ = [
     "ActiveEffect",
     "CrisisEvent",
     "ActionSpec",
+    "PC_COSTS",
+    "compute_action_cost",
     "run_campaign",
 ]

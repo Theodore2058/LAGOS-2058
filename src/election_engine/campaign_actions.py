@@ -21,6 +21,48 @@ from .config import N_ISSUES
 
 
 # ---------------------------------------------------------------------------
+# Political Capital costs per action type
+# ---------------------------------------------------------------------------
+
+PC_COSTS: dict[str, int] = {
+    "rally": 2,                  # Core campaign activity
+    "advertising": 2,            # Base cost; budget param > 1.5 adds +1, > 2.0 adds +2
+    "manifesto": 3,              # Major national event
+    "ground_game": 3,            # Resource-intensive field operations
+    "endorsement": 2,            # Relationship-based
+    "ethnic_mobilization": 3,    # High-impact identity play
+    "patronage": 4,              # Expensive, generates exposure risk
+    "opposition_research": 2,    # Strategic but narrow
+    "media": 1,                  # Cheap but volatile
+    "eto_engagement": 3,         # Building institutional support
+    "crisis_response": 2,        # Reactive situational cost
+    "fundraising": 0,            # Free — generates PC
+    "poll": 1,                   # Cheap intelligence
+    "pledge": 0,                 # Free to promise
+}
+
+# PC system constants
+PC_INCOME_PER_TURN = 7           # Unconditional income at start of each turn
+PC_HOARDING_CAP = 18             # Hard cap: excess above this lost before income
+PC_FUNDRAISING_YIELD = 3         # Base PC from a fundraising action
+PC_ETO_DIVIDEND_THRESHOLD = 8    # Economic ETO score required for dividend
+PC_ETO_DIVIDEND_AMOUNT = 1       # PC per qualifying Economic ETO
+PC_ETO_DIVIDEND_CAP = 2          # Max ETO dividend per turn
+
+
+def compute_action_cost(action_type: str, params: dict) -> int:
+    """Compute the PC cost for an action, including param-based surcharges."""
+    base = PC_COSTS.get(action_type, 2)
+    if action_type == "advertising":
+        budget = params.get("budget", 1.0)
+        if budget > 2.0:
+            base += 2
+        elif budget > 1.5:
+            base += 1
+    return base
+
+
+# ---------------------------------------------------------------------------
 # ActionSpec dataclass
 # ---------------------------------------------------------------------------
 

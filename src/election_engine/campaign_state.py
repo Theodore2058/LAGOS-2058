@@ -6,6 +6,7 @@ Defines:
 - ActiveEffect: a single campaign effect currently active in the simulation
 - CampaignState: full mutable state of the campaign across all turns
 - CrisisEvent: an exogenous event that shifts salience and/or valence
+- Political Capital (PC): resource system constraining party actions per turn
 """
 
 from __future__ import annotations
@@ -112,6 +113,9 @@ class CampaignState:
 
     # EMA blending parameter (for salience/valence/ceiling effects)
     ema_alpha: float = 0.65
+
+    # Political Capital (PC) tracking: party -> current PC balance
+    political_capital: dict[str, float] = field(default_factory=dict)
 
     def raise_awareness(
         self,

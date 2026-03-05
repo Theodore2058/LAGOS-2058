@@ -15,7 +15,11 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 
-from .campaign_actions import ActionSpec, resolve_action
+from .campaign_actions import (
+    ActionSpec, resolve_action, compute_action_cost,
+    PC_INCOME_PER_TURN, PC_HOARDING_CAP, PC_FUNDRAISING_YIELD,
+    PC_ETO_DIVIDEND_THRESHOLD, PC_ETO_DIVIDEND_AMOUNT, PC_ETO_DIVIDEND_CAP,
+)
 from .campaign_modifiers import compile_modifiers
 from .campaign_state import CampaignState, CampaignModifiers, CrisisEvent, ActiveEffect
 from .config import ElectionConfig
@@ -24,6 +28,86 @@ from .election import run_election
 from .salience import compute_base_awareness
 
 logger = logging.getLogger(__name__)
+
+
+def process_pc_income(state: CampaignState) -> dict[str, dict]:
+    """
+    Process start-of-turn political capital: hoarding cap, income, ETO dividends.
+
+    Returns a dict of {party: {"cap_lost": ..., "income": ..., "eto_dividend": ..., "balance": ...}}
+    for logging/display purposes.
+    """
+    pc_log: dict[str, dict] = {}
+
+    for party_name in state.party_names:
+        old_balance = state.political_capital.get(party_name, 0.0)
+        log_entry: dict[str, float] = {"old_balance": old_balance}
+
+        # 1. Hoarding cap: lose excess above PC_HOARDING_CAP before income
+        cap_lost = max(0.0, old_balance - PC_HOARDING_CAP)
+        balance = min(old_balance, PC_HOARDING_CAP)
+        log_entry["cap_lost"] = cap_lost
+
+        # 2. Unconditional income
+        balance += PC_INCOME_PER_TURN
+        log_entry["income"] = PC_INCOME_PER_TURN
+
+        # 3. Economic ETO dividends
+        eto_dividend = 0
+        for (p, cat, az), score in state.eto_scores.items():
+            if p == party_name and cat == "economic" and score >= PC_ETO_DIVIDEND_THRESHOLD:
+                eto_dividend += PC_ETO_DIVIDEND_AMOUNT
+        eto_dividend = min(eto_dividend, PC_ETO_DIVIDEND_CAP)
+        balance += eto_dividend
+        log_entry["eto_dividend"] = eto_dividend
+
+        state.political_capital[party_name] = balance
+        log_entry["balance"] = balance
+        pc_log[party_name] = log_entry
+
+    return pc_log
+
+
+def validate_and_deduct_pc(
+    state: CampaignState,
+    turn_actions: list[ActionSpec],
+) -> list[ActionSpec]:
+    """
+    Validate that each party can afford its actions and deduct PC.
+
+    Actions are processed in order. If a party can't afford an action,
+    it is skipped (logged as warning). Fundraising generates PC immediately.
+
+    Returns the list of affordable actions (may be shorter than input).
+    """
+    affordable: list[ActionSpec] = []
+
+    for action in turn_actions:
+        party = action.party
+        cost = compute_action_cost(action.action_type, action.params)
+        balance = state.political_capital.get(party, 0.0)
+
+        if cost > balance:
+            logger.warning(
+                "  %s cannot afford %s (cost=%d, balance=%.0f) — skipped",
+                party, action.action_type, cost, balance,
+            )
+            continue
+
+        # Deduct cost
+        state.political_capital[party] = balance - cost
+        affordable.append(action)
+
+        # Fundraising immediately generates PC
+        if action.action_type == "fundraising":
+            state.political_capital[party] += PC_FUNDRAISING_YIELD
+            logger.info(
+                "  %s fundraising: +%d PC (balance: %.0f)",
+                party, PC_FUNDRAISING_YIELD,
+                state.political_capital[party],
+            )
+
+    return affordable
 
 
 def apply_crisis(
@@ -178,6 +262,8 @@ def run_campaign(
     crisis_events: list[CrisisEvent] | None = None,
     seed: int | None = None,
     verbose: bool = True,
+    enforce_pc: bool = True,
+    initial_pc: dict[str, float] | None = None,
 ) -> list[dict]:
     """
     Run a multi-turn campaign simulation.
@@ -196,11 +282,19 @@ def run_campaign(
         Random seed for reproducibility.
     verbose : bool
         If True, log progress.
+    enforce_pc : bool
+        If True (default), enforce political capital costs. Actions that
+        exceed a party's PC balance are skipped. If False, all actions
+        are resolved regardless of cost (legacy behavior).
+    initial_pc : dict[str, float], optional
+        Starting PC balances per party. Defaults to PC_INCOME_PER_TURN
+        for each party (first turn income is still added).
 
     Returns
     -------
     list[dict]
-        One election result dict per turn.
+        One election result dict per turn. Each dict includes a "pc_state"
+        key with per-party PC balances after the turn.
     """
     lga_data = load_lga_data(data_path)
     df = lga_data.df
@@ -248,11 +342,29 @@ def run_campaign(
     for i, p in enumerate(election_config.parties):
         state.last_positions[p.name] = p.positions.copy()
 
+    # Initialize political capital
+    if initial_pc:
+        state.political_capital = dict(initial_pc)
+    else:
+        for p in party_names:
+            state.political_capital[p] = 0.0  # Will get income on first turn
+
     results = []
     for turn_idx, turn_actions in enumerate(turns):
         state.turn = turn_idx + 1
         if verbose:
             logger.info("Campaign Turn %d: %d actions", state.turn, len(turn_actions))
+
+        # PC phase: hoarding cap, income, ETO dividends
+        if enforce_pc:
+            pc_log = process_pc_income(state)
+            if verbose:
+                for p, info in pc_log.items():
+                    logger.info(
+                        "  %s PC: balance=%.0f (income=%d, eto=%d, cap_lost=%.0f)",
+                        p, info["balance"], info["income"],
+                        info["eto_dividend"], info["cap_lost"],
+                    )
 
         # Apply crisis events for this turn
         if crisis_events:
@@ -262,7 +374,9 @@ def run_campaign(
                     if verbose:
                         logger.info("  Crisis: %s", crisis.name)
 
-        # Resolve player actions
+        # Validate PC and resolve player actions
+        if enforce_pc:
+            turn_actions = validate_and_deduct_pc(state, turn_actions)
         for action in turn_actions:
             resolve_action(action, state, df, election_config)
 
@@ -274,6 +388,8 @@ def run_campaign(
             seed=seed,
             verbose=verbose,
         )
+        # Attach PC state to result
+        result["pc_state"] = dict(state.political_capital)
         results.append(result)
 
         # Post-turn updates
