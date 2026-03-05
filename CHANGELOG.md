@@ -1,5 +1,34 @@
 # CHANGELOG — LAGOS-2058 Election Engine Calibration
 
+## 2026-03-05 — Cycle 7: Campaign Layer
+
+### New Feature: Multi-Turn Campaign Simulation
+Added a campaign system where actions modify engine *inputs* (not outputs):
+
+**Five Modification Channels:**
+1. **Awareness** `(n_lga, J)`: multiplies spatial utility. Default 1.0 (full knowledge). Low awareness suppresses policy-based voting, letting identity dominate. Monotonically increasing.
+2. **Salience Shift** `(n_lga, 28)`: bounded campaign shift to issue salience (max 50% of structural). Renormalized after application.
+3. **Valence** `(n_lga, J)`: per-LGA additive valence modifier from endorsements, patronage, momentum, crisis response.
+4. **Turnout Ceiling** `(n_lga,)`: maximum achievable turnout from infrastructure. Ground Game actions raise it.
+5. **Tau Modifier** `(n_lga,)`: per-LGA shift to baseline abstention (Legitimacy ETOs).
+
+**Campaign Actions (14 types):** rally, advertising, manifesto, ground_game, endorsement, ethnic_mobilization, patronage, opposition_research, media, eto_engagement, crisis_response, fundraising, poll, pledge.
+
+**Key Mechanics:**
+- Awareness produces North-South asymmetry (high media = high awareness = policy matters)
+- Language profiles map campaign language to salience dimension shifts
+- Cohesion (0-10) scales all effect magnitudes
+- Momentum: consecutive rising/falling share -> valence bonus/penalty
+- ETO system: 4 categories (mobilization, elite, economic, legitimacy) -> 4 channels
+- Crisis events as exogenous salience/valence shocks
+- EMA blending for same-key effect overwrites (no decay timers)
+
+**New Files:** `campaign_state.py`, `campaign_actions.py`, `campaign_modifiers.py`, `campaign.py`
+**Modified Files:** `election.py`, `poststratification.py`, `salience.py`, `__init__.py`
+**Static election invariant preserved:** all tests pass with campaign_modifiers=None.
+
+---
+
 ## 2026-03-04 — Cycle 6: Dimensional Scaling Fix + Recalibration
 
 ### Bug Fixes
