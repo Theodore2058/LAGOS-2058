@@ -552,3 +552,71 @@ def test_exposure_penalty():
     assert modifiers.valence[0, 0] == pytest.approx(-0.045, abs=0.001)
     # Party B unaffected
     assert np.all(modifiers.valence[:, 1] == 0)
+
+
+def test_compile_modifiers_with_no_effects():
+    """compile_modifiers produces neutral output when state has no effects."""
+    import pandas as pd
+
+    state = CampaignState(
+        turn=1, n_lga=5, n_parties=2, party_names=["A", "B"],
+    )
+    state.awareness = np.full((5, 2), 0.75, dtype=np.float32)
+    state.cohesion = {"A": 10.0, "B": 10.0}
+
+    # Minimal LGA data with required column
+    lga_data = pd.DataFrame({
+        "Administrative Zone": [1, 1, 2, 2, 3],
+    })
+
+    mods = compile_modifiers(state, lga_data)
+
+    # Awareness should match state
+    np.testing.assert_array_almost_equal(mods.awareness, state.awareness)
+    # All other channels should be zero
+    np.testing.assert_array_equal(mods.salience_shift, np.zeros((5, 28), dtype=np.float32))
+    np.testing.assert_array_equal(mods.valence, np.zeros((5, 2), dtype=np.float32))
+    np.testing.assert_array_equal(mods.ceiling_boost, np.zeros(5, dtype=np.float32))
+    np.testing.assert_array_equal(mods.tau_modifier, np.zeros(5, dtype=np.float32))
+
+
+def test_compile_modifiers_aggregates_effects():
+    """compile_modifiers correctly aggregates multiple active effects."""
+    import pandas as pd
+
+    state = CampaignState(
+        turn=1, n_lga=5, n_parties=2, party_names=["A", "B"],
+    )
+    state.awareness = np.full((5, 2), 0.70, dtype=np.float32)
+    state.cohesion = {"A": 10.0, "B": 10.0}
+
+    # Add a valence effect for party A
+    effect = ActiveEffect(
+        source_party="A", source_action="endorsement", source_turn=1,
+        channel="valence", target_lgas=None, target_dimensions=None,
+        target_party="A", magnitude=0.10,
+        effect_key="A:valence:A:endorse:notable",
+    )
+    state.apply_effect(effect)
+
+    # Add a tau effect
+    tau_effect = ActiveEffect(
+        source_party="A", source_action="rally", source_turn=1,
+        channel="tau", target_lgas=None, target_dimensions=None,
+        target_party=None, magnitude=-0.20,
+        effect_key="A:tau::rally:",
+    )
+    state.apply_effect(tau_effect)
+
+    lga_data = pd.DataFrame({
+        "Administrative Zone": [1, 1, 2, 2, 3],
+    })
+
+    mods = compile_modifiers(state, lga_data)
+
+    # Valence for party A should be positive (0.10 * cohesion=1.0 * conc=1.0)
+    assert mods.valence[0, 0] == pytest.approx(0.10, abs=0.01)
+    # Party B valence unaffected
+    assert mods.valence[0, 1] == pytest.approx(0.0, abs=0.01)
+    # Tau should be negative (reducing abstention)
+    assert mods.tau_modifier[0] == pytest.approx(-0.20, abs=0.01)

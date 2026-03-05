@@ -41,7 +41,7 @@ class CampaignModifiers:
 
     @classmethod
     def zeros(cls, n_lga: int, n_parties: int, n_dims: int = 28) -> CampaignModifiers:
-        """Explicit zero arrays -- should produce same results as neutral."""
+        """Explicit arrays with neutral values (awareness=1.0, others=0.0)."""
         return cls(
             awareness=np.ones((n_lga, n_parties), dtype=np.float32),
             salience_shift=np.zeros((n_lga, n_dims), dtype=np.float32),

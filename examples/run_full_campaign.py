@@ -45,7 +45,7 @@ logging.basicConfig(
     datefmt="%H:%M:%S",
 )
 
-DATA_PATH = str(Path(__file__).parent.parent / "nigeria_lga_polsim_2058.xlsx")
+DATA_PATH = str(Path(__file__).parent.parent / "data" / "nigeria_lga_polsim_2058.xlsx")
 
 # ---------------------------------------------------------------------------
 # Import party definitions from run_election.py
