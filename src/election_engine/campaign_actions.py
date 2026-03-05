@@ -17,6 +17,7 @@ import numpy as np
 import pandas as pd
 from .campaign_state import CampaignState, ActiveEffect
 from .campaign_modifiers import cohesion_multiplier
+from .config import N_ISSUES, ISSUE_NAMES
 
 
 # ---------------------------------------------------------------------------
@@ -29,15 +30,16 @@ PC_COSTS: dict[str, int] = {
     "manifesto": 3,              # Major national event
     "ground_game": 3,            # Resource-intensive field operations
     "endorsement": 2,            # Relationship-based
-    "ethnic_mobilization": 3,    # High-impact identity play
-    "patronage": 4,              # Expensive, generates exposure risk
+    "ethnic_mobilization": 2,    # Targeted identity play, carries exposure risk
+    "patronage": 3,              # Regional loyalty building, exposure risk
     "opposition_research": 2,    # Strategic but narrow
     "media": 1,                  # Cheap but volatile
     "eto_engagement": 3,         # Building institutional support
     "crisis_response": 2,        # Reactive situational cost
     "fundraising": 0,            # Free — generates PC
-    "poll": 1,                   # Cheap intelligence
-    "pledge": 0,                 # Free to promise
+    "poll": 1,                   # Base cost; poll_tier param sets actual cost 1-5
+    "pledge": 1,                 # Promises cost political capital to credibly signal
+    "eto_intelligence": 0,       # Free — requires ETO score >= 5.0 in target zone
 }
 
 # PC system constants
@@ -70,14 +72,18 @@ def compute_action_cost(action_type: str, params: dict) -> int:
             base += 1
     elif action_type == "patronage":
         scale = params.get("scale", 1.0)
-        if scale > 1.5:
+        if scale > 2.0:
             base += 2
-        elif scale > 1.0:
+        elif scale > 1.5:
             base += 1
     elif action_type == "eto_engagement":
         score_change = params.get("score_change", 1.0)
         if score_change > 3.0:
             base += 1
+    elif action_type == "poll":
+        # Tiered poll cost: poll_tier param overrides base cost (1-5 PC)
+        poll_tier = params.get("poll_tier", 1)
+        base = max(1, min(5, int(poll_tier)))
     return base
 
 
@@ -415,8 +421,22 @@ def resolve_ground_game(action: ActionSpec, state: CampaignState,
     )
     state.apply_effect(effect)
 
-    # Small awareness boost from door-to-door
-    state.raise_awareness(party_idx, action.target_lgas, np.float32(0.03 * intensity))
+    # Awareness boost from door-to-door contact
+    state.raise_awareness(party_idx, action.target_lgas, np.float32(0.05 * intensity))
+
+    # Personal contact builds trust — small valence boost
+    valence_effect = ActiveEffect(
+        source_party=action.party,
+        source_action="ground_game",
+        source_turn=state.turn,
+        channel="valence",
+        target_lgas=action.target_lgas,
+        target_dimensions=None,
+        target_party=action.party,
+        magnitude=0.03 * intensity,
+        effect_key=_effect_key(action.party, "valence", action.party, "gg", ""),
+    )
+    state.apply_effect(valence_effect)
 
     # Ground game is the primary GOTV mechanism — reduces abstention
     tau_mag = -0.06 * intensity  # stronger turnout effect than rallies
@@ -472,6 +492,29 @@ def resolve_endorsement(action: ActionSpec, state: CampaignState,
         "source_party": action.party,
         "turn_applied": state.turn,
     }
+
+    # Endorsers shape the conversation: salience shift on endorser-associated dimensions
+    endorser_salience_dims = {
+        "traditional_ruler": [15, 16],  # traditional_authority, infrastructure
+        "religious_leader": [0, 14],    # sharia_jurisdiction, womens_rights
+        "eto_leader": [7, 18],          # resource_revenue, land_tenure
+        "celebrity": [20, 23],          # biological_enhancement, media_freedom
+        "notable": [6, 9],              # constitutional_structure, housing
+    }
+    dims_for_endorser = endorser_salience_dims.get(endorser_type, [])
+    for dim in dims_for_endorser:
+        sal_effect = ActiveEffect(
+            source_party=action.party,
+            source_action="endorsement",
+            source_turn=state.turn,
+            channel="salience",
+            target_lgas=endorser_lgas,
+            target_dimensions=[dim],
+            target_party=None,
+            magnitude=0.03,
+            effect_key=_effect_key(action.party, "salience", "", f"endorse_{endorser_type}", str(dim)),
+        )
+        state.apply_effect(sal_effect)
 
     # Awareness boost through endorser's network
     state.raise_awareness(party_idx, endorser_lgas, np.float32(0.05))
@@ -537,7 +580,7 @@ def resolve_patronage(action: ActionSpec, state: CampaignState,
         target_lgas=action.target_lgas,
         target_dimensions=None,
         target_party=action.party,
-        magnitude=0.06 * scale,
+        magnitude=0.10 * scale,
         effect_key=_effect_key(action.party, "valence", action.party, "patronage", ""),
     )
     state.apply_effect(effect)
@@ -554,7 +597,7 @@ def resolve_patronage(action: ActionSpec, state: CampaignState,
         target_lgas=action.target_lgas,
         target_dimensions=None,
         target_party=None,
-        magnitude=-0.03 * scale,  # negative = less abstention = more turnout
+        magnitude=-0.05 * scale,  # negative = less abstention = more turnout
         effect_key=_effect_key(action.party, "tau", "", "patronage", ""),
     )
     state.apply_effect(tau_effect)
@@ -653,8 +696,8 @@ def resolve_media(action: ActionSpec, state: CampaignState,
         state.apply_effect(effect)
 
     # Valence effect: good press helps, bad press hurts
-    # success > 0.5 → positive valence, < 0.5 → negative
-    valence_mag = 0.06 * (success - 0.5)  # range: -0.03 to +0.03
+    # success > 0.5 -> positive valence, < 0.5 -> negative
+    valence_mag = 0.03 * (success - 0.5)  # range: -0.015 to +0.015
     valence_mag *= volatility_amplifier
     valence_effect = ActiveEffect(
         source_party=action.party,
@@ -669,9 +712,9 @@ def resolve_media(action: ActionSpec, state: CampaignState,
     )
     state.apply_effect(valence_effect)
 
-    # Awareness boost (you're in the news)
+    # Awareness boost (you're in the news) — modest; media is cheap
     mf = _media_factor(lga_data)
-    awareness_boost = (0.04 * success * mf).astype(np.float32)
+    awareness_boost = (0.02 * success * mf).astype(np.float32)
     state.raise_awareness(party_idx, None, awareness_boost)
 
 
@@ -691,11 +734,36 @@ def resolve_eto_engagement(action: ActionSpec, state: CampaignState,
     new_score = np.clip(old_score + score_change, 0.0, 10.0)
     state.eto_scores[key] = new_score
 
-    # Economic ETOs raise awareness in their AZ
-    if eto_category == "economic" and score_change > 0:
-        n = len(lga_data)
+    # All ETOs raise awareness in their AZ (institutional presence = visibility)
+    if score_change > 0:
         az_mask = (lga_data["Administrative Zone"].values.astype(int) == az)
         state.raise_awareness(party_idx, az_mask, np.float32(0.03 * score_change))
+
+    # ETO engagement shifts salience on category-relevant dimensions in the zone
+    # This gives immediate return alongside the long-term investment
+    eto_salience_dims = {
+        "economic": [7, 18, 19],   # resource_revenue, land_tenure, taxation
+        "labor": [10, 11, 8],      # labor_automation, education, housing
+        "elite": [3, 6, 4],        # chinese_relations, constitutional_structure, bic_reform
+        "youth": [20, 23, 21],     # biological_enhancement, media_freedom, environmental_regulation
+    }
+    dims_for_cat = eto_salience_dims.get(eto_category, [])
+    if dims_for_cat and score_change > 0:
+        az_mask_lgas = (lga_data["Administrative Zone"].values.astype(int) == az)
+        sal_mag = 0.02 * min(score_change, 3.0) / 3.0  # capped contribution
+        for dim in dims_for_cat:
+            effect = ActiveEffect(
+                source_party=action.party,
+                source_action="eto_engagement",
+                source_turn=state.turn,
+                channel="salience",
+                target_lgas=az_mask_lgas,
+                target_dimensions=[dim],
+                target_party=None,
+                magnitude=sal_mag,
+                effect_key=_effect_key(action.party, "salience", "", f"eto_{eto_category}", str(dim)),
+            )
+            state.apply_effect(effect)
 
 
 def resolve_crisis_response(action: ActionSpec, state: CampaignState,
@@ -714,13 +782,17 @@ def resolve_crisis_response(action: ActionSpec, state: CampaignState,
         target_lgas=action.target_lgas,
         target_dimensions=None,
         target_party=action.party,
-        magnitude=0.08 * effectiveness,
+        magnitude=0.10 * effectiveness,
         effect_key=_effect_key(action.party, "valence", action.party, "crisis", ""),
     )
     state.apply_effect(effect)
 
-    # Crisis puts you in the news
-    state.raise_awareness(party_idx, action.target_lgas, np.float32(0.04 * effectiveness))
+    # Crisis response is highly visible — strong awareness spike
+    state.raise_awareness(party_idx, action.target_lgas, np.float32(0.06 * effectiveness))
+
+    # Cohesion boost: rallying around the crisis strengthens party discipline
+    old_coh = state.cohesion.get(action.party, 10.0)
+    state.cohesion[action.party] = min(10.0, old_coh + 0.5 * effectiveness)
 
 
 def resolve_fundraising(action: ActionSpec, state: CampaignState,
@@ -799,34 +871,252 @@ def resolve_fundraising(action: ActionSpec, state: CampaignState,
 def resolve_poll(action: ActionSpec, state: CampaignState,
                  lga_data: pd.DataFrame, parties: list) -> None:
     """
-    Poll: generates noisy projected vote shares from previous_shares.
+    Poll: returns noisy estimates of LGA-level voter positions on issue vectors.
 
-    Noise scales inversely with sample_size param (default 1000).
-    Results stored in state.poll_results for caller inspection.
+    Polls reveal where the electorate stands, not how they'll vote. Results
+    are population-weighted average ideal points for target LGAs, with
+    Gaussian noise proportional to the margin of error.
+
+    Poll tiers (set via poll_tier param):
+      Tier 1 (1 PC): National aggregate, margin +/-1.5 per dimension
+      Tier 2 (2 PC): Zonal breakdown (8 zones), margin +/-1.0
+      Tier 3 (3 PC): State breakdown, margin +/-0.7
+      Tier 4 (4 PC): State breakdown, margin +/-0.4
+      Tier 5 (5 PC): LGA-level detail, margin +/-0.25
+
+    Scope determines grouping:
+      scope="national" (default) -> single aggregate for tiers 1-2
+      scope="zone" -> per-zone for tiers 2+
+      scope="state" -> per-state for tiers 3+
+      scope="lga" -> per-LGA for tier 5
+
+    Results are queued as pending and delivered next turn.
+
+    ETO intelligence alternative: parties with ETO score >= 5.0 in a zone
+    can use eto_intelligence action (free) to get zone-level positions with
+    margin +/-0.8, available same turn.
+
+    Params:
+    - poll_tier: int 1-5 (default 1)
+    - scope: str "national"|"zone"|"state"|"lga" (default auto from tier)
+    - target_zones: list[int] optional filter for zones to poll
+    - target_states: list[str] optional filter for states to poll
+    - dimensions: list[int] optional filter for issue dimensions (default all 28)
     """
-    sample_size = action.params.get("sample_size", 1000)
-    noise_level = 1.0 / np.sqrt(max(sample_size, 100))  # ~3% for 1000
+    poll_tier = action.params.get("poll_tier", 1)
+    poll_tier = max(1, min(5, int(poll_tier)))
 
-    # Use previous shares as ground truth (or equal if no data yet)
-    poll_shares: dict[str, float] = {}
-    rng = np.random.default_rng(state.turn * 1000 + hash(action.party) % 10000)
+    # Margin of error per dimension (in ideal point units, scale -5 to +5)
+    TIER_MARGINS = {1: 1.5, 2: 1.0, 3: 0.7, 4: 0.4, 5: 0.25}
+    margin = TIER_MARGINS[poll_tier]
 
-    for party_name in state.party_names:
-        true_share = state.previous_shares.get(party_name, 1.0 / max(state.n_parties, 1))
-        noise = rng.normal(0, noise_level * true_share)
-        poll_shares[party_name] = max(0.0, true_share + noise)
+    # Auto-scope from tier
+    scope = action.params.get("scope", None)
+    if scope is None:
+        if poll_tier <= 1:
+            scope = "national"
+        elif poll_tier == 2:
+            scope = "zone"
+        elif poll_tier <= 4:
+            scope = "state"
+        else:
+            scope = "lga"
 
-    # Normalize to sum to 1
-    total = sum(poll_shares.values())
-    if total > 0:
-        poll_shares = {k: v / total for k, v in poll_shares.items()}
+    # Dimension filter
+    dimensions = action.params.get("dimensions", list(range(N_ISSUES)))
+    target_zones = action.params.get("target_zones", None)
+    target_states = action.params.get("target_states", None)
 
-    state.poll_results.append({
-        "turn": state.turn,
+    # Compute true LGA-level mean ideal points from lga_data
+    # Use the LGA ideal offsets (lga_* features) as proxy for local position bias.
+    # Full ideal points = voter_base + lga_offset, but voter_base is type-dependent.
+    # For polls, we compute the LGA offset (which captures geographic variation)
+    # plus the national population-weighted mean voter base.
+    from .voter_types import compute_all_lga_ideal_offsets, build_voter_ideal_base, generate_all_voter_types
+
+    lga_offsets = compute_all_lga_ideal_offsets(lga_data)  # (N_lga, 28)
+    # Approximate national mean ideal point using intercepts + average voter base
+    voter_types = generate_all_voter_types()
+    voter_base = build_voter_ideal_base(voter_types)  # (N_types, 28)
+    # Population-weighted mean: uniform over types as approximation
+    national_mean = voter_base.mean(axis=0)  # (28,)
+    # True LGA positions: national_mean + lga_offset, clipped to [-5, 5]
+    true_positions = np.clip(national_mean[np.newaxis, :] + lga_offsets, -5.0, 5.0)  # (N_lga, 28)
+
+    pop_col = "Estimated Population"
+    pop = lga_data[pop_col].fillna(0).values.astype(np.float64) if pop_col in lga_data.columns else np.ones(len(lga_data))
+
+    rng = np.random.default_rng(state.turn * 1000 + hash(action.party) % 10000 + poll_tier)
+
+    # Build results by scope
+    issue_positions: dict[str, dict[str, float]] = {}
+
+    if scope == "national":
+        total_pop = pop.sum()
+        if total_pop > 0:
+            weighted = (true_positions * pop[:, np.newaxis]).sum(axis=0) / total_pop
+        else:
+            weighted = true_positions.mean(axis=0)
+        noise = rng.normal(0, margin, size=N_ISSUES)
+        noisy = np.clip(weighted + noise, -5.0, 5.0)
+        issue_positions["National"] = {
+            ISSUE_NAMES[d]: float(noisy[d]) for d in dimensions
+        }
+
+    elif scope == "zone":
+        az_col = "Administrative Zone"
+        if az_col in lga_data.columns:
+            az_vals = lga_data[az_col].fillna(0).astype(int).values
+            zones = sorted(set(az_vals))
+            if target_zones:
+                zones = [z for z in zones if z in target_zones]
+            az_name_col = "AZ Name"
+            for az in zones:
+                mask = az_vals == az
+                az_pop = pop[mask]
+                total = az_pop.sum()
+                if total > 0:
+                    weighted = (true_positions[mask] * az_pop[:, np.newaxis]).sum(axis=0) / total
+                else:
+                    weighted = true_positions[mask].mean(axis=0)
+                noise = rng.normal(0, margin, size=N_ISSUES)
+                noisy = np.clip(weighted + noise, -5.0, 5.0)
+                label = lga_data.loc[mask, az_name_col].iloc[0] if az_name_col in lga_data.columns else f"AZ {az}"
+                issue_positions[label] = {
+                    ISSUE_NAMES[d]: float(noisy[d]) for d in dimensions
+                }
+
+    elif scope == "state":
+        state_col = "State"
+        if state_col in lga_data.columns:
+            states = sorted(lga_data[state_col].unique())
+            if target_states:
+                states = [s for s in states if s in target_states]
+            for st in states:
+                mask = (lga_data[state_col] == st).values
+                st_pop = pop[mask]
+                total = st_pop.sum()
+                if total > 0:
+                    weighted = (true_positions[mask] * st_pop[:, np.newaxis]).sum(axis=0) / total
+                else:
+                    weighted = true_positions[mask].mean(axis=0)
+                noise = rng.normal(0, margin, size=N_ISSUES)
+                noisy = np.clip(weighted + noise, -5.0, 5.0)
+                issue_positions[st] = {
+                    ISSUE_NAMES[d]: float(noisy[d]) for d in dimensions
+                }
+
+    elif scope == "lga":
+        lga_name_col = "LGA Name"
+        if target_zones or target_states:
+            # Filter LGAs by zone or state
+            mask = np.ones(len(lga_data), dtype=bool)
+            if target_zones and "Administrative Zone" in lga_data.columns:
+                az_vals = lga_data["Administrative Zone"].fillna(0).astype(int).values
+                mask &= np.isin(az_vals, target_zones)
+            if target_states and "State" in lga_data.columns:
+                mask &= lga_data["State"].isin(target_states).values
+            indices = np.where(mask)[0]
+        else:
+            indices = np.arange(len(lga_data))
+        for idx in indices:
+            noise = rng.normal(0, margin, size=N_ISSUES)
+            noisy = np.clip(true_positions[idx] + noise, -5.0, 5.0)
+            label = lga_data[lga_name_col].iloc[idx] if lga_name_col in lga_data.columns else f"LGA {idx}"
+            issue_positions[label] = {
+                ISSUE_NAMES[d]: float(noisy[d]) for d in dimensions
+            }
+
+    # Queue for next-turn delivery
+    state.pending_polls.append({
+        "turn_commissioned": state.turn,
+        "turn_delivered": state.turn + 1,
         "commissioned_by": action.party,
-        "party_shares": poll_shares,
-        "sample_size": sample_size,
-        "noise_level": noise_level,
+        "poll_tier": poll_tier,
+        "scope": scope,
+        "margin_of_error": margin,
+        "issue_positions": issue_positions,
+        "dimensions_polled": [ISSUE_NAMES[d] for d in dimensions],
+    })
+
+
+def resolve_eto_intelligence(action: ActionSpec, state: CampaignState,
+                             lga_data: pd.DataFrame, parties: list) -> None:
+    """
+    ETO Intelligence: free alternative to polls for parties with ETO presence.
+
+    Requires ETO score >= 5.0 in the target zone. Returns zone-level
+    voter positions with margin +/-0.8, delivered same turn (not queued).
+
+    Params:
+    - target_zone: int (required) - administrative zone number
+    - dimensions: list[int] optional filter for issue dimensions (default all 28)
+    """
+    target_zone = action.params.get("target_zone", None)
+    if target_zone is None:
+        return
+
+    # Check ETO presence in any category for this zone
+    best_score = 0.0
+    for (party, cat, az), score in state.eto_scores.items():
+        if party == action.party and az == target_zone:
+            best_score = max(best_score, score)
+    if best_score < 5.0:
+        return  # Insufficient ETO presence
+
+    dimensions = action.params.get("dimensions", list(range(N_ISSUES)))
+    margin = 0.8  # Fixed margin for ETO intelligence
+
+    from .voter_types import compute_all_lga_ideal_offsets, build_voter_ideal_base, generate_all_voter_types
+
+    lga_offsets = compute_all_lga_ideal_offsets(lga_data)
+    voter_types = generate_all_voter_types()
+    voter_base = build_voter_ideal_base(voter_types)
+    national_mean = voter_base.mean(axis=0)
+    true_positions = np.clip(national_mean[np.newaxis, :] + lga_offsets, -5.0, 5.0)
+
+    pop_col = "Estimated Population"
+    pop = lga_data[pop_col].fillna(0).values.astype(np.float64) if pop_col in lga_data.columns else np.ones(len(lga_data))
+
+    rng = np.random.default_rng(state.turn * 2000 + hash(action.party) % 10000 + target_zone)
+
+    az_col = "Administrative Zone"
+    if az_col not in lga_data.columns:
+        return
+
+    az_vals = lga_data[az_col].fillna(0).astype(int).values
+    mask = az_vals == target_zone
+    az_pop = pop[mask]
+    total = az_pop.sum()
+    if total > 0:
+        weighted = (true_positions[mask] * az_pop[:, np.newaxis]).sum(axis=0) / total
+    else:
+        weighted = true_positions[mask].mean(axis=0)
+
+    # Better margin when ETO score is high (score 5-10 scales margin 0.8-0.5)
+    margin = 0.8 - 0.06 * (best_score - 5.0)
+    noise = rng.normal(0, margin, size=N_ISSUES)
+    noisy = np.clip(weighted + noise, -5.0, 5.0)
+
+    az_name_col = "AZ Name"
+    label = lga_data.loc[mask, az_name_col].iloc[0] if az_name_col in lga_data.columns else f"AZ {target_zone}"
+    issue_positions = {
+        label: {ISSUE_NAMES[d]: float(noisy[d]) for d in dimensions}
+    }
+
+    # Delivered same turn (not queued)
+    state.poll_results.append({
+        "turn_commissioned": state.turn,
+        "turn_delivered": state.turn,
+        "commissioned_by": action.party,
+        "source": "eto_intelligence",
+        "poll_tier": 0,
+        "scope": "zone",
+        "target_zone": target_zone,
+        "eto_score": best_score,
+        "margin_of_error": margin,
+        "issue_positions": issue_positions,
+        "dimensions_polled": [ISSUE_NAMES[d] for d in dimensions],
     })
 
 
@@ -851,9 +1141,12 @@ def resolve_pledge(action: ActionSpec, state: CampaignState,
         state.pledges[action.party] = []
     state.pledges[action.party].append(pledge_data)
 
-    # Valence boost from promising popular policies
+    # Valence boost from promising popular policies — diminishing returns
     if popularity > 0:
         dim_key = ",".join(str(d) for d in sorted(dimensions)) if dimensions else "general"
+        # Each additional pledge halves in impact (voters discount serial promises)
+        n_prior = len(state.pledges.get(action.party, [])) - 1  # -1 for the one just appended
+        diminish = 1.0 / (1.0 + 0.5 * max(0, n_prior))
         effect = ActiveEffect(
             source_party=action.party,
             source_action="pledge",
@@ -862,7 +1155,7 @@ def resolve_pledge(action: ActionSpec, state: CampaignState,
             target_lgas=action.target_lgas,
             target_dimensions=None,
             target_party=action.party,
-            magnitude=0.04 * popularity,
+            magnitude=0.04 * popularity * diminish,
             effect_key=_effect_key(action.party, "valence", action.party, "pledge", dim_key),
         )
         state.apply_effect(effect)
@@ -898,6 +1191,7 @@ ACTION_RESOLUTION_ORDER: dict[str, int] = {
     "opposition_research": 4,    # After campaign actions (uses current exposure)
     "fundraising": 5,            # Resolved last; PC available next turn
     "poll": 6,                   # Data from post-resolution state
+    "eto_intelligence": 6,       # Same priority as poll
 }
 
 
@@ -920,6 +1214,7 @@ _RESOLVERS = {
     "fundraising": resolve_fundraising,
     "poll": resolve_poll,
     "pledge": resolve_pledge,
+    "eto_intelligence": resolve_eto_intelligence,
 }
 
 
@@ -978,9 +1273,11 @@ def resolve_action(
 # Synergy pairs: (type_a, type_b) -> (bonus_channel, bonus_magnitude)
 # Bonus applied when same party uses both in same turn on overlapping regions.
 SYNERGY_TABLE: dict[frozenset[str], tuple[str, float]] = {
-    frozenset({"rally", "ground_game"}): ("valence", 0.04),      # ground game primes audience
-    frozenset({"advertising", "rally"}): ("salience_boost", 0.02),  # ads amplify rally message
+    frozenset({"rally", "ground_game"}): ("valence", 0.04),        # ground game primes audience
+    frozenset({"advertising", "rally"}): ("salience_boost", 0.02), # ads amplify rally message
     frozenset({"media", "opposition_research"}): ("valence_penalty", 0.03),  # media amplifies oppo
+    frozenset({"endorsement", "rally"}): ("valence", 0.03),        # endorser appears at rally
+    frozenset({"patronage", "ground_game"}): ("tau", -0.03),       # patronage networks enable GOTV
 }
 
 
@@ -1169,9 +1466,15 @@ def withdraw_endorsement(
     Returns True if an endorsement was found and removed.
     """
     target_key = _effect_key(party, "valence", party, "endorse", endorser_type)
-    if target_key in state.effects:
+    found = target_key in state.effects
+    if found:
         del state.effects[target_key]
         if target_key in state._endorsements:
             del state._endorsements[target_key]
-        return True
-    return False
+    # Also remove salience effects from this endorsement
+    sal_prefix = _effect_key(party, "salience", "", f"endorse_{endorser_type}", "")
+    to_remove = [k for k in state.effects if k.startswith(sal_prefix)]
+    for k in to_remove:
+        del state.effects[k]
+        found = True
+    return found

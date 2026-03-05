@@ -16,8 +16,8 @@ Constraints:
 Action costs:
   rally=2 (+1 if gm>=9), advertising=2 (+1 if budget>1.5, +2 if >2.0),
   manifesto=3, ground_game=3 (+1 if intensity>1.0), endorsement=2,
-  ethnic_mob=3, patronage=4 (+1 if scale>1.0), oppo_research=2,
-  media=1, eto=3, crisis_response=2, fundraising=0, poll=1, pledge=0
+  ethnic_mob=2, patronage=3 (+1 if scale>1.5), oppo_research=2,
+  media=1, eto=3, crisis_response=2, fundraising=0, poll=1-5 (by tier), pledge=1
 
 Iteration 2 lessons applied:
 - Media is the most cost-effective action (1 PC, huge returns) -- use liberally
@@ -311,12 +311,12 @@ turn2 = [
 # ===== TURN 3: Ethnic Outreach + ETO Deepening =====
 # Ethnic mobilization for identity parties. Second round of ETO. Polls for intelligence.
 turn3 = [
-    # --- NRP: ETO economic AZ1 (deepen) + advertising + poll (3+2+1=6) ---
+    # --- NRP: ETO economic AZ1 (deepen) + advertising + poll tier 2 (3+2+2=7) ---
     ActionSpec(party="NRP", action_type="eto_engagement",
               params={"eto_category": "economic", "az": 1, "score_change": 3.0}),
     ActionSpec(party="NRP", action_type="advertising", language="english",
               params={"medium": "social_media", "budget": 1.0}),
-    ActionSpec(party="NRP", action_type="poll", params={"sample_size": 2000}),
+    ActionSpec(party="NRP", action_type="poll", params={"poll_tier": 2, "scope": "zone"}),
 
     # --- CND: Ethnic mobilization Yoruba + media + endorsement (3+1+2=6) ---
     ActionSpec(party="CND", action_type="ethnic_mobilization",
@@ -539,11 +539,11 @@ turn5 = [
     ActionSpec(party="NWF", action_type="ground_game", params={"intensity": 1.0}),
     ActionSpec(party="NWF", action_type="media", language="pidgin", params={"success": 0.5}),
 
-    # --- NHA: ETO economic AZ6 + media + poll (3+1+1=5) ---
+    # --- NHA: ETO economic AZ6 + media + poll tier 3 (3+1+3=7) ---
     ActionSpec(party="NHA", action_type="eto_engagement",
               params={"eto_category": "economic", "az": 6, "score_change": 3.0}),
     ActionSpec(party="NHA", action_type="media", language="english", params={"success": 0.7}),
-    ActionSpec(party="NHA", action_type="poll", params={"sample_size": 2000}),
+    ActionSpec(party="NHA", action_type="poll", params={"poll_tier": 3, "scope": "state", "target_states": ["Lagos", "Ogun", "Oyo"]}),
 
     # --- SNM: Ground game + ETO AZ6 + media (3+3+1=7) ---
     ActionSpec(party="SNM", action_type="ground_game", params={"intensity": 1.0}),
@@ -583,11 +583,11 @@ turn5 = [
 
 # ===== TURN 6: Opposition Research Blitz + Media Synergies =====
 turn6 = [
-    # --- NRP: Media + oppo NDC (SYNERGY) + poll (1+2+1=4) ---
+    # --- NRP: Media + oppo NDC (SYNERGY) + poll tier 3 (1+2+3=6) ---
     ActionSpec(party="NRP", action_type="media", language="english", params={"success": 0.8}),
     ActionSpec(party="NRP", action_type="opposition_research",
               params={"target_party": "NDC", "target_dimensions": [4, 14, 0]}),
-    ActionSpec(party="NRP", action_type="poll", params={"sample_size": 3000}),
+    ActionSpec(party="NRP", action_type="poll", params={"poll_tier": 3, "scope": "state", "target_states": ["Lagos", "Kaduna", "Kano"]}),
     ActionSpec(party="NRP", action_type="fundraising", params={"source": "business_elite"}),
 
     # --- CND: Media + oppo NDC (SYNERGY) + rally (1+2+2=5) ---

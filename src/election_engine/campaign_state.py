@@ -135,8 +135,11 @@ class CampaignState:
     # Action fatigue: party -> {action_type: consecutive_turn_count}
     _action_fatigue: dict[str, dict[str, int]] = field(default_factory=dict)
 
-    # Poll results: list of {turn, party_shares: {party: share}, noise_level}
+    # Poll results: list of {turn, commissioned_by, scope, issue_positions, ...}
     poll_results: list[dict] = field(default_factory=list)
+
+    # Pending polls: commissioned this turn, delivered next turn
+    pending_polls: list[dict] = field(default_factory=list)
 
     # Active endorsements: {effect_key: {endorser_type, source_party, turn_applied}}
     _endorsements: dict[str, dict] = field(default_factory=dict)

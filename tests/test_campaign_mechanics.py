@@ -454,9 +454,10 @@ def test_pc_variable_costs():
     assert compute_action_cost("rally", {"gm_score": 7.0}) == 2
     assert compute_action_cost("rally", {"gm_score": 9.0}) == 3
 
-    # Patronage surcharge
-    assert compute_action_cost("patronage", {"scale": 1.0}) == 4
-    assert compute_action_cost("patronage", {"scale": 1.2}) == 5
+    # Patronage surcharge (base 3, +1 at scale>1.5, +2 at scale>2.0)
+    assert compute_action_cost("patronage", {"scale": 1.0}) == 3
+    assert compute_action_cost("patronage", {"scale": 1.6}) == 4
+    assert compute_action_cost("patronage", {"scale": 2.5}) == 5
 
     # ETO engagement surcharge
     assert compute_action_cost("eto_engagement", {"score_change": 3.0}) == 3
@@ -1061,50 +1062,66 @@ def test_oppo_research_valence_penalty():
 # ---------------------------------------------------------------------------
 
 def test_poll_generates_results():
-    """Poll action produces noisy share estimates stored in state."""
+    """Poll action queues issue position estimates in pending_polls."""
     import pandas as pd
     from election_engine.campaign_actions import resolve_poll
+    from election_engine.config import N_ISSUES
 
     state = CampaignState(turn=3, n_lga=5, n_parties=3, party_names=["A", "B", "C"])
     state.awareness = np.full((5, 3), 0.70, dtype=np.float32)
     state.cohesion = {"A": 10.0, "B": 10.0, "C": 10.0}
-    state.previous_shares = {"A": 0.40, "B": 0.35, "C": 0.25}
 
-    lga_data = pd.DataFrame({"Administrative Zone": [1, 1, 2, 2, 3]})
+    lga_data = pd.DataFrame({
+        "Administrative Zone": [1, 1, 2, 2, 3],
+        "Estimated Population": [1000, 2000, 1500, 1500, 3000],
+    })
 
-    action = ActionSpec(party="A", action_type="poll", params={"sample_size": 2000})
+    action = ActionSpec(party="A", action_type="poll", params={"poll_tier": 2, "scope": "zone"})
     resolve_poll(action, state, lga_data, [])
 
-    assert len(state.poll_results) == 1
-    poll = state.poll_results[0]
-    assert poll["turn"] == 3
+    # Results queued for next turn, not delivered immediately
+    assert len(state.poll_results) == 0
+    assert len(state.pending_polls) == 1
+    poll = state.pending_polls[0]
+    assert poll["turn_commissioned"] == 3
+    assert poll["turn_delivered"] == 4
     assert poll["commissioned_by"] == "A"
-    assert poll["sample_size"] == 2000
-    # Shares should sum to ~1
-    total = sum(poll["party_shares"].values())
-    assert abs(total - 1.0) < 1e-6
-    # All parties present
-    assert set(poll["party_shares"].keys()) == {"A", "B", "C"}
+    assert poll["poll_tier"] == 2
+    assert poll["scope"] == "zone"
+    assert poll["margin_of_error"] == 1.0
+    # Issue positions should have entries per zone
+    assert len(poll["issue_positions"]) > 0
+    # Each zone entry has issue dimension values in [-5, 5]
+    for zone_name, positions in poll["issue_positions"].items():
+        assert len(positions) == N_ISSUES
+        for dim_name, val in positions.items():
+            assert -5.0 <= val <= 5.0
 
 
-def test_poll_no_previous_shares():
-    """Poll works even with no previous election data (equal shares)."""
+def test_poll_national_tier1():
+    """Tier 1 national poll produces single aggregate with all 28 dimensions."""
     import pandas as pd
     from election_engine.campaign_actions import resolve_poll
+    from election_engine.config import N_ISSUES
 
     state = CampaignState(turn=1, n_lga=5, n_parties=2, party_names=["A", "B"])
     state.awareness = np.full((5, 2), 0.70, dtype=np.float32)
     state.cohesion = {"A": 10.0, "B": 10.0}
 
-    lga_data = pd.DataFrame({"Administrative Zone": [1, 1, 2, 2, 3]})
+    lga_data = pd.DataFrame({
+        "Administrative Zone": [1, 1, 2, 2, 3],
+        "Estimated Population": [1000, 2000, 1500, 1500, 3000],
+    })
 
-    action = ActionSpec(party="A", action_type="poll", params={})
+    action = ActionSpec(party="A", action_type="poll", params={"poll_tier": 1})
     resolve_poll(action, state, lga_data, [])
 
-    assert len(state.poll_results) == 1
-    # Should not crash, shares sum to 1
-    total = sum(state.poll_results[0]["party_shares"].values())
-    assert abs(total - 1.0) < 1e-6
+    assert len(state.pending_polls) == 1
+    poll = state.pending_polls[0]
+    assert poll["scope"] == "national"
+    assert poll["margin_of_error"] == 1.5
+    assert "National" in poll["issue_positions"]
+    assert len(poll["issue_positions"]["National"]) == N_ISSUES
 
 
 # ---------------------------------------------------------------------------

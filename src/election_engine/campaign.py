@@ -465,6 +465,18 @@ def run_campaign(
         if verbose:
             logger.info("Campaign Turn %d: %d actions", state.turn, len(turn_actions))
 
+        # Deliver pending polls from previous turn
+        delivered = [p for p in state.pending_polls if p["turn_delivered"] <= state.turn]
+        if delivered:
+            state.poll_results.extend(delivered)
+            state.pending_polls = [p for p in state.pending_polls if p["turn_delivered"] > state.turn]
+            if verbose:
+                for p in delivered:
+                    logger.info(
+                        "  Poll delivered to %s (tier %d, scope=%s, margin=+/-%.2f)",
+                        p["commissioned_by"], p["poll_tier"], p["scope"], p["margin_of_error"],
+                    )
+
         # PC phase: hoarding cap, income, ETO dividends
         if enforce_pc:
             pc_log = process_pc_income(state)
