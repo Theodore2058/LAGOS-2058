@@ -32,6 +32,12 @@ from election_engine.config import Party, EngineParams, ElectionConfig, N_ISSUES
 from election_engine.campaign import run_campaign
 from election_engine.campaign_actions import ActionSpec, PC_COSTS
 from election_engine.campaign_state import CrisisEvent
+from election_engine.results import (
+    compute_vote_counts, compute_state_vote_counts,
+    compute_competitiveness, compute_vote_source_decomposition,
+    compute_coalition_feasibility, compute_demographic_vote_profile,
+    allocate_district_seats,
+)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -47,9 +53,12 @@ DATA_PATH = str(Path(__file__).parent.parent / "nigeria_lga_polsim_2058.xlsx")
 from run_election import PARTIES
 
 # Use calibrated parameters for 14-party election
+# Lower tau_0 for first-election-in-decades scenario: high political excitement
+# drives turnout well above typical levels. Campaign actions (rallies, ground_game)
+# further reduce tau via the tau modifier channel.
 params = EngineParams(
     q=0.5, beta_s=3.0, alpha_e=3.0, alpha_r=2.0,
-    scale=1.5, tau_0=4.5, tau_1=0.3, tau_2=0.5,
+    scale=1.5, tau_0=3.0, tau_1=0.3, tau_2=0.5,
     beta_econ=0.3,
     kappa=400.0, sigma_national=0.07, sigma_regional=0.10,
     sigma_turnout=0.02, sigma_turnout_regional=0.03,
@@ -785,10 +794,255 @@ crisis_events = [
 # Run Campaign
 # ---------------------------------------------------------------------------
 
+def _weighted_shares(lga_df, party_names):
+    """Compute population-weighted national shares."""
+    pop = lga_df["Estimated Population"].values.astype(float)
+    total_pop = pop.sum()
+    shares = {}
+    for p in party_names:
+        shares[p] = (lga_df[f"{p}_share"].values * pop).sum() / total_pop
+    return shares, pop, total_pop
+
+
+def _weighted_turnout(lga_df, pop, total_pop):
+    return (lga_df["Turnout"].values * pop).sum() / total_pop
+
+
+def print_turn_summary(i, result, party_names):
+    """Print compact per-turn summary."""
+    lga_df = result["lga_results_base"]
+    shares, pop, total_pop = _weighted_shares(lga_df, party_names)
+    turnout = _weighted_turnout(lga_df, pop, total_pop)
+    sorted_shares = sorted(shares.items(), key=lambda x: -x[1])
+
+    print(f"\n--- Turn {i+1} ---")
+    for p, s in sorted_shares:
+        pc = result.get("pc_state", {}).get(p, 0)
+        print(f"  {p:6s}: {s:6.1%}  (PC: {pc:.0f})")
+    print(f"  Turnout: {turnout:.1%}")
+
+
+def print_detailed_final(result, party_names, data_path):
+    """Print detailed final results matching run_election.py output."""
+    import pandas as pd
+
+    lga_df = result["lga_results_base"]
+    shares, pop, total_pop = _weighted_shares(lga_df, party_names)
+    turnout = _weighted_turnout(lga_df, pop, total_pop)
+    sorted_parties = sorted(shares.items(), key=lambda x: -x[1])
+
+    # --- National results with vote counts ---
+    lga_with_votes = compute_vote_counts(lga_df, party_names)
+    total_votes = lga_with_votes["Total_Votes"].sum()
+
+    print("\n" + "=" * 70)
+    print("FINAL ELECTION RESULTS (Turn 12)")
+    print("=" * 70)
+
+    print(f"\nNational Turnout: {turnout:.1%}")
+    print(f"Total Votes Cast: {total_votes:,.0f}")
+
+    # ENP
+    s_arr = np.array([s for _, s in sorted_parties])
+    enp = 1.0 / np.sum(s_arr ** 2)
+    print(f"Effective Number of Parties (ENP): {enp:.2f}")
+
+    print(f"\nNATIONAL RESULTS:")
+    print(f"  {'Party':10s}  {'Votes':>12s}  {'Share':>7s}  {'PC':>4s}")
+    print(f"  {'-'*10}  {'-'*12}  {'-'*7}  {'-'*4}")
+    for p, share in sorted_parties:
+        votes_col = f"{p}_votes"
+        if votes_col in lga_with_votes.columns:
+            votes = lga_with_votes[votes_col].sum()
+        else:
+            votes = share * total_votes
+        pc = result.get("pc_state", {}).get(p, 0)
+        print(f"  {p:10s}  {votes:12,.0f}  {share:6.1%}  {pc:4.0f}")
+
+    # --- Presidential spread check ---
+    from election_engine.results import check_presidential_spread
+    print("\nPRESIDENTIAL SPREAD CHECK (>=25% in >=24 states + national plurality):")
+    for p, _ in sorted_parties:
+        sc = check_presidential_spread(lga_df, p, party_names)
+        mark = "PASS" if sc["meets_requirement"] else "FAIL"
+        plurality = "yes" if sc["has_national_plurality"] else "no"
+        print(f"  {p:10s}  {mark}  ({sc['states_meeting_25pct']:2d}/24 states, "
+              f"plurality: {plurality}, national: {sc['national_share']:.1%})")
+
+    # --- MC results ---
+    mc = result.get("mc_aggregated")
+    if mc:
+        ns = mc.get("national_share_stats")
+        if ns is not None:
+            print("\nMC NATIONAL SHARE UNCERTAINTY (mean [P5 - P95]):")
+            ns_sorted = ns.sort_values("Mean Share", ascending=False)
+            for _, row in ns_sorted.iterrows():
+                if row["Mean Share"] >= 0.005:
+                    print(f"  {row['Party']:10s}  {row['Mean Share']:6.1%}  "
+                          f"[{row['P5 Share']:5.1%} - {row['P95 Share']:5.1%}]")
+
+        margin_stats = mc.get("margin_stats")
+        if margin_stats:
+            print(f"\nMC NATIONAL MARGIN (1st-2nd): "
+                  f"mean {margin_stats['mean']:.1%}  "
+                  f"[P5 {margin_stats['p5']:.1%} - P95 {margin_stats['p95']:.1%}]")
+
+    # --- Zonal shares ---
+    summary = result.get("summary", {})
+    zonal = summary.get("zonal_shares")
+    if zonal is not None:
+        print("\nZONAL SHARES:")
+        party_share_cols = [c for c in zonal.columns if c.endswith("_share") and c != "Turnout"]
+        cols_to_show = ["Administrative Zone", "AZ Name"]
+        if "Turnout" in zonal.columns:
+            cols_to_show.append("Turnout")
+        cols_to_show.extend(party_share_cols)
+        print(zonal[cols_to_show].to_string(index=False))
+
+    # --- State vote counts ---
+    state_votes = compute_state_vote_counts(lga_df, party_names)
+    top3 = [p for p, _ in sorted_parties[:3]]
+    print("\nSTATE VOTE COUNTS (top 3 parties):")
+    top3_vote_cols = [f"{p}_votes" for p in top3]
+    top3_share_cols = [f"{p}_share" for p in top3]
+    sv_cols = ["State", "Population", "Total_Votes"] + top3_vote_cols + top3_share_cols
+    available_sv = [c for c in sv_cols if c in state_votes.columns]
+    print(state_votes[available_sv].to_string(index=False))
+
+    # --- Voting district results ---
+    project_root = Path(data_path).parent
+    district_file = project_root / "voting_districts_summary.xlsx"
+    seat_file = project_root / "seat_allocation.xlsx"
+    if district_file.exists() and seat_file.exists():
+        lga_mapping = pd.read_excel(district_file, sheet_name="LGA Mapping")
+        district_seats = pd.read_excel(seat_file, sheet_name="District Seats")
+
+        dist_df = allocate_district_seats(
+            lga_df, party_names, district_seats, lga_mapping,
+        )
+        total_seats = dist_df["Seats"].sum()
+
+        national_seats = {p: int(dist_df[f"{p}_seats"].sum()) for p in party_names}
+        sorted_seats = sorted(national_seats.items(), key=lambda x: -x[1])
+        print(f"\nNATIONAL SEAT TOTALS (Sainte-Lague, {total_seats} seats):")
+        print(f"  {'Party':10s}  {'Seats':>5s}  {'%':>6s}  {'Vote %':>7s}")
+        print(f"  {'-'*10}  {'-'*5}  {'-'*6}  {'-'*7}")
+        for p, s in sorted_seats:
+            if s > 0:
+                pct = s / total_seats
+                vote_share = shares.get(p, 0)
+                print(f"  {p:10s}  {s:5d}  {pct:5.1%}  {vote_share:6.1%}")
+
+        # Zonal seat breakdown
+        print(f"\nZONAL SEAT BREAKDOWN:")
+        zone_seat_rows = []
+        for az_name, zgroup in dist_df.groupby("AZ Name"):
+            zrow = {"AZ Name": az_name, "Seats": int(zgroup["Seats"].sum())}
+            for p in party_names:
+                zrow[f"{p}_seats"] = int(zgroup[f"{p}_seats"].sum())
+            zone_seat_rows.append(zrow)
+        zone_seat_df = pd.DataFrame(zone_seat_rows)
+        header = f"  {'Zone':25s}  {'Seats':>5s}"
+        for p, _ in sorted_seats[:7]:
+            header += f"  {p:>5s}"
+        print(header)
+        print(f"  {'-'*25}  {'-'*5}" + f"  {'-'*5}" * min(7, len(sorted_seats)))
+        for _, zr in zone_seat_df.iterrows():
+            line = f"  {str(zr['AZ Name']):25s}  {zr['Seats']:5d}"
+            for p, _ in sorted_seats[:7]:
+                line += f"  {zr[f'{p}_seats']:5d}"
+            print(line)
+
+    # --- Vote source decomposition ---
+    decomp = compute_vote_source_decomposition(lga_df, party_names)
+    print("\nVOTE SOURCE DECOMPOSITION (% of each party's vote by zone):")
+    zone_names = decomp[party_names[0]]["Zone"].tolist()
+    header = f"  {'Zone':30s}"
+    for p, _ in sorted_parties[:7]:
+        header += f"  {p:>7s}"
+    print(header)
+    print(f"  {'-'*30}" + f"  {'-'*7}" * min(7, len(sorted_parties)))
+    for zone in zone_names:
+        line = f"  {str(zone):30s}"
+        for p, _ in sorted_parties[:7]:
+            pct = decomp[p].loc[decomp[p]["Zone"] == zone, "Pct_of_Party_Total"].values[0]
+            line += f"  {pct:6.1%}"
+        print(line)
+
+    # --- Ethnic vote profile ---
+    data_obj = result.get("data")
+    if data_obj is not None:
+        source_df = data_obj.df
+    else:
+        from election_engine.data_loader import load_lga_data
+        source_df = load_lga_data(data_path).df
+
+    ethnic_cols = {
+        "Hausa": "% Hausa", "Fulani": "% Fulani",
+        "Hausa-Fulani Undiff": "% Hausa Fulani Undiff",
+        "Yoruba": "% Yoruba", "Igbo": "% Igbo", "Ijaw": "% Ijaw",
+        "Kanuri": "% Kanuri", "Tiv": "% Tiv", "Edo": "% Edo Bini",
+        "Ibibio": "% Ibibio", "Pada": "% Pada", "Naijin": "% Naijin",
+    }
+    eth_profile = compute_demographic_vote_profile(lga_df, source_df, party_names, ethnic_cols)
+    if len(eth_profile) > 0:
+        print("\nETHNIC VOTE PROFILE (ecological estimate, top 5 parties per group):")
+        for _, row in eth_profile.iterrows():
+            group_shares = {p: row[f"{p}_share"] for p in party_names}
+            top5 = sorted(group_shares.items(), key=lambda x: -x[1])[:5]
+            top_str = "  ".join(f"{p}:{s:.0%}" for p, s in top5)
+            pop_m = row["Population_Weight"] / 1e6
+            print(f"  {row['Group']:22s} ({pop_m:5.1f}M)  {top_str}")
+
+    # --- Competitiveness ---
+    comp = compute_competitiveness(lga_df, party_names)
+    margins = comp["Margin"].values
+    enps = comp["ENP"].values
+    print(f"\nLGA COMPETITIVENESS:")
+    print(f"  Margin:  Mean: {margins.mean():.1%}  Median: {np.median(margins):.1%}  "
+          f"Min: {margins.min():.1%}  Max: {margins.max():.1%}")
+    print(f"  ENP:     Mean: {enps.mean():.2f}  Median: {np.median(enps):.2f}  "
+          f"Min: {enps.min():.2f}  Max: {enps.max():.2f}")
+    n_tight = np.sum(margins < 0.05)
+    n_safe = np.sum(margins > 0.20)
+    print(f"  Tight (<5% margin): {n_tight}  |  Safe (>20% margin): {n_safe}")
+
+    # --- Turnout distribution ---
+    t = lga_df["Turnout"].values
+    print(f"\nTURNOUT DISTRIBUTION:")
+    print(f"  Mean: {t.mean():.1%}  Median: {np.median(t):.1%}  "
+          f"Min: {t.min():.1%}  Max: {t.max():.1%}  Std: {t.std():.1%}")
+    for threshold in [0.60, 0.70, 0.80, 0.85, 0.90]:
+        n = np.sum(t > threshold)
+        print(f"  LGAs > {threshold:.0%}: {n}")
+
+    # --- Coalition feasibility ---
+    coalitions = compute_coalition_feasibility(lga_df, party_names)
+    viable = [c for c in coalitions if c["meets_spread"]]
+    print(f"\nCOALITION FEASIBILITY (2-3 party, meets spread requirement): "
+          f"{len(viable)} viable")
+    if viable:
+        for c in viable[:10]:
+            names = "+".join(c["parties"])
+            print(f"  {names:30s}  {c['combined_share']:5.1%}  "
+                  f"({c['states_25pct']:2d}/24 states)  "
+                  f"margin: {c['margin_over_second']:+.1%}")
+    else:
+        print("  No coalition meets all requirements. Closest:")
+        near = sorted(coalitions, key=lambda c: -c["states_25pct"])[:5]
+        for c in near:
+            names = "+".join(c["parties"])
+            plur = "Y" if c["margin_over_second"] > 0 else "N"
+            print(f"  {names:30s}  {c['combined_share']:5.1%}  "
+                  f"({c['states_25pct']:2d}/24 states)  plur: {plur}")
+
+
 def main():
     print("=" * 70)
     print("LAGOS-2058 Full Campaign Simulation — 14 Parties, 12 Turns")
-    print(f"PC Income: {7}/turn | Hoarding Cap: {18} | 3 Crisis Events")
+    print(f"PC Income: {7}/turn | Hoarding Cap: {18} | Max 3 actions/party/turn")
+    print(f"tau_0: {params.tau_0} (first election in decades — high turnout)")
+    print(f"3 Crisis Events | {len(turns)} Turns")
     print("=" * 70)
 
     results = run_campaign(
@@ -799,59 +1053,19 @@ def main():
         seed=2058,
         verbose=True,
         enforce_pc=True,
+        max_actions_per_party=3,
     )
 
-    # Print results
+    # Per-turn summaries
     print("\n" + "=" * 70)
-    print("CAMPAIGN RESULTS")
+    print("TURN-BY-TURN SUMMARY")
     print("=" * 70)
-
     for i, result in enumerate(results):
-        lga_df = result["lga_results_base"]
-        pop = lga_df["Estimated Population"].values.astype(float)
-        total_pop = pop.sum()
+        print_turn_summary(i, result, party_names)
 
-        print(f"\nTurn {i+1}:")
-        shares = {}
-        for p in party_names:
-            share = (lga_df[f"{p}_share"].values * pop).sum() / total_pop
-            shares[p] = share
+    # Detailed final results
+    print_detailed_final(results[-1], party_names, DATA_PATH)
 
-        # Sort by share descending
-        sorted_shares = sorted(shares.items(), key=lambda x: -x[1])
-        for p, s in sorted_shares:
-            print(f"  {p:6s}: {s:6.1%}", end="")
-            # Show PC balance
-            pc = result.get("pc_state", {}).get(p, "?")
-            if isinstance(pc, (int, float)):
-                print(f"  (PC: {pc:.0f})", end="")
-            print()
-
-        turnout = (lga_df["Turnout"].values * pop).sum() / total_pop
-        print(f"  Turnout: {turnout:.1%}")
-
-    # Final summary
-    print("\n" + "=" * 70)
-    print("FINAL STANDINGS (Turn 12)")
-    print("=" * 70)
-    final_result = results[-1]
-    lga_df = final_result["lga_results_base"]
-    pop = lga_df["Estimated Population"].values.astype(float)
-    total_pop = pop.sum()
-
-    final_shares = {}
-    for p in party_names:
-        final_shares[p] = (lga_df[f"{p}_share"].values * pop).sum() / total_pop
-
-    sorted_final = sorted(final_shares.items(), key=lambda x: -x[1])
-    print(f"\n  {'Party':6s}  {'Share':>7s}  {'PC':>4s}")
-    print(f"  {'------':6s}  {'-------':>7s}  {'----':>4s}")
-    for p, s in sorted_final:
-        pc = final_result.get("pc_state", {}).get(p, 0)
-        print(f"  {p:6s}  {s:6.1%}  {pc:4.0f}")
-
-    turnout = (lga_df["Turnout"].values * pop).sum() / total_pop
-    print(f"\n  National Turnout: {turnout:.1%}")
     print("\n" + "=" * 70)
     print("Campaign simulation complete.")
 

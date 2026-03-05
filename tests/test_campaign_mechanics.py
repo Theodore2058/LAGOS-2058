@@ -434,3 +434,54 @@ def test_pc_disabled_legacy_mode():
     )
     # Should complete without error, no pc_state tracking
     assert len(results) == 1
+
+
+def test_pc_variable_costs():
+    """Variable PC costs scale with action parameters."""
+    from election_engine.campaign_actions import compute_action_cost
+
+    # Advertising surcharges
+    assert compute_action_cost("advertising", {"budget": 1.0}) == 2
+    assert compute_action_cost("advertising", {"budget": 1.6}) == 3
+    assert compute_action_cost("advertising", {"budget": 2.5}) == 4
+
+    # Ground game surcharges
+    assert compute_action_cost("ground_game", {"intensity": 1.0}) == 3
+    assert compute_action_cost("ground_game", {"intensity": 1.2}) == 4
+    assert compute_action_cost("ground_game", {"intensity": 2.0}) == 5
+
+    # Rally surcharge for high gm_score
+    assert compute_action_cost("rally", {"gm_score": 7.0}) == 2
+    assert compute_action_cost("rally", {"gm_score": 9.0}) == 3
+
+    # Patronage surcharge
+    assert compute_action_cost("patronage", {"scale": 1.0}) == 4
+    assert compute_action_cost("patronage", {"scale": 1.2}) == 5
+
+    # ETO engagement surcharge
+    assert compute_action_cost("eto_engagement", {"score_change": 3.0}) == 3
+    assert compute_action_cost("eto_engagement", {"score_change": 4.0}) == 4
+
+
+@pytest.mark.slow
+def test_max_actions_per_party():
+    """max_actions_per_party limits actions per party per turn."""
+    config = _make_config(n_parties=2, tau_0=1.0)
+    # P0 tries 5 actions but limit is 2
+    turns = [
+        [
+            ActionSpec(party="P0", action_type="media", language="english", params={"success": 0.5}),
+            ActionSpec(party="P0", action_type="media", language="english", params={"success": 0.5}),
+            ActionSpec(party="P0", action_type="media", language="english", params={"success": 0.5}),
+            ActionSpec(party="P0", action_type="media", language="english", params={"success": 0.5}),
+            ActionSpec(party="P0", action_type="media", language="english", params={"success": 0.5}),
+        ],
+    ]
+    results = run_campaign(
+        DATA_PATH, config, turns=turns, seed=42, verbose=False,
+        enforce_pc=True, initial_pc={"P0": 50.0, "P1": 50.0},
+        max_actions_per_party=2,
+    )
+    # P0: 50 (no cap since 50 > 18 -> capped to 18, +7 = 25)
+    # Only 2 media actions at 1 PC each = 2 deducted -> 23
+    assert results[0]["pc_state"]["P0"] == 23.0

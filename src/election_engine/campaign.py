@@ -71,19 +71,32 @@ def process_pc_income(state: CampaignState) -> dict[str, dict]:
 def validate_and_deduct_pc(
     state: CampaignState,
     turn_actions: list[ActionSpec],
+    max_actions_per_party: int = 3,
 ) -> list[ActionSpec]:
     """
     Validate that each party can afford its actions and deduct PC.
 
     Actions are processed in order. If a party can't afford an action,
     it is skipped (logged as warning). Fundraising generates PC immediately.
+    Each party is limited to max_actions_per_party actions per turn.
 
     Returns the list of affordable actions (may be shorter than input).
     """
     affordable: list[ActionSpec] = []
+    action_counts: dict[str, int] = {}
 
     for action in turn_actions:
         party = action.party
+
+        # Check action limit
+        count = action_counts.get(party, 0)
+        if count >= max_actions_per_party:
+            logger.warning(
+                "  %s hit action limit (%d/%d) — %s skipped",
+                party, count, max_actions_per_party, action.action_type,
+            )
+            continue
+
         cost = compute_action_cost(action.action_type, action.params)
         balance = state.political_capital.get(party, 0.0)
 
@@ -97,6 +110,7 @@ def validate_and_deduct_pc(
         # Deduct cost
         state.political_capital[party] = balance - cost
         affordable.append(action)
+        action_counts[party] = count + 1
 
         # Fundraising immediately generates PC
         if action.action_type == "fundraising":
@@ -264,6 +278,7 @@ def run_campaign(
     verbose: bool = True,
     enforce_pc: bool = True,
     initial_pc: dict[str, float] | None = None,
+    max_actions_per_party: int = 3,
 ) -> list[dict]:
     """
     Run a multi-turn campaign simulation.
@@ -289,6 +304,8 @@ def run_campaign(
     initial_pc : dict[str, float], optional
         Starting PC balances per party. Defaults to PC_INCOME_PER_TURN
         for each party (first turn income is still added).
+    max_actions_per_party : int
+        Max actions any one party can take per turn (default 3).
 
     Returns
     -------
@@ -376,7 +393,7 @@ def run_campaign(
 
         # Validate PC and resolve player actions
         if enforce_pc:
-            turn_actions = validate_and_deduct_pc(state, turn_actions)
+            turn_actions = validate_and_deduct_pc(state, turn_actions, max_actions_per_party)
         for action in turn_actions:
             resolve_action(action, state, df, election_config)
 

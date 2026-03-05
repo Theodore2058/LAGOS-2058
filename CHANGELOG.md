@@ -1,5 +1,30 @@
 # CHANGELOG — LAGOS-2058 Election Engine Calibration
 
+## 2026-03-05 — Cycle 9: Campaign Gameplay & Output Improvements
+
+### Action System
+1. **Max actions per party per turn** — Added `max_actions_per_party` parameter (default 3) to `run_campaign()` and `validate_and_deduct_pc()`. Parties hitting the limit have excess actions skipped with a warning.
+
+2. **Variable PC costs** — Action costs now scale with parameters:
+   - `advertising`: +1 for budget > 1.5, +2 for budget > 2.0
+   - `ground_game`: +1 for intensity > 1.0, +2 for intensity > 1.5
+   - `rally`: +1 for gm_score >= 9.0
+   - `patronage`: +1 for scale > 1.0, +2 for scale > 1.5
+   - `eto_engagement`: +1 for score_change > 3.0
+
+### Turnout Calibration
+3. **Rally and ground_game now reduce tau (boost turnout)** — Rallies apply `tau_modifier = -0.04 * gm_score` and ground_game applies `-0.06 * intensity`, reducing baseline abstention in targeted LGAs.
+
+4. **Campaign tau_0 lowered from 4.5 to 3.0** — For the "first election in decades" scenario, baseline abstention was too high (~47% turnout). Combined with rally/ground_game tau effects, turnout should reach realistic 65-80% levels.
+
+### Output
+5. **Detailed campaign output** — `run_full_campaign.py` now outputs: zonal shares, state vote counts, Sainte-Laguë seat allocation, vote source decomposition, ethnic vote profiles, LGA competitiveness, turnout distribution, coalition feasibility analysis — matching `run_election.py` output detail.
+
+### Tests
+6. **New tests** — `test_pc_variable_costs` (unit test for all surcharges) and `test_max_actions_per_party` (integration test for action limit wiring through `run_campaign()`). Total: 19 campaign tests, 222 total.
+
+---
+
 ## 2026-03-05 — Cycle 8: Campaign Layer Audit & Calibration
 
 ### Bug Fixes

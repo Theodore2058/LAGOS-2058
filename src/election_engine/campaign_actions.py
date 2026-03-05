@@ -59,6 +59,30 @@ def compute_action_cost(action_type: str, params: dict) -> int:
             base += 2
         elif budget > 1.5:
             base += 1
+    elif action_type == "ground_game":
+        intensity = params.get("intensity", 1.0)
+        if intensity > 1.5:
+            base += 2
+        elif intensity > 1.0:
+            base += 1
+    elif action_type == "rally":
+        gm_score = params.get("gm_score", 5.0)
+        if gm_score >= 9.0:
+            base += 1
+    elif action_type == "patronage":
+        scale = params.get("scale", 1.0)
+        if scale > 1.5:
+            base += 2
+        elif scale > 1.0:
+            base += 1
+    elif action_type == "ethnic_mobilization":
+        # Higher cost if targeting a specific ethnicity (more aggressive)
+        if params.get("target_ethnicity"):
+            base += 0  # base 3 is already high
+    elif action_type == "eto_engagement":
+        score_change = params.get("score_change", 1.0)
+        if score_change > 3.0:
+            base += 1
     return base
 
 
@@ -257,6 +281,21 @@ def resolve_rally(action: ActionSpec, state: CampaignState,
     else:
         state.raise_awareness(party_idx, None, np.float32(awareness_boost * 0.5))
 
+    # Rallies reduce abstention (tau) — political excitement drives turnout
+    tau_mag = -0.04 * gm_score  # negative = less abstention = higher turnout
+    tau_effect = ActiveEffect(
+        source_party=action.party,
+        source_action="rally",
+        source_turn=state.turn,
+        channel="tau",
+        target_lgas=action.target_lgas,
+        target_dimensions=None,
+        target_party=None,
+        magnitude=tau_mag,
+        effect_key=_effect_key(action.party, "tau", "", "rally", ""),
+    )
+    state.apply_effect(tau_effect)
+
 
 def resolve_advertising(action: ActionSpec, state: CampaignState,
                         lga_data: pd.DataFrame, parties: list) -> None:
@@ -367,6 +406,21 @@ def resolve_ground_game(action: ActionSpec, state: CampaignState,
 
     # Small awareness boost from door-to-door
     state.raise_awareness(party_idx, action.target_lgas, np.float32(0.03 * intensity))
+
+    # Ground game is the primary GOTV mechanism — reduces abstention
+    tau_mag = -0.06 * intensity  # stronger turnout effect than rallies
+    tau_effect = ActiveEffect(
+        source_party=action.party,
+        source_action="ground_game",
+        source_turn=state.turn,
+        channel="tau",
+        target_lgas=action.target_lgas,
+        target_dimensions=None,
+        target_party=None,
+        magnitude=tau_mag,
+        effect_key=_effect_key(action.party, "tau", "", "gg", ""),
+    )
+    state.apply_effect(tau_effect)
 
 
 def resolve_endorsement(action: ActionSpec, state: CampaignState,
