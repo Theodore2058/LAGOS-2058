@@ -10,6 +10,7 @@ import type { CrisisTemplate } from '../api/crises';
 import { LineChart, Line, BarChart, Bar, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { saveScenario } from '../api/scenarios';
 import ActionBuilder from '../components/ActionBuilder';
+import StrategyAdvisor from '../components/StrategyAdvisor';
 import { useToast } from '../components/Toast';
 import ConfirmModal from '../components/ConfirmModal';
 import { useKeyboard } from '../hooks/useKeyboard';
@@ -333,6 +334,49 @@ export default function Campaign() {
           <button onClick={() => setError(null)} className="text-danger/60 hover:text-danger p-0.5 rounded hover:bg-danger/10 transition-colors shrink-0 ml-2" aria-label="Dismiss error">
             <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M18 6L6 18M6 6l12 12" /></svg>
           </button>
+        </div>
+      )}
+
+      {/* Strategy Advisor */}
+      {!isComplete && (
+        <StrategyAdvisor
+          phase={campaignState.phase}
+          turn={campaignState.turn}
+          nTurns={campaignState.n_turns}
+          partyStatuses={campaignState.party_statuses}
+          queuedActions={actions}
+          actionTypes={actionTypes}
+          parties={parties}
+        />
+      )}
+
+      {/* PC Budget Strip */}
+      {!isComplete && (
+        <div className="flex items-center gap-1 bg-bg-secondary rounded-lg px-3 py-2 border border-bg-tertiary/50">
+          <span className="text-[10px] text-text-secondary uppercase tracking-wider font-medium mr-2 shrink-0">PC</span>
+          {sortedStatuses.slice(0, 8).map(ps => {
+            const color = parties.find(p => p.name === ps.name)?.color ?? '#888';
+            const used = totalPCByParty[ps.name] ?? 0;
+            const pct = Math.min(ps.pc / 18 * 100, 100);
+            const overBudget = used > ps.pc;
+            return (
+              <div key={ps.name} className="flex-1 min-w-0 group/pc" title={`${ps.name}: ${ps.pc.toFixed(0)} PC${used > 0 ? ` (${used} queued)` : ''}`}>
+                <div className="flex items-center gap-1 mb-0.5">
+                  <span className="text-[9px] font-mono truncate" style={{ color }}>{ps.name}</span>
+                  <span className={`text-[9px] font-mono ml-auto ${overBudget ? 'text-danger' : 'text-text-secondary/50'}`}>
+                    {ps.pc.toFixed(0)}{used > 0 ? `-${used}` : ''}
+                  </span>
+                </div>
+                <div className="h-1 bg-bg-tertiary rounded-full overflow-hidden">
+                  <div className="h-full rounded-full transition-all" style={{
+                    width: `${pct}%`,
+                    backgroundColor: overBudget ? '#ef4444' : ps.pc >= 10 ? color : ps.pc >= 5 ? '#f59e0b' : '#ef4444',
+                    opacity: 0.8,
+                  }} />
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
