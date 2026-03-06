@@ -22,6 +22,11 @@ export default function Results() {
   const getColor = useCallback((name: string) => parties.find(p => p.name === name)?.color ?? '#888', [parties]);
 
   const partyNames = useMemo(() => history.length > 0 ? Object.keys(history[0].national_vote_shares) : [], [history]);
+  const topPartyNames = useMemo(() => {
+    if (history.length === 0) return [];
+    const last = history[history.length - 1];
+    return Object.entries(last.national_vote_shares).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([n]) => n);
+  }, [history]);
 
   const voteData = useMemo(() => history.map(h => {
     const entry: Record<string, unknown> = { turn: h.turn };
@@ -76,9 +81,31 @@ export default function Results() {
 
   const final = history[history.length - 1];
 
+  const exportCSV = () => {
+    const header = ['Turn', 'Turnout', ...partyNames.map(n => `${n}_VoteShare`), ...partyNames.map(n => `${n}_Seats`)];
+    const rows = history.map(h => [
+      h.turn,
+      (h.national_turnout * 100).toFixed(2),
+      ...partyNames.map(n => ((h.national_vote_shares[n] ?? 0) * 100).toFixed(2)),
+      ...partyNames.map(n => Math.round(h.seat_counts[n] ?? 0)),
+    ]);
+    const csv = [header.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `campaign_results_${history.length}turns.csv`; a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="p-6 space-y-6">
-      <h2 className="text-2xl font-bold">Campaign Results ({history.length} turns)</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold">Campaign Results <span className="text-text-secondary font-normal text-base">({history.length} turns)</span></h2>
+        <button onClick={exportCSV} className="px-3 py-1.5 text-sm bg-bg-tertiary rounded hover:bg-bg-tertiary/80 transition-colors flex items-center gap-1.5">
+          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
+          Export CSV
+        </button>
+      </div>
 
       {/* Final Summary */}
       <div className="grid grid-cols-4 gap-4">
@@ -104,14 +131,14 @@ export default function Results() {
 
       {/* Vote Share Evolution */}
       <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50">
-        <h3 className="text-sm font-semibold mb-3 text-text-secondary">Vote Share Evolution (%)</h3>
+        <h3 className="text-sm font-semibold mb-3 text-text-secondary">Vote Share Evolution (%) <span className="font-normal">— top 8 parties</span></h3>
         <ResponsiveContainer width="100%" height={350}>
           <LineChart data={voteData}>
             <XAxis dataKey="turn" tick={{ fill: '#8b9bb4', fontSize: 11 }} />
             <YAxis tick={{ fill: '#8b9bb4', fontSize: 10 }} />
             <Tooltip contentStyle={{ backgroundColor: '#111827', border: '1px solid #1f2937', color: '#e8e0d4', fontSize: 11 }} />
             <Legend wrapperStyle={{ fontSize: 10 }} />
-            {partyNames.map(name => (
+            {topPartyNames.map(name => (
               <Line key={name} type="monotone" dataKey={name} stroke={getColor(name)}
                 strokeWidth={2} dot={{ r: 3 }} />
             ))}
@@ -121,14 +148,14 @@ export default function Results() {
 
       {/* Seat Evolution */}
       <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50">
-        <h3 className="text-sm font-semibold mb-3 text-text-secondary">Seat Count Evolution</h3>
+        <h3 className="text-sm font-semibold mb-3 text-text-secondary">Seat Count Evolution <span className="font-normal">— top 8 parties</span></h3>
         <ResponsiveContainer width="100%" height={300}>
           <LineChart data={seatData}>
             <XAxis dataKey="turn" tick={{ fill: '#8b9bb4', fontSize: 11 }} />
             <YAxis tick={{ fill: '#8b9bb4', fontSize: 10 }} />
             <Tooltip contentStyle={{ backgroundColor: '#111827', border: '1px solid #1f2937', color: '#e8e0d4', fontSize: 11 }} />
             <Legend wrapperStyle={{ fontSize: 10 }} />
-            {partyNames.map(name => (
+            {topPartyNames.map(name => (
               <Line key={name} type="monotone" dataKey={name} stroke={getColor(name)}
                 strokeWidth={2} dot={{ r: 3 }} />
             ))}
