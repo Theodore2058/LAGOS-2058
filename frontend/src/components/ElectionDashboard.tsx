@@ -46,6 +46,21 @@ export default function ElectionDashboard({ results, parties }: Props) {
 
   const majorityLine = 387; // 774 / 2 rounded up
 
+  // State winner counts
+  const stateWinners = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const s of results.state_results) {
+      counts[s.winner] = (counts[s.winner] ?? 0) + 1;
+    }
+    return Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  }, [results.state_results]);
+
+  // Competitiveness: count of parties with >5% vote share
+  const viableParties = useMemo(() =>
+    sortedParties.filter(([, share]) => share > 0.05).length,
+    [sortedParties]
+  );
+
   return (
     <div className="space-y-6">
       {/* Summary Bar */}

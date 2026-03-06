@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import type { ActionInput, ActionType, Party } from '../types';
-import type { LGAInfo } from '../api/config';
+import type { LGAInfo, VotingDistrict } from '../api/config';
 import TargetSelector from './TargetSelector';
 
 interface Props {
@@ -8,6 +8,7 @@ interface Props {
   actionTypes: ActionType[];
   issueNames: string[];
   lgas: LGAInfo[];
+  districts: VotingDistrict[];
   partyPC?: Record<string, number>;
   pcUsedByParty?: Record<string, number>;
   onAdd: (action: ActionInput) => void;
@@ -58,7 +59,7 @@ function computeActionCost(
   let cost = baseCost;
 
   // Area-based surcharge
-  if (scope === 'lga') {
+  if (scope === 'lga' || scope === 'district') {
     if (nTargetLGAs === 0) {
       cost += 3; // national blanket
     } else if (nTargetLGAs > 10) {
@@ -79,6 +80,9 @@ function computeActionCost(
     if (budget > 2.0) cost += 2;
     else if (budget > 1.5) cost += 1;
     if (medium === 'tv') cost += 1;
+  } else if (actionType === 'rally') {
+    const rawScore = computeGMScore(params);
+    if (rawScore >= 9) cost += 1;
   } else if (actionType === 'ground_game') {
     const intensity = (params.intensity as number) ?? 1.0;
     if (intensity > 1.5) cost += 2;
@@ -127,14 +131,38 @@ const FUNDRAISING_SOURCES = [
   { value: 'membership', label: 'Membership', desc: '1-3 PC yield (scales with cohesion)' },
 ];
 
+// Actions exempt from GM scoring
+const GM_SCORING_EXEMPT = ['poll', 'eto_intelligence'];
+
+function computeGMScore(params: Record<string, unknown>): number {
+  const sf = Math.max(1, Math.min(5, (params.strategic_fit as number) ?? 3));
+  let q = Math.max(1, Math.min(5, (params.quality as number) ?? 3));
+  const creativity = (params.has_content ? 1 : 0) + (params.has_visual_audio ? 1 : 0) + (params.has_strategic_docs ? 1 : 0);
+  q = Math.min(5, q + creativity);
+  return sf + q;
+}
+
+const SCORE_LABELS: Record<number, { label: string; color: string }> = {
+  2: { label: 'Catastrophic', color: 'text-red-400' },
+  3: { label: 'Poor', color: 'text-red-400' },
+  4: { label: 'Below Avg', color: 'text-orange-400' },
+  5: { label: 'Mediocre', color: 'text-orange-400' },
+  6: { label: 'Average', color: 'text-text-secondary' },
+  7: { label: 'Good', color: 'text-blue-400' },
+  8: { label: 'Strong', color: 'text-blue-400' },
+  9: { label: 'Excellent', color: 'text-emerald-400' },
+  10: { label: 'Masterful', color: 'text-emerald-400' },
+};
+
 const selectClass = 'bg-bg-tertiary border border-bg-quaternary/50 rounded-md px-2 py-1.5 text-sm focus:border-accent focus:ring-1 focus:ring-accent/30 transition-colors';
 const inputClass = 'w-full bg-bg-tertiary border border-bg-quaternary/50 rounded-md px-2 py-1.5 text-sm focus:border-accent focus:ring-1 focus:ring-accent/30 transition-colors';
 
-export default function ActionBuilder({ parties, actionTypes, issueNames, lgas, partyPC, pcUsedByParty, onAdd, onClose }: Props) {
+export default function ActionBuilder({ parties, actionTypes, issueNames, lgas, districts, partyPC, pcUsedByParty, onAdd, onClose }: Props) {
   const [party, setParty] = useState(parties[0]?.name ?? '');
   const [actionType, setActionType] = useState('');
   const [targetLGAs, setTargetLGAs] = useState<number[]>([]);
   const [targetAzs, setTargetAzs] = useState<number[]>([]);
+  const [targetDistricts, setTargetDistricts] = useState<string[]>([]);
   const [targetParty, setTargetParty] = useState('');
   const [language, setLanguage] = useState('english');
   const [params, setParams] = useState<Record<string, unknown>>({});
@@ -142,18 +170,28 @@ export default function ActionBuilder({ parties, actionTypes, issueNames, lgas, 
   const selectedAction = actionTypes.find(a => a.name === actionType);
   const scope = selectedAction?.scope ?? 'none';
 
+  // For district scope, count total LGAs across selected districts
+  const districtLGACount = useMemo(() => {
+    if (scope !== 'district') return 0;
+    return targetDistricts.reduce((sum, id) => {
+      const d = districts.find(d => d.district_id === id);
+      return sum + (d?.n_lgas ?? 0);
+    }, 0);
+  }, [scope, targetDistricts, districts]);
+
   // Dynamic cost computation
+  const effectiveLGACount = scope === 'district' ? districtLGACount : targetLGAs.length;
   const cost = useMemo(() => {
     if (!selectedAction) return 0;
     return computeActionCost(
       actionType, scope, selectedAction.base_cost, params,
-      targetLGAs.length, targetAzs.length,
+      effectiveLGACount, targetAzs.length,
     );
-  }, [actionType, scope, selectedAction, params, targetLGAs.length, targetAzs.length]);
+  }, [actionType, scope, selectedAction, params, effectiveLGACount, targetAzs.length]);
 
   const areaSurcharge = useMemo(() => {
     if (!selectedAction) return 0;
-    return cost - computeActionCost(actionType, scope, selectedAction.base_cost, params, scope === 'lga' ? 1 : 1, scope === 'regional' ? 1 : 0);
+    return cost - computeActionCost(actionType, scope, selectedAction.base_cost, params, scope === 'lga' || scope === 'district' ? 1 : 1, scope === 'regional' ? 1 : 0);
   }, [actionType, scope, selectedAction, params, cost]);
 
   const handleTargetChange = (lgaIds: number[], azIds: number[]) => {
@@ -163,20 +201,32 @@ export default function ActionBuilder({ parties, actionTypes, issueNames, lgas, 
 
   const handleSubmit = () => {
     if (!party || !actionType) return;
+    // Build parameters, including GM scoring fields for scored actions
+    const finalParams = { ...params };
+    if (['rally', 'advertising', 'ground_game'].includes(actionType)) {
+      finalParams.language = language;
+    }
+    // Include GM scoring params for all scored actions
+    if (!GM_SCORING_EXEMPT.includes(actionType)) {
+      finalParams.strategic_fit = (params.strategic_fit as number) ?? 3;
+      finalParams.quality = (params.quality as number) ?? 3;
+      if (params.has_content) finalParams.has_content = true;
+      if (params.has_visual_audio) finalParams.has_visual_audio = true;
+      if (params.has_strategic_docs) finalParams.has_strategic_docs = true;
+    }
     onAdd({
       party,
       action_type: actionType,
       target_lgas: targetLGAs.length > 0 ? targetLGAs : null,
       target_azs: targetAzs.length > 0 ? targetAzs : null,
+      target_districts: targetDistricts.length > 0 ? targetDistricts : null,
       target_party: targetParty || null,
-      parameters: {
-        ...params,
-        ...((['rally', 'advertising', 'ground_game'].includes(actionType)) ? { language } : {}),
-      },
+      parameters: finalParams,
     });
     setActionType('');
     setTargetLGAs([]);
     setTargetAzs([]);
+    setTargetDistricts([]);
     setTargetParty('');
     setLanguage('english');
     setParams({});
@@ -223,7 +273,7 @@ export default function ActionBuilder({ parties, actionTypes, issueNames, lgas, 
         </div>
         <div>
           <label className="text-xs text-text-secondary block mb-1">Action Type</label>
-          <select value={actionType} onChange={e => { setActionType(e.target.value); setParams({}); setTargetLGAs([]); setTargetAzs([]); }}
+          <select value={actionType} onChange={e => { setActionType(e.target.value); setParams({}); setTargetLGAs([]); setTargetAzs([]); setTargetDistricts([]); }}
             className={`w-full ${selectClass}`}>
             <option value="">-- Select action --</option>
             {ACTION_CATEGORIES.map(cat => {
@@ -271,14 +321,80 @@ export default function ActionBuilder({ parties, actionTypes, issueNames, lgas, 
         </div>
       )}
 
+      {/* GM Score */}
+      {actionType && !GM_SCORING_EXEMPT.includes(actionType) && (() => {
+        const gmScore = computeGMScore(params);
+        const scoreInfo = SCORE_LABELS[gmScore] ?? { label: '', color: 'text-text-secondary' };
+        return (
+          <div className="bg-bg-tertiary/50 rounded-lg p-3 border border-bg-quaternary/30 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-text-secondary">GM Score</span>
+              <div className="flex items-center gap-2">
+                <span className={`text-lg font-bold ${scoreInfo.color}`}>{gmScore}</span>
+                <span className={`text-xs ${scoreInfo.color}`}>{scoreInfo.label}</span>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-[10px] text-text-secondary block mb-1">Strategic Fit</label>
+                <div className="flex gap-1">
+                  {[1,2,3,4,5].map(n => (
+                    <button key={n} onClick={() => setParams({ ...params, strategic_fit: n })}
+                      className={`flex-1 text-xs py-1 rounded transition-colors ${
+                        ((params.strategic_fit as number) ?? 3) === n
+                          ? 'bg-accent text-bg-primary font-bold'
+                          : 'bg-bg-tertiary hover:bg-bg-quaternary/50 text-text-secondary'
+                      }`}>{n}</button>
+                  ))}
+                </div>
+                <p className="text-[9px] text-text-secondary/60 mt-0.5">Region, demographic, issue, language</p>
+              </div>
+              <div>
+                <label className="text-[10px] text-text-secondary block mb-1">Quality of Execution</label>
+                <div className="flex gap-1">
+                  {[1,2,3,4,5].map(n => (
+                    <button key={n} onClick={() => setParams({ ...params, quality: n })}
+                      className={`flex-1 text-xs py-1 rounded transition-colors ${
+                        ((params.quality as number) ?? 3) === n
+                          ? 'bg-accent text-bg-primary font-bold'
+                          : 'bg-bg-tertiary hover:bg-bg-quaternary/50 text-text-secondary'
+                      }`}>{n}</button>
+                  ))}
+                </div>
+                <p className="text-[9px] text-text-secondary/60 mt-0.5">Detail, realism, creativity, understanding</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-4 pt-1">
+              <span className="text-[10px] text-text-secondary/60">Bonuses:</span>
+              {[
+                { key: 'has_content', label: 'Content' },
+                { key: 'has_visual_audio', label: 'Visual/Audio' },
+                { key: 'has_strategic_docs', label: 'Strategy Doc' },
+              ].map(({ key, label }) => (
+                <label key={key} className="flex items-center gap-1 cursor-pointer">
+                  <input type="checkbox" checked={!!params[key]}
+                    onChange={e => setParams({ ...params, [key]: e.target.checked })}
+                    className="rounded border-bg-quaternary/50 bg-bg-tertiary text-accent focus:ring-accent/30 w-3 h-3" />
+                  <span className="text-[10px] text-text-secondary">{label}</span>
+                  <span className="text-[9px] text-emerald-400/60">+1Q</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Target selector */}
       {actionType && (
         <TargetSelector
           lgas={lgas}
+          districts={districts}
           selectedLGAs={targetLGAs}
           selectedAZs={targetAzs}
+          selectedDistricts={targetDistricts}
           scope={scope}
           onChange={handleTargetChange}
+          onDistrictChange={setTargetDistricts}
         />
       )}
 

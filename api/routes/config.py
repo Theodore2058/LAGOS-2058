@@ -22,7 +22,9 @@ from api.schemas.config import (
     ReligiousGroupsResponse, AdminZonesResponse, AdminZone,
     ActionTypesResponse, ActionTypeInfo, PCConstantsResponse,
     LGAInfo, LGAListResponse,
+    VotingDistrictInfo, VotingDistrictListResponse,
 )
+import openpyxl
 
 DATA_PATH = Path(__file__).parent.parent.parent / "data" / "nigeria_lga_polsim_2058.xlsx"
 
@@ -145,3 +147,53 @@ def get_pc_constants():
         pc_eto_dividend_amount=PC_ETO_DIVIDEND_AMOUNT,
         pc_eto_dividend_cap=PC_ETO_DIVIDEND_CAP,
     )
+
+
+_district_cache: list[VotingDistrictInfo] | None = None
+
+
+@router.get("/voting-districts", response_model=VotingDistrictListResponse)
+def get_voting_districts():
+    global _district_cache
+    if _district_cache is None:
+        # Build LGA name -> index lookup from the main data
+        lga_data = load_lga_data(str(DATA_PATH))
+        df = lga_data.df
+        lga_name_to_idx: dict[str, int] = {}
+        for idx, row in df[["LGA Name"]].iterrows():
+            lga_name_to_idx[str(row["LGA Name"]).strip()] = int(idx)
+
+        # Load voting districts spreadsheet
+        vd_path = Path(__file__).parent.parent.parent / "voting_districts_summary.xlsx"
+        wb = openpyxl.load_workbook(str(vd_path), read_only=True)
+        ws = wb.active
+        districts = []
+        for row in ws.iter_rows(min_row=2, values_only=True):
+            if not row[0]:
+                continue
+            district_id = str(row[0])
+            az = int(row[1])
+            az_name = str(row[2])
+            n_lgas = int(row[3])
+            population = int(row[4])
+            states = str(row[6]) if row[6] else ""
+            top_group = str(row[7]) if row[7] else ""
+            top_group_pct = float(row[8]) if row[8] else 0.0
+            lga_list_str = str(row[16]) if row[16] else ""
+            lga_names = [n.strip() for n in lga_list_str.split(",") if n.strip()]
+            lga_indices = [lga_name_to_idx[n] for n in lga_names if n in lga_name_to_idx]
+            districts.append(VotingDistrictInfo(
+                district_id=district_id,
+                az=az,
+                az_name=az_name,
+                n_lgas=n_lgas,
+                population=population,
+                lga_names=lga_names,
+                lga_indices=lga_indices,
+                top_group=top_group,
+                top_group_pct=top_group_pct,
+                states=states,
+            ))
+        wb.close()
+        _district_cache = districts
+    return VotingDistrictListResponse(districts=_district_cache, count=len(_district_cache))

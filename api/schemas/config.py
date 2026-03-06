@@ -79,3 +79,21 @@ class LGAInfo(BaseModel):
 class LGAListResponse(BaseModel):
     lgas: list[LGAInfo]
     count: int
+
+
+class VotingDistrictInfo(BaseModel):
+    district_id: str
+    az: int
+    az_name: str
+    n_lgas: int
+    population: int
+    lga_names: list[str]
+    lga_indices: list[int]
+    top_group: str
+    top_group_pct: float
+    states: str
+
+
+class VotingDistrictListResponse(BaseModel):
+    districts: list[VotingDistrictInfo]
+    count: int

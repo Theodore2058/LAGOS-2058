@@ -26,8 +26,35 @@ from api.schemas.campaign import (
     CampaignStateResponse, TurnResultResponse,
 )
 from api.services.election import party_schema_to_engine, params_to_engine
+import openpyxl
 
 DATA_PATH = Path(__file__).parent.parent.parent / "data" / "nigeria_lga_polsim_2058.xlsx"
+VD_PATH = Path(__file__).parent.parent.parent / "voting_districts_summary.xlsx"
+
+_district_lga_map: dict[str, list[int]] | None = None
+
+
+def _load_district_map(lga_df: pd.DataFrame) -> dict[str, list[int]]:
+    """Load voting district → LGA index mapping (cached)."""
+    global _district_lga_map
+    if _district_lga_map is not None:
+        return _district_lga_map
+    lga_name_to_idx: dict[str, int] = {}
+    for idx, row in lga_df[["LGA Name"]].iterrows():
+        lga_name_to_idx[str(row["LGA Name"]).strip()] = int(idx)
+    wb = openpyxl.load_workbook(str(VD_PATH), read_only=True)
+    ws = wb.active
+    mapping: dict[str, list[int]] = {}
+    for row in ws.iter_rows(min_row=2, values_only=True):
+        if not row[0]:
+            continue
+        district_id = str(row[0])
+        lga_list_str = str(row[16]) if row[16] else ""
+        lga_names = [n.strip() for n in lga_list_str.split(",") if n.strip()]
+        mapping[district_id] = [lga_name_to_idx[n] for n in lga_names if n in lga_name_to_idx]
+    wb.close()
+    _district_lga_map = mapping
+    return _district_lga_map
 
 PHASE_NAMES = {
     (1, 3): "Foundation",
@@ -190,9 +217,17 @@ class CampaignSession:
         # Convert actions
         turn_actions = []
         actions_log = []
+        district_map = _load_district_map(df)
         for ai in action_inputs:
             target = None
-            if ai.target_azs:
+            if ai.target_districts:
+                # Expand district IDs to constituent LGA indices
+                target = np.zeros(n_lga, dtype=bool)
+                for did in ai.target_districts:
+                    for idx in district_map.get(did, []):
+                        if 0 <= idx < n_lga:
+                            target[idx] = True
+            elif ai.target_azs:
                 az_col = df.get("Administrative Zone", pd.Series(dtype=int))
                 target = np.zeros(n_lga, dtype=bool)
                 for az_id in ai.target_azs:

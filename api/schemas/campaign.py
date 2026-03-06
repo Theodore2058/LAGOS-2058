@@ -10,6 +10,7 @@ class ActionInput(BaseModel):
     action_type: str
     target_lgas: list[int] | None = None
     target_azs: list[int] | None = None
+    target_districts: list[str] | None = None
     target_party: str | None = None
     language: str = "english"
     parameters: dict = {}

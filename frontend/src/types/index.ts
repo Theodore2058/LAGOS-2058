@@ -87,6 +87,7 @@ export interface ActionInput {
   action_type: string;
   target_lgas: number[] | null;
   target_azs: number[] | null;
+  target_districts: string[] | null;
   target_party: string | null;
   parameters: Record<string, unknown>;
 }
@@ -119,7 +120,7 @@ export interface ActionType {
   name: string;
   base_cost: number;
   description: string;
-  scope: 'lga' | 'regional' | 'none';
+  scope: 'lga' | 'regional' | 'district' | 'none';
   parameters: Record<string, unknown>;
 }
 

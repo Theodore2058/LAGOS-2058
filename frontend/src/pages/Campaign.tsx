@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { Party, ActionInput, ActionType, CrisisInput } from '../types';
 import { fetchParties } from '../api/parties';
-import { fetchActionTypes, fetchIssueNames, fetchLGAs } from '../api/config';
-import type { LGAInfo } from '../api/config';
+import { fetchActionTypes, fetchIssueNames, fetchLGAs, fetchVotingDistricts } from '../api/config';
+import type { LGAInfo, VotingDistrict } from '../api/config';
 import { newCampaign, advanceTurn, getCampaignState, getCampaignHistory } from '../api/campaign';
 import type { CampaignStateResponse, TurnResult, PartyStatus } from '../api/campaign';
 import { fetchTemplates } from '../api/crises';
@@ -25,8 +25,8 @@ function computeQueuedActionCost(a: ActionInput, actionTypes: ActionType[]): num
   const nAZs = a.target_azs?.length ?? 0;
 
   // Area surcharge
-  if (scope === 'lga') {
-    if (nLGAs === 0) cost += 3;
+  if (scope === 'lga' || scope === 'district') {
+    if (nLGAs === 0 && !(a.target_districts?.length)) cost += 3;
     else if (nLGAs > 10) cost += Math.min(5, Math.ceil((nLGAs - 10) / 20));
   } else if (scope === 'regional') {
     if (nAZs === 0) cost += 3;
@@ -40,6 +40,11 @@ function computeQueuedActionCost(a: ActionInput, actionTypes: ActionType[]): num
     if (budget > 2.0) cost += 2;
     else if (budget > 1.5) cost += 1;
     if ((p.medium as string) === 'tv') cost += 1;
+  } else if (a.action_type === 'rally') {
+    const sf = Math.max(1, Math.min(5, (p.strategic_fit as number) ?? 3));
+    let q = Math.max(1, Math.min(5, (p.quality as number) ?? 3));
+    q = Math.min(5, q + (p.has_content ? 1 : 0) + (p.has_visual_audio ? 1 : 0) + (p.has_strategic_docs ? 1 : 0));
+    if (sf + q >= 9) cost += 1;
   } else if (a.action_type === 'ground_game') {
     const intensity = (p.intensity as number) ?? 1.0;
     if (intensity > 1.5) cost += 2;
@@ -95,6 +100,7 @@ export default function Campaign() {
   const [actionTypes, setActionTypes] = useState<ActionType[]>([]);
   const [issueNames, setIssueNames] = useState<string[]>([]);
   const [lgas, setLgas] = useState<LGAInfo[]>([]);
+  const [districts, setDistricts] = useState<VotingDistrict[]>([]);
   const [campaignState, setCampaignState] = useState<CampaignStateResponse | null>(null);
   const [history, setHistory] = useState<TurnResult[]>([]);
   const [actions, setActions] = useState<ActionInput[]>([]);
@@ -111,6 +117,7 @@ export default function Campaign() {
     fetchActionTypes().then(setActionTypes).catch(e => console.error('Failed to fetch action types:', e));
     fetchIssueNames().then(setIssueNames).catch(e => console.error('Failed to fetch issue names:', e));
     fetchLGAs().then(setLgas).catch(e => console.error('Failed to fetch LGAs:', e));
+    fetchVotingDistricts().then(setDistricts).catch(e => console.error('Failed to fetch districts:', e));
     fetchTemplates().then(setCrisisTemplates).catch(e => console.error('Failed to fetch crisis templates:', e));
     // Try to resume an active campaign from the backend
     getCampaignState().then(state => {
@@ -199,12 +206,13 @@ export default function Campaign() {
   const handleRepeatLast = () => {
     if (history.length === 0) return;
     const lastTurn = history[history.length - 1];
-    const lastActions = lastTurn.actions_resolved as { party: string; action_type: string; target_lgas?: number[]; target_azs?: number[]; parameters?: Record<string, unknown> }[];
+    const lastActions = lastTurn.actions_resolved as { party: string; action_type: string; target_lgas?: number[]; target_azs?: number[]; target_districts?: string[]; parameters?: Record<string, unknown> }[];
     const newActions: ActionInput[] = lastActions.map(a => ({
       party: a.party,
       action_type: a.action_type,
       target_lgas: a.target_lgas ?? null,
       target_azs: a.target_azs ?? null,
+      target_districts: a.target_districts ?? null,
       target_party: null,
       parameters: a.parameters ?? {},
     }));
@@ -464,6 +472,7 @@ export default function Campaign() {
           actionTypes={actionTypes}
           issueNames={issueNames}
           lgas={lgas}
+          districts={districts}
           partyPC={Object.fromEntries(campaignState.party_statuses.map(ps => [ps.name, ps.pc]))}
           pcUsedByParty={totalPCByParty}
           onAdd={(a) => setActions(prev => [...prev, a])}
@@ -570,19 +579,32 @@ export default function Campaign() {
                     <div key={idx} className="flex items-center gap-2 text-xs py-1.5 pl-4 border-b border-bg-tertiary/20 hover:bg-bg-tertiary/20 transition-colors rounded group/row">
                       <span className="font-medium shrink-0">{a.action_type.replace(/_/g, ' ')}</span>
                       <div className="flex-1 flex flex-wrap gap-1 min-w-0">
+                        {a.target_districts && a.target_districts.length > 0 && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-bg-tertiary/60 text-text-secondary">{a.target_districts.length} district{a.target_districts.length > 1 ? 's' : ''}</span>
+                        )}
                         {a.target_lgas && a.target_lgas.length > 0 && (
                           <span className="text-[10px] px-1.5 py-0.5 rounded bg-bg-tertiary/60 text-text-secondary">{a.target_lgas.length} LGA{a.target_lgas.length > 1 ? 's' : ''}</span>
                         )}
                         {a.target_azs && a.target_azs.length > 0 && (
                           <span className="text-[10px] px-1.5 py-0.5 rounded bg-bg-tertiary/60 text-text-secondary">AZ {a.target_azs.join(', ')}</span>
                         )}
-                        {!a.target_lgas?.length && !a.target_azs?.length && actionTypes.find(t => t.name === a.action_type)?.scope !== 'none' && (
+                        {!a.target_lgas?.length && !a.target_azs?.length && !a.target_districts?.length && actionTypes.find(t => t.name === a.action_type)?.scope !== 'none' && (
                           <span className="text-[10px] px-1.5 py-0.5 rounded bg-warning/10 text-warning">national</span>
                         )}
                         {paramTags.map((tag, ti) => (
                           <span key={ti} className="text-[10px] px-1.5 py-0.5 rounded bg-bg-tertiary/40 text-text-secondary">{tag}</span>
                         ))}
                       </div>
+                      {a.parameters?.strategic_fit != null && (() => {
+                        const sf = (a.parameters.strategic_fit as number) ?? 3;
+                        let q = Math.min(5, ((a.parameters.quality as number) ?? 3)
+                          + (a.parameters.has_content ? 1 : 0)
+                          + (a.parameters.has_visual_audio ? 1 : 0)
+                          + (a.parameters.has_strategic_docs ? 1 : 0));
+                        const score = sf + q;
+                        const color = score >= 8 ? 'text-emerald-400' : score >= 6 ? 'text-text-secondary' : 'text-orange-400';
+                        return <span className={`text-[10px] font-mono ${color} shrink-0`} title={`Strategic Fit ${sf} + Quality ${q}`}>S{score}</span>;
+                      })()}
                       <span className="text-text-secondary font-mono w-10 text-right shrink-0">
                         {computeQueuedActionCost(a, actionTypes)} PC
                       </span>

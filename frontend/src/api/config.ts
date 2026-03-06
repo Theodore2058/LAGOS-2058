@@ -46,3 +46,21 @@ export async function fetchLGAs(): Promise<LGAInfo[]> {
   const res = await api.get('/lgas');
   return res.data.lgas;
 }
+
+export interface VotingDistrict {
+  district_id: string;
+  az: number;
+  az_name: string;
+  n_lgas: number;
+  population: number;
+  lga_names: string[];
+  lga_indices: number[];
+  top_group: string;
+  top_group_pct: number;
+  states: string;
+}
+
+export async function fetchVotingDistricts(): Promise<VotingDistrict[]> {
+  const res = await api.get('/voting-districts');
+  return res.data.districts;
+}
