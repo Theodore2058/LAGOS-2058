@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie } from 'recharts';
 import type { Party, ElectionResults } from '../types';
 import { ADMIN_ZONES } from '../types';
 
@@ -39,6 +39,13 @@ export default function ElectionDashboard({ results, parties }: Props) {
 
   const winMargin = winner[1] - (runnerUp?.[1] ?? 0);
 
+  const pieData = useMemo(() =>
+    seatData.filter(d => d.seats >= 1).map(d => ({ name: d.name, value: Math.round(d.seats), fill: d.color })),
+    [seatData]
+  );
+
+  const majorityLine = 387; // 774 / 2 rounded up
+
   return (
     <div className="space-y-6">
       {/* Summary Bar */}
@@ -72,6 +79,68 @@ export default function ElectionDashboard({ results, parties }: Props) {
             {(winMargin * 100).toFixed(1)}%
           </p>
           <p className="text-xs text-text-secondary/50 mt-0.5">ENP {results.enp.toFixed(2)}</p>
+        </div>
+      </div>
+
+      {/* Seat Donut + Coalition Indicator */}
+      <div className="grid grid-cols-[1fr_2fr] gap-6">
+        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50 flex flex-col items-center">
+          <h3 className="text-sm font-semibold mb-2 text-text-secondary self-start">Seat Distribution</h3>
+          <div className="relative">
+            <ResponsiveContainer width={200} height={200}>
+              <PieChart>
+                <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={55} outerRadius={85} paddingAngle={1} strokeWidth={0}>
+                  {pieData.map((d, i) => <Cell key={i} fill={d.fill} />)}
+                </Pie>
+                <Tooltip contentStyle={{ backgroundColor: '#111827', border: '1px solid #1f2937', color: '#e8e0d4', fontSize: 11 }}
+                  formatter={(v: number) => [`${v} seats`, '']} />
+              </PieChart>
+            </ResponsiveContainer>
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+              <span className="text-lg font-bold" style={{ color: winnerColor }}>{Math.round(results.seat_counts[winner[0]] ?? 0)}</span>
+              <span className="text-[9px] text-text-secondary/50">/ 774</span>
+            </div>
+          </div>
+          <div className="mt-2 w-full">
+            <div className="flex items-center justify-between text-[10px] text-text-secondary/50 mb-1">
+              <span>Majority: {majorityLine}</span>
+              <span className={Math.round(results.seat_counts[winner[0]] ?? 0) >= majorityLine ? 'text-success font-medium' : 'text-warning font-medium'}>
+                {Math.round(results.seat_counts[winner[0]] ?? 0) >= majorityLine ? 'MAJORITY' : `Need ${majorityLine - Math.round(results.seat_counts[winner[0]] ?? 0)} more`}
+              </span>
+            </div>
+            <div className="h-1.5 bg-bg-tertiary rounded-full overflow-hidden relative">
+              <div className="h-full rounded-full" style={{ width: `${((results.seat_counts[winner[0]] ?? 0) / 774) * 100}%`, backgroundColor: winnerColor }} />
+              <div className="absolute top-0 h-full w-px bg-warning" style={{ left: '50%' }} />
+            </div>
+          </div>
+        </div>
+
+        {/* Top parties legend */}
+        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50">
+          <h3 className="text-sm font-semibold mb-3 text-text-secondary">Party Performance Summary</h3>
+          <div className="space-y-1.5">
+            {sortedParties.slice(0, 8).map(([name, share], i) => {
+              const color = getPartyColor(parties, name);
+              const seats = Math.round(results.seat_counts[name] ?? 0);
+              const fullName = parties.find(p => p.name === name)?.full_name;
+              return (
+                <div key={name} className="flex items-center gap-3 text-xs group/row hover:bg-bg-tertiary/20 rounded px-2 py-1 transition-colors">
+                  <span className="text-text-secondary/30 font-mono w-4">{i + 1}</span>
+                  <div className="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: color }} />
+                  <span className="font-medium w-12" style={{ color }}>{name}</span>
+                  {fullName && <span className="text-text-secondary/30 text-[10px] truncate max-w-40">{fullName}</span>}
+                  <div className="flex-1" />
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-20 h-1.5 bg-bg-tertiary rounded-full overflow-hidden">
+                      <div className="h-full rounded-full" style={{ width: `${(share / (sortedParties[0]?.[1] ?? 1)) * 100}%`, backgroundColor: color }} />
+                    </div>
+                    <span className="font-mono w-12 text-right">{(share * 100).toFixed(1)}%</span>
+                    <span className="font-mono w-10 text-right text-text-secondary">{seats}s</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
 

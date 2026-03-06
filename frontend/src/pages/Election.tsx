@@ -9,6 +9,17 @@ import ErrorBanner from '../components/ErrorBanner';
 import { useToast } from '../components/Toast';
 import { useKeyboard } from '../hooks/useKeyboard';
 
+interface RunRecord {
+  id: number;
+  winner: string;
+  winnerShare: number;
+  seats: number;
+  turnout: number;
+  enp: number;
+  elapsed: number;
+  mc: number;
+}
+
 export default function Election() {
   const [parties, setParties] = useState<Party[]>([]);
   const [params, setParams] = useState<EngineParams>(DEFAULT_PARAMS);
@@ -18,6 +29,7 @@ export default function Election() {
   const [showParams, setShowParams] = useState(false);
   const [runCount, setRunCount] = useState(0);
   const [elapsed, setElapsed] = useState<number | null>(null);
+  const [runHistory, setRunHistory] = useState<RunRecord[]>([]);
   const { toast } = useToast();
   const startTimeRef = useRef<number>(0);
 
@@ -36,8 +48,21 @@ export default function Election() {
       const res = await runElection({ params: engineParams, parties, n_monte_carlo, seed });
       const ms = performance.now() - startTimeRef.current;
       setResults(res);
-      setRunCount(prev => prev + 1);
+      const newCount = runCount + 1;
+      setRunCount(newCount);
       setElapsed(ms);
+      const sortedShares = Object.entries(res.national_vote_shares).sort((a, b) => b[1] - a[1]);
+      const winnerName = sortedShares[0]?.[0] ?? '';
+      setRunHistory(prev => [{
+        id: newCount,
+        winner: winnerName,
+        winnerShare: sortedShares[0]?.[1] ?? 0,
+        seats: Math.round(res.seat_counts[winnerName] ?? 0),
+        turnout: res.national_turnout,
+        enp: res.enp,
+        elapsed: ms,
+        mc: n_monte_carlo,
+      }, ...prev].slice(0, 5));
       toast(`Election complete in ${(ms / 1000).toFixed(1)}s`, 'success');
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Election failed');
@@ -110,6 +135,25 @@ export default function Election() {
       {showParams && (
         <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50">
           <ParamsEditor params={params} onChange={setParams} />
+        </div>
+      )}
+
+      {/* Run History */}
+      {runHistory.length > 1 && !loading && (
+        <div className="bg-bg-secondary rounded-lg p-3 border border-bg-tertiary/50">
+          <h3 className="text-[10px] text-text-secondary/50 uppercase tracking-wider font-medium mb-2">Run History</h3>
+          <div className="flex gap-3 overflow-x-auto">
+            {runHistory.map((r, i) => (
+              <div key={r.id} className={`flex items-center gap-3 px-3 py-1.5 rounded text-xs shrink-0 ${i === 0 ? 'bg-accent/10 border border-accent/20' : 'bg-bg-tertiary/30'}`}>
+                <span className="text-text-secondary/40 font-mono">#{r.id}</span>
+                <span className="font-medium" style={{ color: parties.find(p => p.name === r.winner)?.color }}>{r.winner}</span>
+                <span className="text-text-secondary">{(r.winnerShare * 100).toFixed(1)}%</span>
+                <span className="text-text-secondary/40">{r.seats}s</span>
+                <span className="text-text-secondary/40">ENP {r.enp.toFixed(2)}</span>
+                <span className="text-text-secondary/30 font-mono text-[10px]">{(r.elapsed / 1000).toFixed(1)}s</span>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
