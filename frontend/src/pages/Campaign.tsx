@@ -54,6 +54,40 @@ function computeQueuedActionCost(a: ActionInput, actionTypes: ActionType[]): num
   return cost;
 }
 
+/** Build display tags for an action's key parameters */
+function formatActionParams(a: ActionInput): string[] {
+  const tags: string[] = [];
+  const p = a.parameters;
+  if (a.action_type === 'advertising') {
+    if (p.medium) tags.push(String(p.medium));
+    if (p.budget != null) tags.push(`budget ${Number(p.budget).toFixed(1)}`);
+  } else if (a.action_type === 'ground_game') {
+    if (p.intensity != null) tags.push(`intensity ${Number(p.intensity).toFixed(1)}`);
+  } else if (a.action_type === 'patronage') {
+    if (p.scale != null) tags.push(`scale ${Number(p.scale).toFixed(1)}`);
+  } else if (a.action_type === 'poll') {
+    if (p.poll_tier != null) tags.push(`tier ${p.poll_tier}`);
+  } else if (a.action_type === 'endorsement') {
+    if (p.endorser_type) tags.push(String(p.endorser_type).replace(/_/g, ' '));
+    if (p.endorser_name) tags.push(String(p.endorser_name));
+  } else if (a.action_type === 'eto_engagement') {
+    if (p.category) tags.push(String(p.category));
+    if (p.score_change != null) tags.push(`+${p.score_change}`);
+  } else if (a.action_type === 'fundraising') {
+    if (p.source) tags.push(String(p.source));
+  } else if (a.action_type === 'opposition_research' && a.target_party) {
+    tags.push(`vs ${a.target_party}`);
+  } else if (a.action_type === 'pledge') {
+    if (p.dimension != null) tags.push(`dim ${p.dimension}`);
+  } else if (a.action_type === 'media') {
+    if (p.tone) tags.push(String(p.tone));
+  }
+  if (['rally', 'advertising', 'ground_game'].includes(a.action_type) && p.language && p.language !== 'english') {
+    tags.push(String(p.language));
+  }
+  return tags;
+}
+
 export default function Campaign() {
   const [parties, setParties] = useState<Party[]>([]);
   const [actionTypes, setActionTypes] = useState<ActionType[]>([]);
@@ -404,35 +438,64 @@ export default function Campaign() {
             const partyColor = parties.find(p => p.name === partyName)?.color ?? '#888';
             const partyStatus = campaignState.party_statuses.find(ps => ps.name === partyName);
             const overBudget = partyStatus && group.totalCost > partyStatus.pc;
+            const remaining = (partyStatus?.pc ?? 0) - group.totalCost;
             return (
-              <div key={partyName} className="mb-2">
+              <div key={partyName} className="mb-3 last:mb-0">
                 <div className="flex items-center gap-2 mb-1">
                   <div className="w-2 h-2 rounded-sm" style={{ backgroundColor: partyColor }} />
                   <span className="text-xs font-semibold" style={{ color: partyColor }}>{partyName}</span>
+                  <span className="text-[10px] text-text-secondary">{group.actions.length} action{group.actions.length > 1 ? 's' : ''}</span>
                   <span className={`text-xs font-mono ml-auto ${overBudget ? 'text-danger font-bold' : 'text-text-secondary'}`}>
-                    {group.totalCost} PC{overBudget ? ` (exceeds ${partyStatus!.pc.toFixed(0)} available!)` : ''}
+                    {group.totalCost} PC{overBudget ? ` (exceeds ${partyStatus!.pc.toFixed(0)}!)` : ` / ${partyStatus?.pc.toFixed(0) ?? '?'} (${remaining.toFixed(0)} left)`}
                   </span>
                 </div>
-                {group.actions.map(({ action: a, idx }) => (
-                  <div key={idx} className="flex items-center gap-3 text-xs py-1 pl-4 border-b border-bg-tertiary/20 hover:bg-bg-tertiary/20 transition-colors rounded">
-                    <span className="flex-1">{a.action_type}</span>
-                    {a.target_lgas && a.target_lgas.length > 0 && (
-                      <span className="text-text-secondary text-[10px]">{a.target_lgas.length} LGA{a.target_lgas.length > 1 ? 's' : ''}</span>
-                    )}
-                    {a.target_azs && a.target_azs.length > 0 && (
-                      <span className="text-text-secondary text-[10px]">AZ: {a.target_azs.join(',')}</span>
-                    )}
-                    <span className="text-text-secondary font-mono w-10 text-right">
-                      {computeQueuedActionCost(a, actionTypes)} PC
-                    </span>
-                    <button onClick={() => removeAction(idx)} className="text-danger/60 hover:text-danger p-0.5 rounded hover:bg-danger/10 transition-colors" aria-label={`Remove ${a.action_type} action`}>
-                      <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M18 6L6 18M6 6l12 12" /></svg>
-                    </button>
-                  </div>
-                ))}
+                {group.actions.map(({ action: a, idx }) => {
+                  const paramTags = formatActionParams(a);
+                  return (
+                    <div key={idx} className="flex items-center gap-2 text-xs py-1.5 pl-4 border-b border-bg-tertiary/20 hover:bg-bg-tertiary/20 transition-colors rounded group/row">
+                      <span className="font-medium shrink-0">{a.action_type.replace(/_/g, ' ')}</span>
+                      <div className="flex-1 flex flex-wrap gap-1 min-w-0">
+                        {a.target_lgas && a.target_lgas.length > 0 && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-bg-tertiary/60 text-text-secondary">{a.target_lgas.length} LGA{a.target_lgas.length > 1 ? 's' : ''}</span>
+                        )}
+                        {a.target_azs && a.target_azs.length > 0 && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-bg-tertiary/60 text-text-secondary">AZ {a.target_azs.join(', ')}</span>
+                        )}
+                        {!a.target_lgas?.length && !a.target_azs?.length && actionTypes.find(t => t.name === a.action_type)?.scope !== 'none' && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-warning/10 text-warning">national</span>
+                        )}
+                        {paramTags.map((tag, ti) => (
+                          <span key={ti} className="text-[10px] px-1.5 py-0.5 rounded bg-bg-tertiary/40 text-text-secondary">{tag}</span>
+                        ))}
+                      </div>
+                      <span className="text-text-secondary font-mono w-10 text-right shrink-0">
+                        {computeQueuedActionCost(a, actionTypes)} PC
+                      </span>
+                      <button onClick={() => setActions(prev => [...prev, { ...a }])}
+                        className="text-text-secondary/40 hover:text-accent p-0.5 rounded hover:bg-accent/10 transition-colors opacity-0 group-hover/row:opacity-100"
+                        aria-label={`Duplicate ${a.action_type} action`} title="Duplicate">
+                        <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" /></svg>
+                      </button>
+                      <button onClick={() => removeAction(idx)}
+                        className="text-danger/40 hover:text-danger p-0.5 rounded hover:bg-danger/10 transition-colors opacity-0 group-hover/row:opacity-100"
+                        aria-label={`Remove ${a.action_type} action`} title="Remove">
+                        <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M18 6L6 18M6 6l12 12" /></svg>
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             );
           })}
+          {/* Total summary */}
+          {actions.length > 1 && (
+            <div className="flex items-center justify-between mt-3 pt-2 border-t border-bg-tertiary/40">
+              <span className="text-xs text-text-secondary">{Object.keys(totalPCByParty).length} parties, {actions.length} total actions</span>
+              <span className="text-xs font-mono font-semibold text-accent">
+                {Object.values(totalPCByParty).reduce((s, v) => s + v, 0)} PC total
+              </span>
+            </div>
+          )}
         </div>
       )}
 
