@@ -27,14 +27,23 @@ export default function Scenarios() {
 
   const handleSave = async () => {
     if (!newName) return;
-    await saveScenario(newName);
-    setNewName('');
-    reload();
+    try {
+      await saveScenario(newName);
+      setNewName('');
+      setError(null);
+      reload();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to save scenario');
+    }
   };
 
   const handleDelete = async (name: string) => {
-    await deleteScenario(name);
-    reload();
+    try {
+      await deleteScenario(name);
+      reload();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to delete scenario');
+    }
   };
 
   const handleCompare = async () => {
@@ -62,7 +71,14 @@ export default function Scenarios() {
     <div className="p-8 max-w-4xl space-y-6">
       <h2 className="text-2xl font-bold">Scenarios</h2>
 
-      {error && <div className="p-3 bg-danger/20 text-danger rounded text-sm">{error}</div>}
+      {error && (
+        <div className="p-3 bg-danger/20 text-danger rounded text-sm flex items-center justify-between border border-danger/30">
+          {error}
+          <button onClick={() => setError(null)} className="text-danger/60 hover:text-danger p-0.5 rounded hover:bg-danger/10 transition-colors shrink-0 ml-2" aria-label="Dismiss error">
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M18 6L6 18M6 6l12 12" /></svg>
+          </button>
+        </div>
+      )}
 
       {/* Save */}
       <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50">

@@ -66,6 +66,7 @@ export default function MapPage() {
   const [results, setResults] = useState<ElectionResults | null>(null);
   const [colorMode, setColorMode] = useState<ColorMode>('winner');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [selectedLga, setSelectedLga] = useState<LGAResult | null>(null);
 
   useEffect(() => {
@@ -84,6 +85,7 @@ export default function MapPage() {
   const handleRunElection = async () => {
     if (parties.length < 2) return;
     setLoading(true);
+    setError(null);
     try {
       const res = await runElection({
         params: {
@@ -98,7 +100,7 @@ export default function MapPage() {
       });
       setResults(res);
     } catch (e) {
-      console.error('Election failed:', e);
+      setError(e instanceof Error ? e.message : 'Election failed');
     }
     setLoading(false);
   };
@@ -173,6 +175,13 @@ export default function MapPage() {
           </MapContainer>
         )}
 
+        {/* Error overlay */}
+        {error && (
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1001] bg-danger/90 text-white px-4 py-2 rounded-lg text-sm shadow-lg">
+            {error}
+          </div>
+        )}
+
         {/* Controls overlay */}
         <div className="absolute top-4 right-4 bg-bg-secondary/95 backdrop-blur-sm rounded-lg p-3 border border-bg-tertiary/50 z-[1000] shadow-lg shadow-black/20">
           <div className="flex gap-1.5 mb-2.5">
@@ -184,7 +193,7 @@ export default function MapPage() {
             ))}
           </div>
           <button onClick={handleRunElection} disabled={loading || parties.length < 2}
-            className="w-full px-3 py-1.5 text-xs bg-accent rounded-md hover:bg-accent-hover text-white font-medium disabled:opacity-50 shadow-sm shadow-accent/20">
+            className="w-full px-3 py-1.5 text-xs bg-accent rounded-md hover:bg-accent-hover text-bg-primary font-medium disabled:opacity-50 shadow-sm shadow-accent/20 btn-accent">
             {loading ? 'Running...' : results ? 'Re-run Election' : 'Run Election for Map'}
           </button>
         </div>

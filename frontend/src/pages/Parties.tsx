@@ -82,9 +82,13 @@ export default function Parties() {
 
   const handleDelete = async (name: string) => {
     if (!confirm(`Delete party "${name}"?`)) return;
-    await deleteParty(name);
-    if (selected === name) { setSelected(null); setEditing(null); }
-    await loadParties();
+    try {
+      await deleteParty(name);
+      if (selected === name) { setSelected(null); setEditing(null); }
+      await loadParties();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to delete party');
+    }
   };
 
   const handleLoadExamples = async () => {

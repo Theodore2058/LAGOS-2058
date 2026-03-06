@@ -49,8 +49,12 @@ export default function Crises() {
   };
 
   const handleDelete = async (id: number) => {
-    await deleteCrisis(id);
-    setCrises(prev => prev.filter(c => c.id !== id));
+    try {
+      await deleteCrisis(id);
+      setCrises(prev => prev.filter(c => c.id !== id));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to delete crisis');
+    }
   };
 
   const toggleAz = (az: number) => {
@@ -101,7 +105,14 @@ export default function Crises() {
       <div className="flex-1 overflow-y-auto p-6 space-y-4">
         <h2 className="text-2xl font-bold">Crisis Manager</h2>
 
-        {error && <div className="p-3 bg-danger/20 text-danger rounded text-sm">{error}</div>}
+        {error && (
+          <div className="p-3 bg-danger/20 text-danger rounded text-sm flex items-center justify-between border border-danger/30">
+            {error}
+            <button onClick={() => setError(null)} className="text-danger/60 hover:text-danger p-0.5 rounded hover:bg-danger/10 transition-colors shrink-0 ml-2" aria-label="Dismiss error">
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M18 6L6 18M6 6l12 12" /></svg>
+            </button>
+          </div>
+        )}
 
         {/* Template selector */}
         <div>
@@ -176,9 +187,12 @@ export default function Crises() {
           </div>
 
           <button onClick={handleSave}
-            className="px-4 py-2 bg-accent rounded hover:bg-accent-hover text-white text-sm">
+            className="px-4 py-2 bg-accent rounded hover:bg-accent-hover text-bg-primary text-sm font-medium btn-accent">
             Add Crisis to Timeline
           </button>
+          {editing.name && (
+            <p className="text-xs text-text-secondary mt-1">Crisis will fire on turn {editing.turn}</p>
+          )}
         </div>
       </div>
     </div>
