@@ -196,7 +196,30 @@ export default function MapPage() {
             className="w-full px-3 py-1.5 text-xs bg-accent rounded-md hover:bg-accent-hover text-bg-primary font-medium disabled:opacity-50 shadow-sm shadow-accent/20 btn-accent">
             {loading ? 'Running...' : results ? 'Re-run Election' : 'Run Election for Map'}
           </button>
+          {results && (
+            <div className="mt-2 text-[10px] text-text-secondary">
+              {lgaMap.size}/{results.lga_results.length} LGAs mapped
+            </div>
+          )}
         </div>
+
+        {/* Winner Legend */}
+        {results && colorMode === 'winner' && (
+          <div className="absolute bottom-4 right-4 bg-bg-secondary/95 backdrop-blur-sm rounded-lg p-2.5 border border-bg-tertiary/50 z-[1000] shadow-lg shadow-black/20 max-h-48 overflow-y-auto">
+            {Object.entries(
+              results.lga_results.reduce<Record<string, number>>((acc, lga) => {
+                acc[lga.winner] = (acc[lga.winner] ?? 0) + 1;
+                return acc;
+              }, {})
+            ).sort((a, b) => b[1] - a[1]).map(([name, count]) => (
+              <div key={name} className="flex items-center gap-1.5 py-0.5 text-[10px]">
+                <div className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ backgroundColor: getColor(name) }} />
+                <span className="font-medium w-10" style={{ color: getColor(name) }}>{name}</span>
+                <span className="text-text-secondary">{count}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* LGA detail panel */}
