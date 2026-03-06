@@ -609,13 +609,39 @@ export default function Campaign() {
         </div>
       )}
 
+      {/* Campaign Summary Stats */}
+      {history.length >= 2 && (
+        <div className="flex items-center gap-4 bg-bg-secondary rounded-lg px-4 py-2.5 border border-bg-tertiary/50 text-xs">
+          <span className="text-text-secondary/50 uppercase tracking-wider text-[10px] font-medium">Campaign</span>
+          <span className="text-text-secondary">
+            {history.reduce((s, h) => s + h.actions_resolved.length, 0)} actions
+          </span>
+          <span className="text-text-secondary">
+            {history.reduce((s, h) => s + h.actions_resolved.reduce((a, r) => a + Number((r as Record<string, unknown>).cost ?? 0), 0), 0)} PC spent
+          </span>
+          {history.reduce((s, h) => s + h.synergies.length, 0) > 0 && (
+            <span className="text-success">
+              {history.reduce((s, h) => s + h.synergies.length, 0)} synergies
+            </span>
+          )}
+          {history.reduce((s, h) => s + h.scandals.length, 0) > 0 && (
+            <span className="text-danger">
+              {history.reduce((s, h) => s + h.scandals.length, 0)} scandals
+            </span>
+          )}
+          <span className="text-text-secondary ml-auto">
+            Turnout: {(history[0].national_turnout * 100).toFixed(1)}% → {(history[history.length - 1].national_turnout * 100).toFixed(1)}%
+          </span>
+        </div>
+      )}
+
       {/* Turn History */}
       {history.length > 0 && (
         <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50">
           <h3 className="text-sm font-semibold mb-2">Turn History</h3>
           <div className="space-y-0">
             {history.map((h, i) => (
-              <TurnHistoryRow key={i} result={h} parties={parties} defaultExpanded={i === history.length - 1} />
+              <TurnHistoryRow key={i} result={h} prevResult={i > 0 ? history[i - 1] : null} parties={parties} defaultExpanded={i === history.length - 1} />
             ))}
           </div>
         </div>
@@ -639,7 +665,7 @@ export default function Campaign() {
   );
 }
 
-function TurnHistoryRow({ result: h, parties, defaultExpanded }: { result: TurnResult; parties: Party[]; defaultExpanded: boolean }) {
+function TurnHistoryRow({ result: h, prevResult, parties, defaultExpanded }: { result: TurnResult; prevResult: TurnResult | null; parties: Party[]; defaultExpanded: boolean }) {
   const [expanded, setExpanded] = useState(defaultExpanded);
   const sorted = Object.entries(h.national_vote_shares).sort((a, b) => b[1] - a[1]);
   const actionsByParty = (h.actions_resolved as { party: string; action_type: string; cost: number }[]).reduce<
@@ -652,6 +678,11 @@ function TurnHistoryRow({ result: h, parties, defaultExpanded }: { result: TurnR
   }, {});
   const totalActions = h.actions_resolved.length;
   const hasEvents = h.scandals.length > 0 || h.synergies.length > 0;
+  const totalPC = h.actions_resolved.reduce((s, a) => s + Number((a as Record<string, unknown>).cost ?? 0), 0);
+
+  // Phase from state context
+  const phaseMap: Record<number, string> = { 1: 'FDN', 2: 'FDN', 3: 'FDN', 4: 'EXP', 5: 'EXP', 6: 'EXP', 7: 'INT', 8: 'INT', 9: 'INT', 10: 'FIN', 11: 'FIN', 12: 'FIN' };
+  const phaseTag = phaseMap[h.turn] ?? '';
 
   return (
     <div className="border-b border-bg-tertiary/30">
@@ -660,21 +691,30 @@ function TurnHistoryRow({ result: h, parties, defaultExpanded }: { result: TurnR
         <svg className={`w-3 h-3 text-text-secondary shrink-0 transition-transform ${expanded ? 'rotate-90' : ''}`}
           viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M9 18l6-6-6-6" /></svg>
         <span className="text-xs font-mono w-14 text-accent font-semibold shrink-0">Turn {h.turn}</span>
+        {phaseTag && <span className="text-[9px] font-mono text-text-secondary/40 w-6 shrink-0">{phaseTag}</span>}
         <span className="text-xs text-text-secondary shrink-0">{(h.national_turnout * 100).toFixed(1)}%</span>
         <span className="text-xs flex-1 truncate">
-          {sorted.slice(0, 4).map(([name, share]) => (
-            <span key={name} className="mr-2" style={{ color: parties.find(p => p.name === name)?.color }}>
-              {name} {(share * 100).toFixed(1)}%
-            </span>
-          ))}
+          {sorted.slice(0, 4).map(([name, share]) => {
+            const delta = prevResult ? (share - (prevResult.national_vote_shares[name] ?? 0)) * 100 : 0;
+            return (
+              <span key={name} className="mr-2" style={{ color: parties.find(p => p.name === name)?.color }}>
+                {name} {(share * 100).toFixed(1)}%
+                {prevResult && Math.abs(delta) >= 0.05 && (
+                  <span className={`text-[9px] ${delta > 0 ? 'text-success' : 'text-danger'}`}>
+                    {delta > 0 ? '+' : ''}{delta.toFixed(1)}
+                  </span>
+                )}
+              </span>
+            );
+          })}
         </span>
         {totalActions > 0 && (
-          <span className="text-[10px] text-text-secondary shrink-0">{totalActions} action{totalActions > 1 ? 's' : ''}</span>
+          <span className="text-[10px] text-text-secondary shrink-0">{totalActions} act{totalActions > 1 ? 's' : ''} ({totalPC} PC)</span>
         )}
         {hasEvents && (
           <span className="text-[10px] shrink-0">
-            {h.scandals.length > 0 && <span className="text-danger mr-1">{h.scandals.length} scandal{h.scandals.length > 1 ? 's' : ''}</span>}
-            {h.synergies.length > 0 && <span className="text-success">{h.synergies.length} synergy</span>}
+            {h.scandals.length > 0 && <span className="text-danger mr-1">{h.scandals.length}scn</span>}
+            {h.synergies.length > 0 && <span className="text-success">{h.synergies.length}syn</span>}
           </span>
         )}
       </button>
@@ -737,15 +777,32 @@ function TurnHistoryRow({ result: h, parties, defaultExpanded }: { result: TurnR
               })}
             </div>
           )}
-          {/* Full vote shares */}
+          {/* Full vote shares with deltas */}
           <div>
             <div className="text-[10px] text-text-secondary uppercase tracking-wider mb-1">All Vote Shares</div>
             <div className="flex flex-wrap gap-x-3 gap-y-0.5">
-              {sorted.map(([name, share]) => (
-                <span key={name} className="text-xs font-mono" style={{ color: parties.find(p => p.name === name)?.color ?? '#888' }}>
-                  {name} {(share * 100).toFixed(1)}%
-                </span>
-              ))}
+              {sorted.map(([name, share]) => {
+                const prevShare = prevResult?.national_vote_shares[name] ?? 0;
+                const delta = prevResult ? (share - prevShare) * 100 : 0;
+                const prevSeats = prevResult?.seat_counts[name] ?? 0;
+                const seats = h.seat_counts[name] ?? 0;
+                const seatDelta = prevResult ? Math.round(seats) - Math.round(prevSeats) : 0;
+                return (
+                  <span key={name} className="text-xs font-mono" style={{ color: parties.find(p => p.name === name)?.color ?? '#888' }}>
+                    {name} {(share * 100).toFixed(1)}%
+                    {prevResult && Math.abs(delta) >= 0.05 && (
+                      <span className={`text-[9px] ml-0.5 ${delta > 0 ? 'text-success' : 'text-danger'}`}>
+                        ({delta > 0 ? '+' : ''}{delta.toFixed(1)})
+                      </span>
+                    )}
+                    {prevResult && seatDelta !== 0 && (
+                      <span className={`text-[9px] ml-0.5 ${seatDelta > 0 ? 'text-success' : 'text-danger'}`}>
+                        {seatDelta > 0 ? '+' : ''}{seatDelta}s
+                      </span>
+                    )}
+                  </span>
+                );
+              })}
             </div>
           </div>
         </div>
