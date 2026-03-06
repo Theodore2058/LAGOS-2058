@@ -4,6 +4,7 @@ import { fetchParties, createParty, updateParty, deleteParty, loadExampleParties
 import { fetchIssueNames, fetchEthnicGroups, fetchReligiousGroups, fetchAdminZones } from '../api/config';
 import PartyForm from '../components/PartyForm';
 import PartyComparison from '../components/PartyComparison';
+import ErrorBanner from '../components/ErrorBanner';
 import { useToast } from '../components/Toast';
 import ConfirmModal from '../components/ConfirmModal';
 
@@ -237,7 +238,7 @@ export default function Parties() {
             className={`px-4 py-2 text-sm ${tab === 'compare' ? 'border-b-2 border-accent text-accent' : 'text-text-secondary'}`}>Compare</button>
         </div>
 
-        {error && <div className="mx-4 mt-2 p-2 bg-danger/20 text-danger text-sm rounded flex items-center justify-between border border-danger/30">{error}<button onClick={() => setError(null)} className="text-danger/60 hover:text-danger p-0.5 rounded hover:bg-danger/10 transition-colors shrink-0 ml-2" aria-label="Dismiss error"><svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M18 6L6 18M6 6l12 12" /></svg></button></div>}
+        {error && <div className="mx-4 mt-2"><ErrorBanner message={error} onDismiss={() => setError(null)} /></div>}
 
         <div className="p-4">
           {tab === 'editor' && editing && (

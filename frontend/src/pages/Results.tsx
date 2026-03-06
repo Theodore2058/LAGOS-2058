@@ -4,6 +4,8 @@ import type { Party } from '../types';
 import { fetchParties } from '../api/parties';
 import { getCampaignHistory } from '../api/campaign';
 import type { TurnResult } from '../api/campaign';
+import LoadingSpinner from '../components/LoadingSpinner';
+import EmptyState from '../components/EmptyState';
 
 export default function Results() {
   const [parties, setParties] = useState<Party[]>([]);
@@ -60,20 +62,13 @@ export default function Results() {
       <div className="p-8 max-w-2xl">
         <h2 className="text-2xl font-bold mb-6">Campaign Results</h2>
         {loading ? (
-          <div className="flex items-center justify-center py-16">
-            <div className="text-center">
-              <div className="animate-spin w-10 h-10 border-[3px] border-accent/30 border-t-accent rounded-full mx-auto mb-4" />
-              <p className="text-text-secondary font-medium">Loading campaign data...</p>
-            </div>
-          </div>
+          <LoadingSpinner message="Loading campaign data..." size="md" />
         ) : (
-          <div className="bg-bg-secondary rounded-lg p-8 border border-bg-tertiary/50 text-center">
-            <svg className="w-12 h-12 text-text-secondary/40 mx-auto mb-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
-              <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" />
-            </svg>
-            <p className="text-text-secondary mb-1">No campaign data available</p>
-            <p className="text-xs text-text-secondary/60">Run a campaign from the Campaign page to see results here.</p>
-          </div>
+          <EmptyState
+            icon="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"
+            title="No campaign data available"
+            description="Run a campaign from the Campaign page to see results here."
+          />
         )}
       </div>
     );

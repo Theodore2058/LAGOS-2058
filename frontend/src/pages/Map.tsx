@@ -174,7 +174,12 @@ export default function MapPage() {
     <div className="flex h-full">
       <div className="flex-1 relative">
         {!geoData ? (
-          <div className="flex items-center justify-center h-full text-text-secondary">Loading map data...</div>
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center">
+              <div className="animate-spin w-8 h-8 border-2 border-accent border-t-transparent rounded-full mx-auto mb-3" />
+              <p className="text-sm text-text-secondary">Loading map data...</p>
+            </div>
+          </div>
         ) : (
           <MapContainer center={[9.05, 7.49]} zoom={6} style={{ height: '100%', width: '100%', background: '#0f172a' }}>
             <TileLayer
@@ -187,8 +192,11 @@ export default function MapPage() {
 
         {/* Error overlay */}
         {error && (
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1001] bg-danger/90 text-white px-4 py-2 rounded-lg text-sm shadow-lg">
-            {error}
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1001] bg-danger/20 border border-danger/30 backdrop-blur-sm text-danger px-4 py-2 rounded-lg text-sm shadow-lg flex items-center gap-2">
+            <span>{error}</span>
+            <button onClick={() => setError(null)} className="text-danger/60 hover:text-danger p-0.5 rounded hover:bg-danger/10 transition-colors shrink-0" aria-label="Dismiss error">
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M18 6L6 18M6 6l12 12" /></svg>
+            </button>
           </div>
         )}
 

@@ -4,6 +4,8 @@ import { fetchParties } from '../api/parties';
 import { runElection } from '../api/election';
 import { ParamsEditor, DEFAULT_PARAMS } from './Params';
 import ElectionDashboard from '../components/ElectionDashboard';
+import LoadingSpinner from '../components/LoadingSpinner';
+import ErrorBanner from '../components/ErrorBanner';
 import { useToast } from '../components/Toast';
 import { useKeyboard } from '../hooks/useKeyboard';
 
@@ -103,14 +105,7 @@ export default function Election() {
         <span className="text-text-secondary/30 ml-auto font-mono text-[10px]">Ctrl+Enter</span>
       </div>
 
-      {error && (
-        <div className="p-3 bg-danger/20 text-danger rounded-md text-sm border border-danger/30 flex items-center justify-between">
-          {error}
-          <button onClick={() => setError(null)} className="text-danger/60 hover:text-danger p-0.5 rounded hover:bg-danger/10 transition-colors shrink-0 ml-2" aria-label="Dismiss error">
-            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M18 6L6 18M6 6l12 12" /></svg>
-          </button>
-        </div>
-      )}
+      {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
 
       {showParams && (
         <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50">
@@ -118,15 +113,7 @@ export default function Election() {
         </div>
       )}
 
-      {loading && (
-        <div className="flex items-center justify-center py-20">
-          <div className="text-center">
-            <div className="animate-spin w-10 h-10 border-[3px] border-accent/30 border-t-accent rounded-full mx-auto mb-4" />
-            <p className="text-text-secondary font-medium">Running election simulation...</p>
-            <p className="text-xs text-text-secondary mt-1">{params.n_monte_carlo} MC runs &times; {parties.length} parties &times; 774 LGAs</p>
-          </div>
-        </div>
-      )}
+      {loading && <LoadingSpinner message={`Running ${params.n_monte_carlo} MC runs × ${parties.length} parties × 774 LGAs...`} size="lg" />}
 
       {results && !loading && <ElectionDashboard results={results} parties={parties} />}
 
