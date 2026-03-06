@@ -146,32 +146,63 @@ export default function Scenarios() {
           </div>
 
           {comparison && (
-            <div>
-              <h4 className="text-xs text-text-secondary mb-1">Vote Share Delta</h4>
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="border-b border-bg-tertiary">
-                    <th className="text-left py-1">Party</th>
-                    <th className="text-right py-1">{comparison.scenario_a}</th>
-                    <th className="text-right py-1">{comparison.scenario_b}</th>
-                    <th className="text-right py-1">Delta</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {Object.entries(comparison.delta)
-                    .sort((a, b) => Math.abs(b[1].diff) - Math.abs(a[1].diff))
-                    .map(([party, d]) => (
-                      <tr key={party} className="border-b border-bg-tertiary/30">
-                        <td className="py-0.5">{party}</td>
-                        <td className="text-right">{(d.a * 100).toFixed(1)}%</td>
-                        <td className="text-right">{(d.b * 100).toFixed(1)}%</td>
-                        <td className={`text-right ${d.diff > 0 ? 'text-success' : d.diff < 0 ? 'text-danger' : ''}`}>
-                          {d.diff > 0 ? '+' : ''}{(d.diff * 100).toFixed(2)}%
-                        </td>
+            <div className="space-y-4">
+              <div>
+                <h4 className="text-xs text-text-secondary mb-1">Vote Share Delta</h4>
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-bg-tertiary">
+                      <th className="text-left py-1">Party</th>
+                      <th className="text-right py-1">{comparison.scenario_a}</th>
+                      <th className="text-right py-1">{comparison.scenario_b}</th>
+                      <th className="text-right py-1">Delta</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Object.entries(comparison.delta)
+                      .sort((a, b) => Math.abs(b[1].diff) - Math.abs(a[1].diff))
+                      .map(([party, d]) => (
+                        <tr key={party} className="border-b border-bg-tertiary/30">
+                          <td className="py-0.5">{party}</td>
+                          <td className="text-right">{(d.a * 100).toFixed(1)}%</td>
+                          <td className="text-right">{(d.b * 100).toFixed(1)}%</td>
+                          <td className={`text-right font-mono ${d.diff > 0 ? 'text-success' : d.diff < 0 ? 'text-danger' : ''}`}>
+                            {d.diff > 0 ? '+' : ''}{(d.diff * 100).toFixed(2)}%
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+              {comparison.seat_delta && Object.keys(comparison.seat_delta).length > 0 && (
+                <div>
+                  <h4 className="text-xs text-text-secondary mb-1">Seat Delta</h4>
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b border-bg-tertiary">
+                        <th className="text-left py-1">Party</th>
+                        <th className="text-right py-1">{comparison.scenario_a}</th>
+                        <th className="text-right py-1">{comparison.scenario_b}</th>
+                        <th className="text-right py-1">Delta</th>
                       </tr>
-                    ))}
-                </tbody>
-              </table>
+                    </thead>
+                    <tbody>
+                      {Object.entries(comparison.seat_delta)
+                        .sort((a, b) => Math.abs(b[1].diff) - Math.abs(a[1].diff))
+                        .map(([party, d]) => (
+                          <tr key={party} className="border-b border-bg-tertiary/30">
+                            <td className="py-0.5">{party}</td>
+                            <td className="text-right">{Math.round(d.a)}</td>
+                            <td className="text-right">{Math.round(d.b)}</td>
+                            <td className={`text-right font-mono ${d.diff > 0 ? 'text-success' : d.diff < 0 ? 'text-danger' : ''}`}>
+                              {d.diff > 0 ? '+' : ''}{Math.round(d.diff)}
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           )}
         </div>

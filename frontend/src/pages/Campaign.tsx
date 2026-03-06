@@ -8,6 +8,7 @@ import type { CampaignStateResponse, TurnResult, PartyStatus } from '../api/camp
 import { fetchTemplates } from '../api/crises';
 import type { CrisisTemplate } from '../api/crises';
 import { LineChart, Line, BarChart, Bar, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { saveScenario } from '../api/scenarios';
 import ActionBuilder from '../components/ActionBuilder';
 
 function computeQueuedActionCost(a: ActionInput, actionTypes: ActionType[]): number {
@@ -63,6 +64,7 @@ export default function Campaign() {
   const [showBuilder, setShowBuilder] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [saveMsg, setSaveMsg] = useState<string | null>(null);
 
   useEffect(() => {
     fetchParties().then(setParties).catch(e => console.error('Failed to fetch parties:', e));
@@ -116,6 +118,17 @@ export default function Campaign() {
       setError(e instanceof Error ? e.message : 'Turn failed');
     }
     setLoading(false);
+  };
+
+  const handleSave = async () => {
+    const name = `Campaign T${campaignState?.turn ?? 0} - ${new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`;
+    try {
+      await saveScenario(name);
+      setSaveMsg(`Saved as "${name}"`);
+      setTimeout(() => setSaveMsg(null), 3000);
+    } catch {
+      setError('Failed to save campaign');
+    }
   };
 
   const removeAction = (idx: number) => {
@@ -217,10 +230,16 @@ export default function Campaign() {
               );
             })}
           </div>
-          <button onClick={() => { setCampaignState(null); setHistory([]); setActions([]); }}
-            className="mt-3 px-4 py-1.5 text-sm bg-bg-tertiary rounded hover:bg-bg-tertiary/80">
-            New Campaign
-          </button>
+          <div className="flex gap-2 mt-3">
+            <button onClick={handleSave}
+              className="px-4 py-1.5 text-sm bg-accent rounded hover:bg-accent-hover text-bg-primary font-medium btn-accent">
+              Save to Scenarios
+            </button>
+            <button onClick={() => { setCampaignState(null); setHistory([]); setActions([]); }}
+              className="px-4 py-1.5 text-sm bg-bg-tertiary rounded hover:bg-bg-tertiary/80">
+              New Campaign
+            </button>
+          </div>
         </div>
       )}
 
@@ -238,7 +257,12 @@ export default function Campaign() {
               )}
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
+            {saveMsg && <span className="text-xs text-success mr-1">{saveMsg}</span>}
+            <button onClick={handleSave} title="Save campaign to scenarios"
+              className="px-2 py-1.5 text-sm bg-bg-tertiary rounded hover:bg-bg-tertiary/80" aria-label="Save campaign">
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" /></svg>
+            </button>
             <button onClick={() => {
                 const next = !showBuilder;
                 setShowBuilder(next);
