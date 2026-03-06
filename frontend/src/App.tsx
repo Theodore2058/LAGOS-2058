@@ -9,6 +9,7 @@ import Crises from './pages/Crises';
 import Results from './pages/Results';
 import MapPage from './pages/Map';
 import Scenarios from './pages/Scenarios';
+import CheatSheet from './components/CheatSheet';
 
 export default function App() {
   return (
@@ -28,6 +29,7 @@ export default function App() {
             <Route path="/scenarios" element={<Scenarios />} />
           </Routes>
         </main>
+        <CheatSheet />
       </div>
     </BrowserRouter>
   );
