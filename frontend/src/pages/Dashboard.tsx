@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api/client';
 import { fetchParties } from '../api/parties';
+import type { Party } from '../types';
 import { getCampaignState } from '../api/campaign';
 import type { CampaignStateResponse } from '../api/campaign';
 
@@ -15,8 +16,11 @@ const QUICK_START = [
 ];
 
 const SHORTCUTS = [
+  { key: '1-9', desc: 'Navigate pages' },
+  { key: '?', desc: 'GM Cheat Sheet' },
+  { key: 'Esc', desc: 'Close dialogs' },
+  { key: 'Ctrl+Enter', desc: 'Run election / advance turn' },
   { key: 'Ctrl+S', desc: 'Save campaign' },
-  { key: 'Ctrl+Enter', desc: 'Submit turn / Run election' },
 ];
 
 const MODEL_STATS = [
@@ -32,18 +36,17 @@ const MODEL_STATS = [
 
 export default function Dashboard() {
   const [health, setHealth] = useState<string>('checking...');
-  const [partyCount, setPartyCount] = useState(0);
+  const [parties, setParties] = useState<Party[]>([]);
   const [campaign, setCampaign] = useState<CampaignStateResponse | null>(null);
-  const [partyColors, setPartyColors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     api.get('/health').then(r => setHealth(r.data.status)).catch(() => setHealth('offline'));
-    fetchParties().then(p => {
-      setPartyCount(p.length);
-      setPartyColors(Object.fromEntries(p.map(pp => [pp.name, pp.color])));
-    }).catch(e => console.error('Failed to fetch parties:', e));
+    fetchParties().then(setParties).catch(e => console.error('Failed to fetch parties:', e));
     getCampaignState().then(setCampaign).catch(() => {});
   }, []);
+
+  const partyColors: Record<string, string> = Object.fromEntries(parties.map(p => [p.name, p.color]));
+  const partyCount = parties.length;
 
   return (
     <div className="p-8 max-w-5xl">
@@ -123,6 +126,26 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* Party Strip */}
+      {parties.length > 0 && (
+        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/40 mb-8">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-[10px] font-semibold uppercase tracking-[0.12em] text-text-secondary">{parties.length} Parties Loaded</h3>
+            <Link to="/parties" className="text-[10px] text-accent hover:underline font-medium">Edit &rarr;</Link>
+          </div>
+          <div className="flex gap-1">
+            {parties.map(p => (
+              <div key={p.name} className="flex-1 group/strip relative" title={`${p.name}${p.full_name ? ` — ${p.full_name}` : ''}`}>
+                <div className="h-2 rounded-sm transition-all group-hover/strip:h-4" style={{ backgroundColor: p.color }} />
+                <span className="absolute -bottom-4 left-1/2 -translate-x-1/2 text-[8px] font-mono text-text-secondary/50 opacity-0 group-hover/strip:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                  {p.name}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Quick Start */}
       <div className="bg-bg-secondary rounded-lg p-6 border border-bg-tertiary/40 mb-8">
         <h3 className="text-[10px] font-semibold mb-4 uppercase tracking-[0.12em] text-text-secondary">Quick Start</h3>
@@ -166,10 +189,10 @@ export default function Dashboard() {
         {/* Shortcuts & Tips */}
         <div className="bg-bg-secondary rounded-lg p-5 border border-bg-tertiary/40">
           <h3 className="text-[10px] font-semibold text-text-primary mb-4 uppercase tracking-[0.12em]">Keyboard Shortcuts</h3>
-          <div className="space-y-2">
+          <div className="grid grid-cols-2 gap-2">
             {SHORTCUTS.map(s => (
-              <div key={s.key} className="flex items-center gap-3">
-                <kbd className="px-2 py-0.5 bg-bg-tertiary rounded text-xs font-mono text-accent border border-bg-quaternary/50 shrink-0">{s.key}</kbd>
+              <div key={s.key} className="flex items-center gap-2">
+                <kbd className="px-1.5 py-0.5 bg-bg-tertiary rounded text-[10px] font-mono text-accent border border-bg-quaternary/30 min-w-[3.5rem] text-center shrink-0">{s.key}</kbd>
                 <span className="text-xs text-text-secondary">{s.desc}</span>
               </div>
             ))}
@@ -177,10 +200,10 @@ export default function Dashboard() {
           <div className="mt-5 pt-4 border-t border-bg-tertiary/30">
             <h4 className="text-[10px] font-semibold text-text-primary mb-2 uppercase tracking-[0.12em]">Tips</h4>
             <div className="space-y-1.5 text-xs text-text-secondary">
-              <p>Press the <span className="text-accent font-medium">?</span> button for the GM Cheat Sheet</p>
               <p>Campaign turns auto-save to history for the Results page</p>
               <p>Use the Map page to visualize geographic patterns</p>
               <p>Export CSV from Results for external analysis</p>
+              <p>Save scenarios to compare different campaign strategies</p>
             </div>
           </div>
         </div>
