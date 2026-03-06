@@ -369,10 +369,17 @@ def test_pc_costs_defined_for_all_actions():
 
 
 def test_pc_cost_advertising_surcharge():
-    """Advertising cost scales with budget parameter."""
-    assert compute_action_cost("advertising", {"budget": 1.0}) == 2
-    assert compute_action_cost("advertising", {"budget": 1.6}) == 3
-    assert compute_action_cost("advertising", {"budget": 2.5}) == 4
+    """Advertising cost scales with budget parameter and area targeting."""
+    # Single AZ targeting (base cost, no area surcharge)
+    assert compute_action_cost("advertising", {"budget": 1.0}, n_target_azs=1) == 2
+    assert compute_action_cost("advertising", {"budget": 1.6}, n_target_azs=1) == 3
+    assert compute_action_cost("advertising", {"budget": 2.5}, n_target_azs=1) == 4
+    # TV medium adds +1 PC
+    assert compute_action_cost("advertising", {"budget": 1.0, "medium": "tv"}, n_target_azs=1) == 3
+    # Multi-AZ adds surcharge
+    assert compute_action_cost("advertising", {"budget": 1.0}, n_target_azs=3) == 4  # base 2 + 2 AZs extra
+    # National (0 AZs) = base + 3
+    assert compute_action_cost("advertising", {"budget": 1.0}, n_target_azs=0) == 5  # base 2 + 3 national
 
 
 def test_pc_hoarding_cap():
@@ -394,16 +401,20 @@ def test_pc_hoarding_cap():
 def test_pc_insufficient_skips_action():
     """Actions exceeding PC balance are skipped."""
     config = _make_config(n_parties=2, tau_0=1.0)
-    # Give P0 very little PC so it can't afford patronage (cost=4)
+    # Give P0 very little PC so it can't afford patronage
+    # Patronage base=3, targeting 1 LGA = no area surcharge, scale=1.0 = no param surcharge
+    # Total cost = 3
+    target_lga = np.zeros(774, dtype=bool)
+    target_lga[0] = True
     turns = [
-        [ActionSpec(party="P0", action_type="patronage", params={"scale": 1.0})],
+        [ActionSpec(party="P0", action_type="patronage", target_lgas=target_lga, params={"scale": 1.0})],
     ]
     results = run_campaign(
         DATA_PATH, config, turns=turns, seed=42, verbose=False,
         enforce_pc=True, initial_pc={"P0": 1.0, "P1": 10.0},
     )
-    # P0 starts at 1, gets 7 income = 8. Patronage costs 4. 8-4=4.
-    assert results[0]["pc_state"]["P0"] == 4.0
+    # P0 starts at 1, gets 7 income = 8. Patronage costs 3. 8-3=5.
+    assert results[0]["pc_state"]["P0"] == 5.0
 
 
 @pytest.mark.slow
@@ -437,31 +448,36 @@ def test_pc_disabled_legacy_mode():
 
 
 def test_pc_variable_costs():
-    """Variable PC costs scale with action parameters."""
+    """Variable PC costs scale with action parameters (single-target, no area surcharge)."""
     from election_engine.campaign_actions import compute_action_cost
 
-    # Advertising surcharges
-    assert compute_action_cost("advertising", {"budget": 1.0}) == 2
-    assert compute_action_cost("advertising", {"budget": 1.6}) == 3
-    assert compute_action_cost("advertising", {"budget": 2.5}) == 4
+    # Advertising surcharges (1 AZ = no area surcharge)
+    assert compute_action_cost("advertising", {"budget": 1.0}, n_target_azs=1) == 2
+    assert compute_action_cost("advertising", {"budget": 1.6}, n_target_azs=1) == 3
+    assert compute_action_cost("advertising", {"budget": 2.5}, n_target_azs=1) == 4
 
-    # Ground game surcharges
-    assert compute_action_cost("ground_game", {"intensity": 1.0}) == 3
-    assert compute_action_cost("ground_game", {"intensity": 1.2}) == 4
-    assert compute_action_cost("ground_game", {"intensity": 2.0}) == 5
+    # Ground game surcharges (1 LGA = no area surcharge)
+    assert compute_action_cost("ground_game", {"intensity": 1.0}, n_target_lgas=1) == 3
+    assert compute_action_cost("ground_game", {"intensity": 1.2}, n_target_lgas=1) == 4
+    assert compute_action_cost("ground_game", {"intensity": 2.0}, n_target_lgas=1) == 5
 
-    # Rally surcharge for high gm_score
-    assert compute_action_cost("rally", {"gm_score": 7.0}) == 2
-    assert compute_action_cost("rally", {"gm_score": 9.0}) == 3
+    # Rally surcharge for high gm_score (1 LGA)
+    assert compute_action_cost("rally", {"gm_score": 7.0}, n_target_lgas=1) == 2
+    assert compute_action_cost("rally", {"gm_score": 9.0}, n_target_lgas=1) == 3
 
-    # Patronage surcharge (base 3, +1 at scale>1.5, +2 at scale>2.0)
-    assert compute_action_cost("patronage", {"scale": 1.0}) == 3
-    assert compute_action_cost("patronage", {"scale": 1.6}) == 4
-    assert compute_action_cost("patronage", {"scale": 2.5}) == 5
+    # Patronage surcharge (base 3, +1 at scale>1.5, +2 at scale>2.0) (1 LGA)
+    assert compute_action_cost("patronage", {"scale": 1.0}, n_target_lgas=1) == 3
+    assert compute_action_cost("patronage", {"scale": 1.6}, n_target_lgas=1) == 4
+    assert compute_action_cost("patronage", {"scale": 2.5}, n_target_lgas=1) == 5
 
-    # ETO engagement surcharge
-    assert compute_action_cost("eto_engagement", {"score_change": 3.0}) == 3
-    assert compute_action_cost("eto_engagement", {"score_change": 4.0}) == 4
+    # ETO engagement surcharge (1 LGA)
+    assert compute_action_cost("eto_engagement", {"score_change": 3.0}, n_target_lgas=1) == 3
+    assert compute_action_cost("eto_engagement", {"score_change": 4.0}, n_target_lgas=1) == 4
+
+    # Area surcharge: LGA-scope national = base + 3
+    assert compute_action_cost("rally", {"gm_score": 5.0}, n_target_lgas=0) == 5  # 2 + 3
+    # Area surcharge: LGA-scope 30 LGAs = base + 1
+    assert compute_action_cost("rally", {"gm_score": 5.0}, n_target_lgas=30) == 3  # 2 + 1
 
 
 @pytest.mark.slow

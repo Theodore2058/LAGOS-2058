@@ -2,31 +2,7 @@ import { useState, useMemo } from 'react';
 import type { LGAInfo } from '../api/config';
 import { ADMIN_ZONES } from '../types';
 
-/**
- * Targeting granularity per action type.
- * - 'lga': local actions — pick individual LGAs (rally, ground_game, patronage, etc.)
- * - 'regional': broad-reach actions — pick states or AZs (advertising, media, endorsement)
- * - 'none': national actions — no geographic targeting (manifesto, fundraising, etc.)
- */
 export type TargetScope = 'lga' | 'regional' | 'none';
-
-export const ACTION_TARGET_SCOPE: Record<string, TargetScope> = {
-  rally: 'lga',
-  ground_game: 'lga',
-  patronage: 'lga',
-  ethnic_mobilization: 'lga',
-  eto_engagement: 'lga',
-  crisis_response: 'lga',
-  advertising: 'regional',
-  media: 'regional',
-  endorsement: 'regional',
-  manifesto: 'none',
-  fundraising: 'none',
-  opposition_research: 'none',
-  pledge: 'none',
-  poll: 'none',
-  eto_intelligence: 'none',
-};
 
 interface Props {
   lgas: LGAInfo[];

@@ -193,6 +193,9 @@ class CampaignSession:
             params = dict(ai.parameters)
             if ai.target_party:
                 params["target_party"] = ai.target_party
+            # Store targeting metadata for cost computation in validate_and_deduct_pc
+            if ai.target_azs:
+                params["_n_target_azs"] = len(ai.target_azs)
 
             spec = ActionSpec(
                 party=ai.party,
@@ -202,10 +205,17 @@ class CampaignSession:
                 params=params,
             )
             turn_actions.append(spec)
+
+            # Compute cost including area scaling
+            n_target_lgas = int(target.sum()) if target is not None else 0
+            n_target_azs = len(ai.target_azs) if ai.target_azs else 0
             actions_log.append({
                 "party": ai.party,
                 "action_type": ai.action_type,
-                "cost": compute_action_cost(ai.action_type, params),
+                "cost": compute_action_cost(
+                    ai.action_type, params,
+                    n_target_lgas=n_target_lgas, n_target_azs=n_target_azs,
+                ),
             })
 
         # Validate PC

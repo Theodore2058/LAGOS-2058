@@ -7,6 +7,46 @@ import { newCampaign, advanceTurn } from '../api/campaign';
 import type { CampaignStateResponse, TurnResult, PartyStatus } from '../api/campaign';
 import ActionBuilder from '../components/ActionBuilder';
 
+function computeQueuedActionCost(a: ActionInput, actionTypes: ActionType[]): number {
+  const at = actionTypes.find(t => t.name === a.action_type);
+  if (!at) return 0;
+  let cost = at.base_cost;
+  const scope = at.scope;
+  const nLGAs = a.target_lgas?.length ?? 0;
+  const nAZs = a.target_azs?.length ?? 0;
+
+  // Area surcharge
+  if (scope === 'lga') {
+    if (nLGAs === 0) cost += 3;
+    else if (nLGAs > 10) cost += Math.min(5, Math.ceil((nLGAs - 10) / 20));
+  } else if (scope === 'regional') {
+    if (nAZs === 0) cost += 3;
+    else if (nAZs > 1) cost += nAZs - 1;
+  }
+
+  // Param surcharges
+  const p = a.parameters;
+  if (a.action_type === 'advertising') {
+    const budget = (p.budget as number) ?? 1.0;
+    if (budget > 2.0) cost += 2;
+    else if (budget > 1.5) cost += 1;
+    if ((p.medium as string) === 'tv') cost += 1;
+  } else if (a.action_type === 'ground_game') {
+    const intensity = (p.intensity as number) ?? 1.0;
+    if (intensity > 1.5) cost += 2;
+    else if (intensity > 1.0) cost += 1;
+  } else if (a.action_type === 'patronage') {
+    const scale = (p.scale as number) ?? 1.0;
+    if (scale > 2.0) cost += 2;
+    else if (scale > 1.5) cost += 1;
+  } else if (a.action_type === 'eto_engagement') {
+    if (((p.score_change as number) ?? 1.0) > 3.0) cost += 1;
+  } else if (a.action_type === 'poll') {
+    cost = Math.max(1, Math.min(5, (p.poll_tier as number) ?? 1));
+  }
+  return cost;
+}
+
 export default function Campaign() {
   const [parties, setParties] = useState<Party[]>([]);
   const [actionTypes, setActionTypes] = useState<ActionType[]>([]);
@@ -68,8 +108,7 @@ export default function Campaign() {
   };
 
   const totalPCByParty = actions.reduce<Record<string, number>>((acc, a) => {
-    const cost = actionTypes.find(at => at.name === a.action_type)?.base_cost ?? 0;
-    acc[a.party] = (acc[a.party] ?? 0) + cost;
+    acc[a.party] = (acc[a.party] ?? 0) + computeQueuedActionCost(a, actionTypes);
     return acc;
   }, {});
 
@@ -159,10 +198,10 @@ export default function Campaign() {
           {/* Group by party */}
           {Object.entries(
             actions.reduce<Record<string, { actions: { action: ActionInput; idx: number }[]; totalCost: number }>>((acc, a, i) => {
-              const cost = actionTypes.find(at => at.name === a.action_type)?.base_cost ?? 0;
+              const actionCost = computeQueuedActionCost(a, actionTypes);
               if (!acc[a.party]) acc[a.party] = { actions: [], totalCost: 0 };
               acc[a.party].actions.push({ action: a, idx: i });
-              acc[a.party].totalCost += cost;
+              acc[a.party].totalCost += actionCost;
               return acc;
             }, {})
           ).map(([partyName, group]) => {
@@ -188,7 +227,7 @@ export default function Campaign() {
                       <span className="text-text-secondary text-[10px]">AZ: {a.target_azs.join(',')}</span>
                     )}
                     <span className="text-text-secondary font-mono w-10 text-right">
-                      {actionTypes.find(at => at.name === a.action_type)?.base_cost ?? '?'} PC
+                      {computeQueuedActionCost(a, actionTypes)} PC
                     </span>
                     <button onClick={() => removeAction(idx)} className="text-danger/60 hover:text-danger p-0.5 rounded hover:bg-danger/10 transition-colors" aria-label={`Remove ${a.action_type} action`}>
                       <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M18 6L6 18M6 6l12 12" /></svg>

@@ -53,6 +53,7 @@ class ActionTypeInfo(BaseModel):
     name: str
     base_cost: int
     description: str
+    scope: str  # 'lga', 'regional', or 'none'
 
 
 class ActionTypesResponse(BaseModel):

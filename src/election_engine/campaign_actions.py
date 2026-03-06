@@ -51,14 +51,91 @@ PC_ETO_DIVIDEND_AMOUNT = 1       # PC per qualifying Economic ETO
 PC_ETO_DIVIDEND_CAP = 2          # Max ETO dividend per turn
 
 
-def compute_action_cost(action_type: str, params: dict) -> int:
-    """Compute the PC cost for an action, including param-based surcharges."""
+# ---------------------------------------------------------------------------
+# Targeting scope per action type
+# ---------------------------------------------------------------------------
+
+ACTION_TARGET_SCOPE: dict[str, str] = {
+    "rally": "lga",
+    "ground_game": "lga",
+    "patronage": "lga",
+    "ethnic_mobilization": "lga",
+    "eto_engagement": "lga",
+    "crisis_response": "lga",
+    "advertising": "regional",
+    "media": "none",           # Media is national narrative; cheap and broad
+    "endorsement": "regional",
+    "manifesto": "none",
+    "fundraising": "none",
+    "opposition_research": "none",
+    "pledge": "none",
+    "poll": "none",
+    "eto_intelligence": "none",
+}
+
+
+def _area_surcharge(action_type: str, n_target_lgas: int, n_target_azs: int) -> int:
+    """
+    Compute area-based cost surcharge.
+
+    LGA-scope actions: +1 PC per 20 LGAs beyond the first 10.
+        National (0 targets = all 774): +3 PC flat.
+    Regional-scope actions: +1 PC per AZ beyond the first.
+        National (0 targets = all 8): +3 PC flat.
+    None-scope actions: no surcharge.
+    """
+    scope = ACTION_TARGET_SCOPE.get(action_type, "none")
+    if scope == "lga":
+        if n_target_lgas == 0:
+            return 3  # national blanket
+        elif n_target_lgas > 10:
+            return min(5, (n_target_lgas - 10 + 19) // 20)  # +1 per 20 beyond 10, cap +5
+        return 0
+    elif scope == "regional":
+        if n_target_azs == 0:
+            return 3  # national blanket
+        elif n_target_azs > 1:
+            return n_target_azs - 1  # +1 per additional AZ
+        return 0
+    return 0
+
+
+def compute_action_cost(
+    action_type: str,
+    params: dict,
+    n_target_lgas: int = 0,
+    n_target_azs: int = 0,
+) -> int:
+    """
+    Compute the PC cost for an action, including param-based surcharges
+    and area-based scaling.
+
+    Parameters
+    ----------
+    action_type : str
+        Action type name.
+    params : dict
+        Action-specific parameters.
+    n_target_lgas : int
+        Number of targeted LGAs (0 = national for lga-scope actions).
+    n_target_azs : int
+        Number of targeted AZs (0 = national for regional-scope actions).
+    """
     base = PC_COSTS.get(action_type, 2)
+
+    # Area-based surcharge
+    base += _area_surcharge(action_type, n_target_lgas, n_target_azs)
+
+    # Parameter-based surcharges
     if action_type == "advertising":
         budget = params.get("budget", 1.0)
+        medium = params.get("medium", "radio")
         if budget > 2.0:
             base += 2
         elif budget > 1.5:
+            base += 1
+        # TV is more expensive than radio/internet
+        if medium == "tv":
             base += 1
     elif action_type == "ground_game":
         intensity = params.get("intensity", 1.0)

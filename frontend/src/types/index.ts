@@ -119,6 +119,7 @@ export interface ActionType {
   name: string;
   base_cost: number;
   description: string;
+  scope: 'lga' | 'regional' | 'none';
   parameters: Record<string, unknown>;
 }
 

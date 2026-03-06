@@ -12,6 +12,7 @@ from election_engine.campaign_actions import (
     PC_COSTS, PC_INCOME_PER_TURN, PC_HOARDING_CAP,
     PC_FUNDRAISING_YIELD, PC_ETO_DIVIDEND_THRESHOLD,
     PC_ETO_DIVIDEND_AMOUNT, PC_ETO_DIVIDEND_CAP,
+    ACTION_TARGET_SCOPE,
 )
 from pathlib import Path
 from election_engine.data_loader import load_lga_data
@@ -106,6 +107,7 @@ def get_action_types():
             name=name,
             base_cost=cost,
             description=ACTION_DESCRIPTIONS.get(name, ""),
+            scope=ACTION_TARGET_SCOPE.get(name, "none"),
         )
         for name, cost in PC_COSTS.items()
     ]

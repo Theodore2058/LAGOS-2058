@@ -89,7 +89,13 @@ def validate_and_deduct_pc(
     for action in turn_actions:
         party = action.party
 
-        cost = compute_action_cost(action.action_type, action.params)
+        # Count targeted LGAs/AZs for area-based cost scaling
+        n_target_lgas = int(action.target_lgas.sum()) if action.target_lgas is not None else 0
+        n_target_azs = action.params.get("_n_target_azs", 0)
+        cost = compute_action_cost(
+            action.action_type, action.params,
+            n_target_lgas=n_target_lgas, n_target_azs=n_target_azs,
+        )
         balance = state.political_capital.get(party, 0.0)
 
         if cost > balance:
