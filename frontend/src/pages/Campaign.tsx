@@ -10,7 +10,6 @@ import type { CrisisTemplate } from '../api/crises';
 import { LineChart, Line, BarChart, Bar, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { saveScenario } from '../api/scenarios';
 import ActionBuilder from '../components/ActionBuilder';
-import StrategyAdvisor from '../components/StrategyAdvisor';
 import ErrorBanner from '../components/ErrorBanner';
 import { useToast } from '../components/Toast';
 import ConfirmModal from '../components/ConfirmModal';
@@ -409,19 +408,6 @@ export default function Campaign() {
       )}
 
       {error && <ErrorBanner message={error} onDismiss={() => setError(null)} />}
-
-      {/* Strategy Advisor */}
-      {!isComplete && (
-        <StrategyAdvisor
-          phase={campaignState.phase}
-          turn={campaignState.turn}
-          nTurns={campaignState.n_turns}
-          partyStatuses={campaignState.party_statuses}
-          queuedActions={actions}
-          actionTypes={actionTypes}
-          parties={parties}
-        />
-      )}
 
       {/* PC Budget Strip */}
       {!isComplete && (
