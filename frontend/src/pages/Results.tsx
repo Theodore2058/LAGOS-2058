@@ -82,21 +82,21 @@ export default function Results() {
 
       {/* Final Summary */}
       <div className="grid grid-cols-4 gap-4">
-        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50">
+        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50 hover:border-bg-quaternary/50 transition-colors">
           <p className="text-xs text-text-secondary mb-1">Winner</p>
           <p className="text-xl font-bold" style={{ color: getColor(sortedFinal[0][0]) }}>{sortedFinal[0][0]}</p>
           <p className="text-sm text-text-secondary">{(sortedFinal[0][1] * 100).toFixed(1)}%</p>
         </div>
-        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50">
+        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50 hover:border-bg-quaternary/50 transition-colors">
           <p className="text-xs text-text-secondary mb-1">Runner-up</p>
           <p className="text-xl font-bold" style={{ color: getColor(sortedFinal[1]?.[0] ?? '') }}>{sortedFinal[1]?.[0]}</p>
           <p className="text-sm text-text-secondary">{((sortedFinal[1]?.[1] ?? 0) * 100).toFixed(1)}%</p>
         </div>
-        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50">
+        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50 hover:border-bg-quaternary/50 transition-colors">
           <p className="text-xs text-text-secondary mb-1">Final Turnout</p>
           <p className="text-xl font-bold">{(final.national_turnout * 100).toFixed(1)}%</p>
         </div>
-        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50">
+        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50 hover:border-bg-quaternary/50 transition-colors">
           <p className="text-xs text-text-secondary mb-1">Winner Seats</p>
           <p className="text-xl font-bold">{Math.round(final.seat_counts[sortedFinal[0][0]] ?? 0)} / 774</p>
         </div>
@@ -156,7 +156,7 @@ export default function Results() {
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={sortedFinal.map(([name, share]) => ({ name, share: Math.round(share * 10000) / 100 }))} layout="vertical">
               <XAxis type="number" tick={{ fill: '#94a3b8', fontSize: 10 }} />
-              <YAxis type="category" dataKey="name" tick={{ fill: '#94a3b8', fontSize: 10 }} width={40} />
+              <YAxis type="category" dataKey="name" tick={{ fill: '#94a3b8', fontSize: 10 }} width={50} />
               <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', color: '#f1f5f9', fontSize: 11 }} />
               <Bar dataKey="share">
                 {sortedFinal.map(([name], i) => <Cell key={i} fill={getColor(name)} />)}
@@ -169,28 +169,32 @@ export default function Results() {
       {/* Action Log */}
       <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50">
         <h3 className="text-sm font-semibold mb-3 text-text-secondary">Action Log</h3>
-        <div className="max-h-64 overflow-y-auto space-y-2">
-          {history.map(h => (
-            <div key={h.turn} className="border-b border-bg-tertiary/30 pb-2">
-              <div className="text-xs font-semibold mb-1">Turn {h.turn}</div>
+        <div className="max-h-64 overflow-y-auto space-y-0">
+          {history.map((h, idx) => {
+            const hasContent = h.actions_resolved.length > 0 || h.synergies.length > 0 || h.scandals.length > 0;
+            return (
+            <div key={h.turn} className={`border-b border-bg-tertiary/30 py-2 px-2 -mx-2 rounded hover:bg-bg-tertiary/20 transition-colors ${idx % 2 === 1 ? 'bg-bg-tertiary/10' : ''}`}>
+              <div className="text-xs font-semibold mb-1 text-accent font-mono">Turn {h.turn}</div>
               {h.actions_resolved.map((a, i) => (
-                <div key={i} className="text-xs text-text-secondary ml-2">
+                <div key={i} className="text-xs text-text-secondary ml-3">
                   <span style={{ color: getColor(String(a.party)) }}>{String(a.party)}</span>
                   {' '}{String(a.action_type)} ({String(a.cost)} PC)
                 </div>
               ))}
               {h.synergies.map((s, i) => (
-                <div key={`syn-${i}`} className="text-xs text-success ml-2">
+                <div key={`syn-${i}`} className="text-xs text-success ml-3">
                   SYNERGY: {String(s.party)} +{Number(s.magnitude).toFixed(2)}
                 </div>
               ))}
               {h.scandals.map((s, i) => (
-                <div key={`sc-${i}`} className="text-xs text-danger ml-2">
+                <div key={`sc-${i}`} className="text-xs text-danger ml-3">
                   SCANDAL: {String(s.party)}
                 </div>
               ))}
+              {!hasContent && <div className="text-xs text-text-secondary/40 ml-3 italic">No actions</div>}
             </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>
