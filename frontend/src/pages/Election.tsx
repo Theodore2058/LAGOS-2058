@@ -120,6 +120,10 @@ export default function Election() {
           <input type="number" value={params.seed ?? 42}
             onChange={e => setParams({ ...params, seed: parseInt(e.target.value) || 42 })}
             className="w-16 bg-bg-tertiary border border-bg-quaternary/50 rounded px-1.5 py-0.5 text-xs focus:border-accent transition-colors" />
+          <button onClick={() => setParams({ ...params, seed: Math.floor(Math.random() * 9999) + 1 })}
+            className="text-text-secondary/40 hover:text-accent transition-colors" title="Random seed">
+            <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+          </button>
         </div>
         {elapsed != null && (
           <>
