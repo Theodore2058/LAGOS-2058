@@ -10,6 +10,8 @@ import type { CrisisTemplate } from '../api/crises';
 import { LineChart, Line, BarChart, Bar, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { saveScenario } from '../api/scenarios';
 import ActionBuilder from '../components/ActionBuilder';
+import { useToast } from '../components/Toast';
+import ConfirmModal from '../components/ConfirmModal';
 
 function computeQueuedActionCost(a: ActionInput, actionTypes: ActionType[]): number {
   const at = actionTypes.find(t => t.name === a.action_type);
@@ -64,7 +66,8 @@ export default function Campaign() {
   const [showBuilder, setShowBuilder] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [saveMsg, setSaveMsg] = useState<string | null>(null);
+  const [confirmNewCampaign, setConfirmNewCampaign] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     fetchParties().then(setParties).catch(e => console.error('Failed to fetch parties:', e));
@@ -114,6 +117,7 @@ export default function Campaign() {
       setActions([]);
       setCrises([]);
       setShowBuilder(false);
+      toast(`Turn ${result.turn} complete`, 'success');
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Turn failed');
     }
@@ -124,10 +128,9 @@ export default function Campaign() {
     const name = `Campaign T${campaignState?.turn ?? 0} - ${new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`;
     try {
       await saveScenario(name);
-      setSaveMsg(`Saved as "${name}"`);
-      setTimeout(() => setSaveMsg(null), 3000);
+      toast(`Saved as "${name}"`, 'success');
     } catch {
-      setError('Failed to save campaign');
+      toast('Failed to save campaign', 'error');
     }
   };
 
@@ -235,7 +238,7 @@ export default function Campaign() {
               className="px-4 py-1.5 text-sm bg-accent rounded hover:bg-accent-hover text-bg-primary font-medium btn-accent">
               Save to Scenarios
             </button>
-            <button onClick={() => { setCampaignState(null); setHistory([]); setActions([]); }}
+            <button onClick={() => setConfirmNewCampaign(true)}
               className="px-4 py-1.5 text-sm bg-bg-tertiary rounded hover:bg-bg-tertiary/80">
               New Campaign
             </button>
@@ -258,7 +261,6 @@ export default function Campaign() {
             </div>
           </div>
           <div className="flex gap-2 items-center">
-            {saveMsg && <span className="text-xs text-success mr-1">{saveMsg}</span>}
             <button onClick={handleSave} title="Save campaign to scenarios"
               className="px-2 py-1.5 text-sm bg-bg-tertiary rounded hover:bg-bg-tertiary/80" aria-label="Save campaign">
               <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" /></svg>
@@ -505,6 +507,21 @@ export default function Campaign() {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        open={confirmNewCampaign}
+        title="Start New Campaign"
+        message="This will discard the current campaign and all turn history. This cannot be undone."
+        confirmLabel="Start New"
+        confirmDanger
+        onConfirm={() => {
+          setConfirmNewCampaign(false);
+          setCampaignState(null);
+          setHistory([]);
+          setActions([]);
+        }}
+        onCancel={() => setConfirmNewCampaign(false)}
+      />
     </div>
   );
 }

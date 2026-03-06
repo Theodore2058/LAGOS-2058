@@ -4,6 +4,7 @@ import { ADMIN_ZONES } from '../types';
 import { fetchTemplates, fetchCrises, createCrisis, deleteCrisis } from '../api/crises';
 import type { CrisisTemplate, StoredCrisis } from '../api/crises';
 import { fetchIssueNames } from '../api/config';
+import { useToast } from '../components/Toast';
 
 const BLANK: CrisisInput = {
   name: '', turn: 1, affected_azs: null, affected_lgas: null,
@@ -17,6 +18,7 @@ export default function Crises() {
   const [issueNames, setIssueNames] = useState<string[]>([]);
   const [editing, setEditing] = useState<CrisisInput>({ ...BLANK });
   const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     fetchTemplates().then(setTemplates).catch(e => console.error('Failed to fetch templates:', e));
@@ -45,13 +47,16 @@ export default function Crises() {
       setCrises(prev => [...prev, saved]);
       setEditing({ ...BLANK });
       setError(null);
+      toast(`Added crisis "${saved.name}" to turn ${saved.turn}`, 'success');
     } catch (e) { console.error('Failed to save crisis:', e); setError('Failed to save crisis'); }
   };
 
   const handleDelete = async (id: number) => {
     try {
+      const crisis = crises.find(c => c.id === id);
       await deleteCrisis(id);
       setCrises(prev => prev.filter(c => c.id !== id));
+      toast(`Removed crisis${crisis ? ` "${crisis.name}"` : ''}`, 'success');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to delete crisis');
     }

@@ -4,6 +4,8 @@ import { fetchParties, createParty, updateParty, deleteParty, loadExampleParties
 import { fetchIssueNames, fetchEthnicGroups, fetchReligiousGroups, fetchAdminZones } from '../api/config';
 import PartyForm from '../components/PartyForm';
 import PartyComparison from '../components/PartyComparison';
+import { useToast } from '../components/Toast';
+import ConfirmModal from '../components/ConfirmModal';
 
 const BLANK_PARTY: Party = {
   name: '', full_name: '', positions: new Array(28).fill(0),
@@ -27,6 +29,8 @@ export default function Parties() {
   const [adminZones, setAdminZones] = useState<{ id: number; name: string }[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const { toast } = useToast();
 
   const loadParties = useCallback(async () => {
     try {
@@ -74,6 +78,7 @@ export default function Parties() {
       setSelected(party.name);
       setEditing(party);
       setIsNew(false);
+      toast(`${isNew ? 'Created' : 'Updated'} "${party.name}"`, 'success');
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Save failed';
       setError(msg);
@@ -81,11 +86,11 @@ export default function Parties() {
   };
 
   const handleDelete = async (name: string) => {
-    if (!confirm(`Delete party "${name}"?`)) return;
     try {
       await deleteParty(name);
       if (selected === name) { setSelected(null); setEditing(null); }
       await loadParties();
+      toast(`Deleted "${name}"`, 'success');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to delete party');
     }
@@ -96,6 +101,7 @@ export default function Parties() {
     try {
       const data = await loadExampleParties();
       setParties(data);
+      toast(`Loaded ${data.length} example parties`, 'success');
     } catch (e) { console.error('Failed to load examples:', e); setError('Failed to load examples'); }
     setLoading(false);
   };
@@ -159,7 +165,7 @@ export default function Parties() {
               <div className="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: p.color }} />
               <span className="text-sm flex-1 truncate">{p.name}</span>
               <span className="text-xs text-text-secondary truncate max-w-20">{p.leader_ethnicity}</span>
-              <button onClick={(e) => { e.stopPropagation(); handleDelete(p.name); }}
+              <button onClick={(e) => { e.stopPropagation(); setDeleteTarget(p.name); }}
                 className="text-danger/60 hover:text-danger p-0.5 rounded hover:bg-danger/10 transition-colors" aria-label={`Delete ${p.name}`}>
                 <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M18 6L6 18M6 6l12 12" /></svg>
               </button>
@@ -224,6 +230,19 @@ export default function Parties() {
           )}
         </div>
       </div>
+
+      <ConfirmModal
+        open={!!deleteTarget}
+        title="Delete Party"
+        message={`Permanently delete "${deleteTarget}"? This cannot be undone.`}
+        confirmLabel="Delete"
+        confirmDanger
+        onConfirm={() => {
+          if (deleteTarget) handleDelete(deleteTarget);
+          setDeleteTarget(null);
+        }}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }

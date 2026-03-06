@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import Dashboard from './pages/Dashboard';
 import CheatSheet from './components/CheatSheet';
+import { ToastProvider } from './components/Toast';
 
 // Lazy-load heavy pages (Recharts, Leaflet) for faster initial load
 const Parties = lazy(() => import('./pages/Parties'));
@@ -28,25 +29,27 @@ function PageLoader() {
 export default function App() {
   return (
     <BrowserRouter>
-      <div className="flex h-screen overflow-hidden">
-        <Sidebar />
-        <main className="flex-1 overflow-y-auto">
-          <Suspense fallback={<PageLoader />}>
-            <Routes>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/parties" element={<Parties />} />
-              <Route path="/params" element={<ParamsPage />} />
-              <Route path="/election" element={<Election />} />
-              <Route path="/campaign" element={<Campaign />} />
-              <Route path="/crises" element={<Crises />} />
-              <Route path="/results" element={<Results />} />
-              <Route path="/map" element={<MapPage />} />
-              <Route path="/scenarios" element={<Scenarios />} />
-            </Routes>
-          </Suspense>
-        </main>
-        <CheatSheet />
-      </div>
+      <ToastProvider>
+        <div className="flex h-screen overflow-hidden">
+          <Sidebar />
+          <main className="flex-1 overflow-y-auto">
+            <Suspense fallback={<PageLoader />}>
+              <Routes>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/parties" element={<Parties />} />
+                <Route path="/params" element={<ParamsPage />} />
+                <Route path="/election" element={<Election />} />
+                <Route path="/campaign" element={<Campaign />} />
+                <Route path="/crises" element={<Crises />} />
+                <Route path="/results" element={<Results />} />
+                <Route path="/map" element={<MapPage />} />
+                <Route path="/scenarios" element={<Scenarios />} />
+              </Routes>
+            </Suspense>
+          </main>
+          <CheatSheet />
+        </div>
+      </ToastProvider>
     </BrowserRouter>
   );
 }

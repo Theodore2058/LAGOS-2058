@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { saveScenario, listScenarios, deleteScenario, compareScenarios, exportSession, importSession } from '../api/scenarios';
+import { useToast } from '../components/Toast';
+import ConfirmModal from '../components/ConfirmModal';
 
 interface ScenarioSummary {
   name: string;
@@ -21,6 +23,8 @@ export default function Scenarios() {
   const [compareB, setCompareB] = useState('');
   const [comparison, setComparison] = useState<CompareResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const { toast } = useToast();
 
   const reload = () => listScenarios().then(setScenarios).catch(e => console.error('Failed to list scenarios:', e));
   useEffect(() => { reload(); }, []);
@@ -32,6 +36,7 @@ export default function Scenarios() {
       setNewName('');
       setError(null);
       reload();
+      toast(`Saved scenario "${newName}"`, 'success');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to save scenario');
     }
@@ -41,6 +46,7 @@ export default function Scenarios() {
     try {
       await deleteScenario(name);
       reload();
+      toast(`Deleted "${name}"`, 'success');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to delete scenario');
     }
@@ -113,7 +119,7 @@ export default function Scenarios() {
               <div key={s.name} className="flex items-center gap-3 text-sm py-2 px-2 -mx-2 rounded hover:bg-bg-tertiary/20 transition-colors border-b border-bg-tertiary/30">
                 <span className="flex-1 font-mono">{s.name}</span>
                 <span className="text-xs text-text-secondary">{s.n_parties} parties, {s.n_turns} turns</span>
-                <button onClick={() => handleDelete(s.name)} className="text-danger/60 hover:text-danger p-1 rounded hover:bg-danger/10 transition-colors" aria-label={`Delete scenario ${s.name}`}>
+                <button onClick={() => setDeleteTarget(s.name)} className="text-danger/60 hover:text-danger p-1 rounded hover:bg-danger/10 transition-colors" aria-label={`Delete scenario ${s.name}`}>
                   <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" /></svg>
                 </button>
               </div>
@@ -221,6 +227,19 @@ export default function Scenarios() {
             className="px-4 py-1.5 text-sm bg-bg-tertiary rounded hover:bg-bg-tertiary/80">Import Session</button>
         </div>
       </div>
+
+      <ConfirmModal
+        open={!!deleteTarget}
+        title="Delete Scenario"
+        message={`Permanently delete scenario "${deleteTarget}"? This cannot be undone.`}
+        confirmLabel="Delete"
+        confirmDanger
+        onConfirm={() => {
+          if (deleteTarget) handleDelete(deleteTarget);
+          setDeleteTarget(null);
+        }}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }
