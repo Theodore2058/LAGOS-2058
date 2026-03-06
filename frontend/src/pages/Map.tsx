@@ -68,6 +68,7 @@ export default function MapPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedLga, setSelectedLga] = useState<LGAResult | null>(null);
+  const [lgaSearch, setLgaSearch] = useState('');
 
   useEffect(() => {
     fetchParties().then(setParties).catch(e => console.error('Failed to fetch parties:', e));
@@ -118,6 +119,24 @@ export default function MapPage() {
 
   /** Look up election result for a GeoJSON LGA name */
   const findLga = useCallback((geoName: string) => lgaMap.get(resolveLga(geoName)), [lgaMap]);
+
+  // Competitive & search
+  const competitiveLgas = useMemo(() => {
+    if (!results) return 0;
+    return results.lga_results.filter(lga => {
+      const shares = Object.values(lga.vote_shares).sort((a, b) => b - a);
+      return shares.length >= 2 && (shares[0] - shares[1]) < 0.05;
+    }).length;
+  }, [results]);
+
+  const searchResults = useMemo(() => {
+    if (!lgaSearch.trim() || !results) return [];
+    const q = lgaSearch.toLowerCase();
+    return results.lga_results
+      .filter(lga => lga.lga.toLowerCase().includes(q) || lga.state.toLowerCase().includes(q))
+      .sort((a, b) => a.lga.localeCompare(b.lga))
+      .slice(0, 8);
+  }, [lgaSearch, results]);
 
   const style = useCallback((feature?: GeoJSON.Feature): PathOptions => {
     if (!feature || !results) return { fillColor: '#334155', weight: 0.5, color: '#1e293b', fillOpacity: 0.7 };
@@ -226,8 +245,33 @@ export default function MapPage() {
           </button>
           {results && (
             <div className="mt-2 space-y-1 text-[10px] text-text-secondary">
+              <div className="relative mb-1.5">
+                <svg className="absolute left-1.5 top-1/2 -translate-y-1/2 w-3 h-3 text-text-secondary/40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
+                <input value={lgaSearch} onChange={e => setLgaSearch(e.target.value)} placeholder="Search LGA or state..."
+                  className="w-full bg-bg-tertiary border border-bg-quaternary/50 rounded px-2 pl-6 py-1 text-[10px] focus:border-accent transition-colors placeholder:text-text-secondary/30" />
+                {lgaSearch && (
+                  <button onClick={() => setLgaSearch('')} className="absolute right-1 top-1/2 -translate-y-1/2 text-text-secondary/40 hover:text-text-secondary">
+                    <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M18 6L6 18M6 6l12 12" /></svg>
+                  </button>
+                )}
+              </div>
+              {searchResults.length > 0 && (
+                <div className="space-y-0.5 mb-1.5 max-h-32 overflow-y-auto">
+                  {searchResults.map(lga => (
+                    <button key={lga.lga} onClick={() => { setSelectedLga(lga); setLgaSearch(''); }}
+                      className="w-full flex items-center gap-1.5 py-0.5 px-1 rounded hover:bg-bg-tertiary/50 text-left transition-colors">
+                      <div className="w-2 h-2 rounded-sm" style={{ backgroundColor: getColor(lga.winner) }} />
+                      <span className="flex-1 truncate">{lga.lga}</span>
+                      <span className="text-text-secondary/40">{lga.state}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
               <div>{lgaMap.size}/{results.lga_results.length} LGAs mapped</div>
               <div>Turnout: {(results.national_turnout * 100).toFixed(1)}% | ENP: {results.enp.toFixed(2)}</div>
+              {competitiveLgas > 0 && (
+                <div className="text-warning">{competitiveLgas} swing LGAs (&lt;5pp margin)</div>
+              )}
               <div className="border-t border-bg-tertiary/40 pt-1.5 mt-1.5 space-y-0.5">
                 {Object.entries(results.national_vote_shares)
                   .sort((a, b) => b[1] - a[1])
