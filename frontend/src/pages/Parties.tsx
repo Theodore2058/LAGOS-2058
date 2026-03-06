@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { Party } from '../types';
 import { fetchParties, createParty, updateParty, deleteParty, loadExampleParties, exportParties, importParties } from '../api/parties';
 import { fetchIssueNames, fetchEthnicGroups, fetchReligiousGroups, fetchAdminZones } from '../api/config';
@@ -30,7 +30,16 @@ export default function Parties() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
   const { toast } = useToast();
+
+  const filteredParties = useMemo(() => {
+    if (!search.trim()) return parties;
+    const q = search.toLowerCase();
+    return parties.filter(p =>
+      p.name.toLowerCase().includes(q) || p.full_name.toLowerCase().includes(q) || p.leader_ethnicity.toLowerCase().includes(q)
+    );
+  }, [parties, search]);
 
   const loadParties = useCallback(async () => {
     try {
@@ -142,21 +151,42 @@ export default function Parties() {
     <div className="flex h-full">
       {/* Sidebar */}
       <div className="w-64 bg-bg-secondary border-r border-bg-tertiary flex flex-col shrink-0">
-        <div className="p-3 border-b border-bg-tertiary">
-          <div className="flex gap-2 mb-2">
-            <button onClick={handleNew} className="flex-1 px-2 py-1.5 text-xs bg-accent rounded hover:bg-accent-hover text-bg-primary font-medium">+ Add</button>
-            <button onClick={handleLoadExamples} className="flex-1 px-2 py-1.5 text-xs bg-bg-tertiary rounded hover:bg-bg-tertiary/80" disabled={loading}>Load Examples</button>
+        <div className="p-3 border-b border-bg-tertiary space-y-2">
+          <div className="flex gap-2">
+            <button onClick={handleNew} className="flex-1 px-2 py-1.5 text-xs bg-accent rounded hover:bg-accent-hover text-bg-primary font-medium btn-accent">+ Add</button>
+            <button onClick={handleLoadExamples} className="flex-1 px-2 py-1.5 text-xs bg-bg-tertiary rounded hover:bg-bg-tertiary/80 transition-colors" disabled={loading}>
+              {loading ? 'Loading...' : 'Load Examples'}
+            </button>
           </div>
           <div className="flex gap-2">
-            <button onClick={handleExport} className="flex-1 px-2 py-1 text-xs bg-bg-tertiary rounded hover:bg-bg-tertiary/80">Export</button>
-            <button onClick={handleImport} className="flex-1 px-2 py-1 text-xs bg-bg-tertiary rounded hover:bg-bg-tertiary/80">Import</button>
+            <button onClick={handleExport} className="flex-1 px-2 py-1 text-xs bg-bg-tertiary rounded hover:bg-bg-tertiary/80 transition-colors flex items-center justify-center gap-1">
+              <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
+              Export
+            </button>
+            <button onClick={handleImport} className="flex-1 px-2 py-1 text-xs bg-bg-tertiary rounded hover:bg-bg-tertiary/80 transition-colors flex items-center justify-center gap-1">
+              <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
+              Import
+            </button>
           </div>
+          {parties.length > 5 && (
+            <div className="relative">
+              <svg className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-text-secondary/40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Filter parties..."
+                className="w-full bg-bg-tertiary border border-bg-quaternary/50 rounded px-2 pl-7 py-1 text-xs focus:border-accent transition-colors placeholder:text-text-secondary/30" />
+              {search && (
+                <button onClick={() => setSearch('')} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-text-secondary/40 hover:text-text-secondary">
+                  <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M18 6L6 18M6 6l12 12" /></svg>
+                </button>
+              )}
+            </div>
+          )}
         </div>
         <div className="flex-1 overflow-y-auto">
-          {parties.map(p => (
+          {filteredParties.map(p => (
             <div key={p.name}
-              className={`flex items-center gap-2 px-3 py-2 cursor-pointer border-b border-bg-tertiary/30 transition-colors ${selected === p.name ? 'bg-accent/15 border-l-2 border-l-accent' : 'hover:bg-bg-tertiary/30'}`}
-              onClick={() => handleSelect(p.name)}>
+              className={`flex items-center gap-2 px-3 py-2 cursor-pointer border-b border-bg-tertiary/30 transition-colors group/party ${selected === p.name ? 'bg-accent/15 border-l-2 border-l-accent' : 'hover:bg-bg-tertiary/30'}`}
+              onClick={() => handleSelect(p.name)}
+              title={p.full_name || p.name}>
               {tab === 'compare' && (
                 <input type="checkbox" checked={compareSelected.has(p.name)}
                   onChange={(e) => { e.stopPropagation(); toggleCompare(p.name); }}
@@ -169,18 +199,31 @@ export default function Parties() {
                   {p.leader_ethnicity}{p.valence !== 0 ? ` · v${p.valence > 0 ? '+' : ''}${p.valence.toFixed(1)}` : ''}
                 </span>
               </div>
-              <button onClick={(e) => { e.stopPropagation(); setDeleteTarget(p.name); }}
-                className="text-danger/60 hover:text-danger p-0.5 rounded hover:bg-danger/10 transition-colors shrink-0" aria-label={`Delete ${p.name}`}>
-                <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M18 6L6 18M6 6l12 12" /></svg>
-              </button>
+              <div className="flex items-center gap-0.5 shrink-0">
+                <button onClick={(e) => { e.stopPropagation(); handleDuplicate(p); }}
+                  className="opacity-0 group-hover/party:opacity-100 text-text-secondary/40 hover:text-accent p-0.5 rounded hover:bg-accent/10 transition-all" aria-label={`Duplicate ${p.name}`} title="Duplicate">
+                  <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" /></svg>
+                </button>
+                <button onClick={(e) => { e.stopPropagation(); setDeleteTarget(p.name); }}
+                  className="opacity-0 group-hover/party:opacity-100 text-danger/40 hover:text-danger p-0.5 rounded hover:bg-danger/10 transition-all" aria-label={`Delete ${p.name}`} title="Delete">
+                  <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M18 6L6 18M6 6l12 12" /></svg>
+                </button>
+              </div>
             </div>
           ))}
           {parties.length === 0 && (
-            <p className="p-3 text-xs text-text-secondary">No parties. Click "Add" or "Load Examples".</p>
+            <div className="flex flex-col items-center py-8 text-center px-4">
+              <svg className="w-8 h-8 text-text-secondary/20 mb-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4-4v2m8-4a4 4 0 100-8 4 4 0 000 8z" /></svg>
+              <p className="text-xs text-text-secondary">No parties loaded</p>
+              <p className="text-[10px] text-text-secondary/40 mt-0.5">Click &ldquo;+ Add&rdquo; or &ldquo;Load Examples&rdquo; to get started.</p>
+            </div>
+          )}
+          {parties.length > 0 && filteredParties.length === 0 && search && (
+            <p className="p-3 text-xs text-text-secondary/50 text-center">No parties match &ldquo;{search}&rdquo;</p>
           )}
         </div>
         <div className="p-2 border-t border-bg-tertiary text-xs text-text-secondary text-center">
-          {parties.length} parties
+          {search ? `${filteredParties.length} / ${parties.length} parties` : `${parties.length} parties`}
         </div>
       </div>
 
