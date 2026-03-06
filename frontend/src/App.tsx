@@ -5,6 +5,7 @@ import Parties from './pages/Parties';
 import ParamsPage from './pages/Params';
 import Election from './pages/Election';
 import Campaign from './pages/Campaign';
+import Crises from './pages/Crises';
 
 function Placeholder({ title }: { title: string }) {
   return (
@@ -27,7 +28,7 @@ export default function App() {
             <Route path="/params" element={<ParamsPage />} />
             <Route path="/election" element={<Election />} />
             <Route path="/campaign" element={<Campaign />} />
-            <Route path="/crises" element={<Placeholder title="Crises" />} />
+            <Route path="/crises" element={<Crises />} />
             <Route path="/results" element={<Placeholder title="Results" />} />
             <Route path="/map" element={<Placeholder title="Map" />} />
             <Route path="/scenarios" element={<Placeholder title="Scenarios" />} />
