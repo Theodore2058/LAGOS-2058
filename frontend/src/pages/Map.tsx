@@ -228,6 +228,21 @@ export default function MapPage() {
             <div className="mt-2 space-y-1 text-[10px] text-text-secondary">
               <div>{lgaMap.size}/{results.lga_results.length} LGAs mapped</div>
               <div>Turnout: {(results.national_turnout * 100).toFixed(1)}% | ENP: {results.enp.toFixed(2)}</div>
+              <div className="border-t border-bg-tertiary/40 pt-1.5 mt-1.5 space-y-0.5">
+                {Object.entries(results.national_vote_shares)
+                  .sort((a, b) => b[1] - a[1])
+                  .slice(0, 5)
+                  .map(([name, share]) => (
+                    <div key={name} className="flex items-center gap-1.5">
+                      <div className="w-2 h-2 rounded-sm" style={{ backgroundColor: getColor(name) }} />
+                      <span className="w-10 font-mono font-medium" style={{ color: getColor(name) }}>{name}</span>
+                      <div className="flex-1 bg-bg-tertiary rounded-full h-1 overflow-hidden">
+                        <div className="h-full rounded-full" style={{ width: `${share * 100 * 3}%`, backgroundColor: getColor(name), maxWidth: '100%' }} />
+                      </div>
+                      <span className="w-10 text-right font-mono">{(share * 100).toFixed(1)}%</span>
+                    </div>
+                  ))}
+              </div>
             </div>
           )}
         </div>
@@ -277,26 +292,46 @@ export default function MapPage() {
       </div>
 
       {/* LGA detail panel */}
-      {selectedLga && (
-        <div className="w-72 bg-bg-secondary border-l border-bg-tertiary p-4 overflow-y-auto">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold">{selectedLga.lga}</h3>
-            <button onClick={() => setSelectedLga(null)} className="text-text-secondary hover:text-text-primary p-1 rounded hover:bg-bg-tertiary/50 transition-colors" aria-label="Close LGA detail">
-              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M18 6L6 18M6 6l12 12" /></svg>
-            </button>
-          </div>
-          <div className="text-xs space-y-2">
-            <div><span className="text-text-secondary">State:</span> {selectedLga.state}</div>
-            <div><span className="text-text-secondary">AZ:</span> {selectedLga.az}</div>
-            <div><span className="text-text-secondary">Turnout:</span> {(selectedLga.turnout * 100).toFixed(1)}%</div>
-            <div><span className="text-text-secondary">Winner:</span>{' '}
-              <span style={{ color: getColor(selectedLga.winner) }}>{selectedLga.winner}</span>
+      {selectedLga && (() => {
+        const shares = Object.entries(selectedLga.vote_shares).sort((a, b) => b[1] - a[1]);
+        const winnerShare = shares[0]?.[1] ?? 0;
+        const runnerUpShare = shares[1]?.[1] ?? 0;
+        const margin = winnerShare - runnerUpShare;
+        const competitive = margin < 0.05;
+        return (
+          <div className="w-72 bg-bg-secondary border-l border-bg-tertiary p-4 overflow-y-auto">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold">{selectedLga.lga}</h3>
+              <button onClick={() => setSelectedLga(null)} className="text-text-secondary hover:text-text-primary p-1 rounded hover:bg-bg-tertiary/50 transition-colors" aria-label="Close LGA detail">
+                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M18 6L6 18M6 6l12 12" /></svg>
+              </button>
             </div>
-            <div className="border-t border-bg-tertiary pt-2 mt-2">
-              <div className="text-text-secondary mb-1">Vote Shares:</div>
-              {Object.entries(selectedLga.vote_shares)
-                .sort((a, b) => b[1] - a[1])
-                .map(([name, share]) => (
+            <div className="text-xs space-y-2">
+              <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+                <div><span className="text-text-secondary">State:</span> {selectedLga.state}</div>
+                <div><span className="text-text-secondary">AZ:</span> {selectedLga.az}</div>
+                <div><span className="text-text-secondary">Turnout:</span> {(selectedLga.turnout * 100).toFixed(1)}%</div>
+                <div>
+                  <span className="text-text-secondary">Margin:</span>{' '}
+                  <span className={competitive ? 'text-warning font-medium' : ''}>{(margin * 100).toFixed(1)}pp</span>
+                  {competitive && <span className="text-warning text-[9px] ml-0.5">swing</span>}
+                </div>
+              </div>
+              <div className="bg-bg-tertiary/30 rounded-md p-2 flex items-center gap-2">
+                <div className="w-4 h-4 rounded" style={{ backgroundColor: getColor(selectedLga.winner) }} />
+                <div>
+                  <span className="font-semibold" style={{ color: getColor(selectedLga.winner) }}>{selectedLga.winner}</span>
+                  <span className="text-text-secondary ml-1">wins with {(winnerShare * 100).toFixed(1)}%</span>
+                </div>
+              </div>
+              {shares[1] && (
+                <div className="text-[10px] text-text-secondary">
+                  Runner-up: <span style={{ color: getColor(shares[1][0]) }}>{shares[1][0]}</span> ({(runnerUpShare * 100).toFixed(1)}%)
+                </div>
+              )}
+              <div className="border-t border-bg-tertiary pt-2 mt-2">
+                <div className="text-text-secondary mb-1">All Parties:</div>
+                {shares.map(([name, share]) => (
                   <div key={name} className="flex items-center gap-2 py-0.5">
                     <div className="w-2 h-2 rounded-sm" style={{ backgroundColor: getColor(name) }} />
                     <span className="w-10 font-mono">{name}</span>
@@ -306,10 +341,11 @@ export default function MapPage() {
                     <span className="w-12 text-right">{(share * 100).toFixed(1)}%</span>
                   </div>
                 ))}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
