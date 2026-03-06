@@ -52,7 +52,7 @@ export default function CheatSheet() {
                   <p>Income: 7 PC/turn (unconditional)</p>
                   <p>Hoarding cap: 18 PC (excess lost before income)</p>
                   <p>Fundraising yield: +3 PC</p>
-                  <p>ETO dividend: +1 PC per Economic ETO >= 8.0 (max 2/turn)</p>
+                  <p>{'ETO dividend: +1 PC per Economic ETO >= 8.0 (max 2/turn)'}</p>
                 </div>
 
                 <h3 className="text-sm font-semibold mb-2 mt-4 text-accent">Synergy Pairs</h3>
