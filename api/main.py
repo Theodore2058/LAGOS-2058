@@ -12,11 +12,13 @@ from fastapi.staticfiles import StaticFiles
 from api.routes.config import router as config_router
 from api.routes.parties import router as parties_router
 from api.routes.election import router as election_router
+from api.routes.campaign import router as campaign_router
 
 app = FastAPI(title="LAGOS-2058 GM API", version="0.1.0")
 app.include_router(config_router)
 app.include_router(parties_router)
 app.include_router(election_router)
+app.include_router(campaign_router)
 
 app.add_middleware(
     CORSMiddleware,
