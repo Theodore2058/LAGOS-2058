@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import type { EngineParams } from '../types';
 import { fetchEngineParamsDefaults } from '../api/config';
 
@@ -79,6 +79,21 @@ export function ParamsEditor({ params, onChange }: Props) {
 
   const modifiedCount = ALL_PARAMS.filter(p => params[p.key] !== DEFAULT_PARAMS[p.key]).length;
 
+  // Check which preset is active (all preset values match current params)
+  const activePreset = useMemo(() => {
+    return PRESETS.find(preset =>
+      Object.entries(preset.values).every(([k, v]) => params[k as keyof EngineParams] === v)
+    )?.name ?? null;
+  }, [params]);
+
+  const resetGroup = (group: ParamGroup) => {
+    const updated = { ...params };
+    for (const p of group.params) {
+      (updated as Record<string, unknown>)[p.key] = DEFAULT_PARAMS[p.key];
+    }
+    onChange(updated as EngineParams);
+  };
+
   return (
     <div className="space-y-5">
       {/* Presets */}
@@ -86,48 +101,81 @@ export function ParamsEditor({ params, onChange }: Props) {
         <div className="flex items-center gap-2 mb-2">
           <span className="text-[10px] text-text-secondary uppercase tracking-[0.1em] font-medium">Presets</span>
           {modifiedCount > 0 && (
-            <span className="text-[10px] text-accent">{modifiedCount} modified</span>
+            <span className="text-[10px] px-1.5 py-0.5 bg-accent/10 text-accent rounded">{modifiedCount} modified</span>
           )}
         </div>
         <div className="flex gap-2 flex-wrap">
-          {PRESETS.map(preset => (
-            <button key={preset.name} onClick={() => applyPreset(preset)}
-              className="px-3 py-1.5 text-xs bg-bg-tertiary border border-bg-quaternary/30 rounded-md hover:border-accent/50 hover:text-accent transition-colors group"
-              title={preset.desc}>
-              {preset.name}
-              <span className="text-[10px] text-text-secondary/50 ml-1 hidden group-hover:inline">{preset.desc}</span>
-            </button>
-          ))}
+          {PRESETS.map(preset => {
+            const isActive = activePreset === preset.name;
+            return (
+              <button key={preset.name} onClick={() => applyPreset(preset)}
+                className={`px-3 py-1.5 text-xs border rounded-md transition-colors ${
+                  isActive
+                    ? 'bg-accent/15 border-accent/50 text-accent font-medium'
+                    : 'bg-bg-tertiary border-bg-quaternary/30 hover:border-accent/50 hover:text-accent'
+                }`}
+                title={preset.desc}>
+                {preset.name}
+              </button>
+            );
+          })}
         </div>
       </div>
 
       {/* Parameter Groups */}
-      {PARAM_GROUPS.map(group => (
-        <div key={group.title} className="border-t border-bg-tertiary/30 pt-4">
-          <h4 className="text-xs font-semibold mb-0.5">{group.title}</h4>
-          <p className="text-[10px] text-text-secondary mb-3">{group.desc}</p>
-          <div className="space-y-1">
-            {group.params.map(p => {
-              const val = params[p.key] as number;
-              const isModified = val !== DEFAULT_PARAMS[p.key];
-              return (
-                <div key={p.key} className="flex items-center gap-3 py-1 px-2 -mx-2 rounded hover:bg-bg-tertiary/30 transition-colors" title={p.tooltip}>
-                  <span className={`w-48 text-xs shrink-0 ${isModified ? 'text-accent font-medium' : 'text-text-secondary'}`}>
-                    {isModified && <span className="text-accent mr-1">*</span>}
-                    {p.label}
-                  </span>
-                  <input type="range" min={p.min} max={p.max} step={p.step} value={val}
-                    onChange={(e) => update(p.key, parseFloat(e.target.value))}
-                    className="flex-1 h-1.5 accent-accent" />
-                  <input type="number" min={p.min} max={p.max} step={p.step} value={val}
-                    onChange={(e) => update(p.key, parseFloat(e.target.value) || p.min)}
-                    className={`w-20 bg-bg-tertiary border rounded-md px-2 py-0.5 text-xs text-center focus:border-accent focus:ring-1 focus:ring-accent/30 transition-colors ${isModified ? 'border-accent/40' : 'border-bg-quaternary/50'}`} />
-                </div>
-              );
-            })}
+      {PARAM_GROUPS.map(group => {
+        const groupModified = group.params.filter(p => params[p.key] !== DEFAULT_PARAMS[p.key]).length;
+        return (
+          <div key={group.title} className="border-t border-bg-tertiary/30 pt-4">
+            <div className="flex items-center justify-between mb-0.5">
+              <h4 className="text-xs font-semibold">{group.title}</h4>
+              {groupModified > 0 && (
+                <button onClick={() => resetGroup(group)}
+                  className="text-[10px] text-text-secondary/50 hover:text-danger transition-colors">
+                  Reset ({groupModified})
+                </button>
+              )}
+            </div>
+            <p className="text-[10px] text-text-secondary mb-3">{group.desc}</p>
+            <div className="space-y-1">
+              {group.params.map(p => {
+                const val = params[p.key] as number;
+                const isModified = val !== DEFAULT_PARAMS[p.key];
+                const pct = ((val - p.min) / (p.max - p.min)) * 100;
+                return (
+                  <div key={p.key} className="flex items-center gap-3 py-1 px-2 -mx-2 rounded hover:bg-bg-tertiary/30 transition-colors group/param">
+                    <span className={`w-48 text-xs shrink-0 flex items-center gap-1 ${isModified ? 'text-accent font-medium' : 'text-text-secondary'}`}>
+                      {isModified && <span className="text-accent">*</span>}
+                      {p.label}
+                      <span className="relative">
+                        <svg className="w-3 h-3 text-text-secondary/30 group-hover/param:text-text-secondary/60 transition-colors cursor-help" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                          <circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3" /><line x1="12" y1="17" x2="12.01" y2="17" />
+                        </svg>
+                        <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 text-[10px] bg-bg-primary border border-bg-tertiary rounded text-text-secondary whitespace-nowrap opacity-0 group-hover/param:opacity-100 transition-opacity pointer-events-none z-10 shadow-lg">
+                          {p.tooltip}
+                        </span>
+                      </span>
+                    </span>
+                    <div className="flex-1 relative">
+                      <input type="range" min={p.min} max={p.max} step={p.step} value={val}
+                        onChange={(e) => update(p.key, parseFloat(e.target.value))}
+                        className="w-full h-1.5 accent-accent" />
+                      {isModified && (
+                        <div className="absolute -bottom-1 left-0 w-full h-0.5">
+                          <div className="h-full bg-accent/30 rounded-full" style={{ width: `${pct}%` }} />
+                        </div>
+                      )}
+                    </div>
+                    <input type="number" min={p.min} max={p.max} step={p.step} value={val}
+                      onChange={(e) => update(p.key, parseFloat(e.target.value) || p.min)}
+                      className={`w-20 bg-bg-tertiary border rounded-md px-2 py-0.5 text-xs text-center focus:border-accent focus:ring-1 focus:ring-accent/30 transition-colors ${isModified ? 'border-accent/40' : 'border-bg-quaternary/50'}`} />
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
 
       {/* Simulation Settings */}
       <div className="border-t border-bg-tertiary/30 pt-4">
@@ -176,11 +224,18 @@ export default function ParamsPage() {
 
   return (
     <div className="p-8 max-w-3xl">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-2">
         <h2 className="text-2xl font-bold">Engine Parameters</h2>
         <button onClick={resetToDefaults}
-          className="px-3 py-1.5 text-sm bg-bg-tertiary border border-bg-quaternary/30 rounded-md hover:border-danger/50 hover:text-danger transition-colors">Reset to Defaults</button>
+          className="px-3 py-1.5 text-sm bg-bg-tertiary border border-bg-quaternary/30 rounded-md hover:border-danger/50 hover:text-danger transition-colors flex items-center gap-1.5">
+          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M1 4v6h6" /><path d="M3.51 15a9 9 0 102.13-9.36L1 10" /></svg>
+          Reset All
+        </button>
       </div>
+      <p className="text-xs text-text-secondary mb-6">
+        Tune the Merrill-Grofman spatial voting model. Changes apply to the next election or campaign run.
+        Hover over <span className="inline-flex items-center"><svg className="w-3 h-3 text-text-secondary/50 mx-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="12" r="10" /></svg></span> for parameter details.
+      </p>
       <div className="bg-bg-secondary rounded-lg p-6 border border-bg-tertiary/50">
         <ParamsEditor params={params} onChange={setParams} />
       </div>
