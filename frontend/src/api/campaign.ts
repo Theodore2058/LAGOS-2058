@@ -10,6 +10,8 @@ export interface PartyStatus {
   momentum_direction: string;
   vote_share: number;
   seats: number;
+  awareness: number;
+  eto_score: number;
 }
 
 export interface CampaignStateResponse {

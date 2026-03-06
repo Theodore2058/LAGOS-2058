@@ -117,6 +117,17 @@ class CampaignSession:
                     if len(row) > 0:
                         last_seats = float(row.iloc[0]["Mean Seats"])
 
+            # Compute mean awareness for this party
+            mean_awareness = 0.6  # default floor
+            if self.state.awareness is not None:
+                pidx = self.party_names.index(pname) if pname in self.party_names else -1
+                if pidx >= 0 and pidx < self.state.awareness.shape[1]:
+                    mean_awareness = float(self.state.awareness[:, pidx].mean())
+
+            # Compute mean ETO score across all (category, az) for this party
+            eto_vals = [v for (p, _cat, _az), v in self.state.eto_scores.items() if p == pname]
+            mean_eto = float(sum(eto_vals) / len(eto_vals)) if eto_vals else 0.0
+
             party_statuses.append(PartyStatus(
                 name=pname,
                 pc=self.state.political_capital.get(pname, 0.0),
@@ -126,6 +137,8 @@ class CampaignSession:
                 momentum_direction=self.state.momentum_direction.get(pname, "stable"),
                 vote_share=round(last_share, 4),
                 seats=round(last_seats, 1),
+                awareness=round(mean_awareness, 3),
+                eto_score=round(mean_eto, 1),
             ))
 
         return CampaignStateResponse(

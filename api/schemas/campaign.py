@@ -49,6 +49,8 @@ class PartyStatus(BaseModel):
     momentum_direction: str
     vote_share: float
     seats: float
+    awareness: float  # mean awareness across all LGAs (0-1)
+    eto_score: float  # mean ETO score across all categories/zones
 
 
 class CampaignStateResponse(BaseModel):

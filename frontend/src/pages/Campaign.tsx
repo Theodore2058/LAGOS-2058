@@ -146,10 +146,19 @@ export default function Campaign() {
           <h2 className="text-2xl font-bold tracking-wide" style={{ fontFamily: "'JetBrains Mono', 'Courier New', monospace" }}>
             Turn {campaignState.turn} <span className="text-text-secondary font-normal">of {campaignState.n_turns}</span>
           </h2>
-          <span className="text-xs text-accent uppercase tracking-[0.1em] font-medium">{campaignState.phase}</span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-accent uppercase tracking-[0.1em] font-medium">{campaignState.phase}</span>
+            {PHASE_DESCRIPTIONS[campaignState.phase.toLowerCase()] && (
+              <span className="text-[10px] text-text-secondary">{PHASE_DESCRIPTIONS[campaignState.phase.toLowerCase()]}</span>
+            )}
+          </div>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => setShowBuilder(!showBuilder)}
+          <button onClick={() => {
+              const next = !showBuilder;
+              setShowBuilder(next);
+              if (next) setTimeout(() => document.getElementById('action-builder')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+            }}
             className="px-3 py-1.5 text-sm bg-bg-tertiary rounded hover:bg-bg-tertiary/80">
             {showBuilder ? 'Hide' : 'Add Actions'}
           </button>
@@ -179,6 +188,7 @@ export default function Campaign() {
 
       {/* Action Builder */}
       {showBuilder && (
+        <div id="action-builder">
         <ActionBuilder
           parties={parties}
           actionTypes={actionTypes}
@@ -187,6 +197,7 @@ export default function Campaign() {
           onAdd={(a) => setActions(prev => [...prev, a])}
           onClose={() => setShowBuilder(false)}
         />
+        </div>
       )}
 
       {/* Action Queue */}
@@ -380,11 +391,19 @@ function TurnHistoryRow({ result: h, parties, defaultExpanded }: { result: TurnR
   );
 }
 
+const PHASE_DESCRIPTIONS: Record<string, string> = {
+  foundation: 'Early groundwork. Build awareness and establish presence.',
+  expansion: 'Mid-campaign. Expand reach, secure endorsements, run advertising.',
+  consolidation: 'Late-campaign. Lock in support, counter rivals, manage crises.',
+  final_push: 'Final stretch. Maximum intensity. Every action counts.',
+};
+
 function PartyCard({ status, color, pcUsed }: { status: PartyStatus; color: string; pcUsed: number }) {
   const pcColor = status.pc >= 10 ? '#22c55e' : status.pc >= 5 ? '#f59e0b' : '#ef4444';
   const exposureDanger = status.exposure > 1.5;
   const momentumArrow = status.momentum_direction === 'up' ? '\u2191' : status.momentum_direction === 'down' ? '\u2193' : '\u2194';
   const cohesionPct = (status.cohesion / 10) * 100;
+  const awarenessPct = Math.min(status.awareness * 100, 100);
 
   return (
     <div className="bg-bg-secondary rounded-lg p-3.5 border border-bg-tertiary/50 hover:border-bg-quaternary/50 transition-colors"
@@ -419,6 +438,21 @@ function PartyCard({ status, color, pcUsed }: { status: PartyStatus; color: stri
         <div>
           <span className="text-text-secondary block mb-0.5">Seats</span>
           <span className="font-semibold">{status.seats.toFixed(0)}</span>
+        </div>
+        <div>
+          <span className="text-text-secondary block mb-0.5">Awareness</span>
+          <div className="flex items-center gap-1.5">
+            <div className="flex-1 bg-bg-tertiary rounded-full h-1.5">
+              <div className="h-1.5 rounded-full transition-all"
+                style={{ width: `${awarenessPct}%`, backgroundColor: status.awareness >= 0.8 ? '#22c55e' : status.awareness >= 0.65 ? '#f59e0b' : '#94a3b8' }} />
+            </div>
+            <span className="text-[10px] font-mono w-8 text-right">{(status.awareness * 100).toFixed(0)}%</span>
+          </div>
+        </div>
+        <div>
+          <span className="text-text-secondary block mb-0.5">ETO</span>
+          <span className="font-semibold font-mono">{status.eto_score.toFixed(1)}</span>
+          <span className="text-text-secondary">/10</span>
         </div>
         <div className="col-span-2">
           <span className="text-text-secondary block mb-0.5">Exposure</span>
