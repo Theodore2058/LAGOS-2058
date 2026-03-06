@@ -11,11 +11,12 @@ interface Props {
   selectedAZs: number[];
   selectedDistricts: string[];
   scope: TargetScope;
+  singleDistrict?: boolean;
   onChange: (lgas: number[], azs: number[]) => void;
   onDistrictChange?: (districts: string[]) => void;
 }
 
-export default function TargetSelector({ lgas, districts, selectedLGAs, selectedAZs, selectedDistricts, scope, onChange, onDistrictChange }: Props) {
+export default function TargetSelector({ lgas, districts, selectedLGAs, selectedAZs, selectedDistricts, scope, singleDistrict, onChange, onDistrictChange }: Props) {
   const [search, setSearch] = useState('');
   const [expandedState, setExpandedState] = useState<string | null>(null);
   const [expandedAz, setExpandedAz] = useState<number | null>(null);
@@ -58,13 +59,19 @@ export default function TargetSelector({ lgas, districts, selectedLGAs, selected
     }, [districts]);
 
     const toggleDistrict = (id: string) => {
-      const next = selectedDistricts.includes(id)
-        ? selectedDistricts.filter(d => d !== id)
-        : [...selectedDistricts, id];
-      onDistrictChange(next);
+      if (singleDistrict) {
+        // Single-select: toggle off if already selected, otherwise replace
+        onDistrictChange(selectedDistricts.includes(id) ? [] : [id]);
+      } else {
+        const next = selectedDistricts.includes(id)
+          ? selectedDistricts.filter(d => d !== id)
+          : [...selectedDistricts, id];
+        onDistrictChange(next);
+      }
     };
 
     const toggleAzDistricts = (az: number) => {
+      if (singleDistrict) return; // No bulk-select in single mode
       const azDistricts = byAz.get(az) ?? [];
       const azIds = azDistricts.map(d => d.district_id);
       const allSelected = azIds.every(id => selectedDistricts.includes(id));
@@ -95,7 +102,7 @@ export default function TargetSelector({ lgas, districts, selectedLGAs, selected
     return (
       <div>
         <label className="text-xs text-text-secondary block mb-1">
-          Target Districts (empty = national) — {selectedDistricts.length > 0 ? `${selectedDistricts.length} district${selectedDistricts.length > 1 ? 's' : ''} (${totalLGAs} LGAs)` : 'none selected'}
+          {singleDistrict ? 'Target District (pick one)' : 'Target Districts (empty = national)'} — {selectedDistricts.length > 0 ? `${selectedDistricts.length} district${selectedDistricts.length > 1 ? 's' : ''} (${totalLGAs} LGAs)` : 'none selected'}
         </label>
 
         {/* AZ quick-select row */}
@@ -106,9 +113,9 @@ export default function TargetSelector({ lgas, districts, selectedLGAs, selected
             const allSelected = azDistricts.every(d => selectedDistricts.includes(d.district_id));
             const someSelected = azDistricts.some(d => selectedDistricts.includes(d.district_id));
             return (
-              <button key={az} onClick={() => toggleAzDistricts(az)} type="button"
+              <button key={az} onClick={() => singleDistrict ? setExpandedAz(expandedAz === az ? null : az) : toggleAzDistricts(az)} type="button"
                 className={`px-2 py-1 text-xs rounded transition-colors duration-150 ${allSelected ? 'bg-accent text-bg-primary' : someSelected ? 'bg-accent/30 text-accent' : 'bg-bg-tertiary hover:bg-bg-tertiary/70'}`}
-                title={`${azDistricts.length} districts in ${ADMIN_ZONES[az]}`}>
+                title={singleDistrict ? `Show districts in ${ADMIN_ZONES[az]}` : `${azDistricts.length} districts in ${ADMIN_ZONES[az]}`}>
                 {ADMIN_ZONES[az]?.split(' ')[0] ?? `AZ ${az}`}
               </button>
             );
@@ -134,10 +141,12 @@ export default function TargetSelector({ lgas, districts, selectedLGAs, selected
                 <div className="flex items-center gap-1.5 py-0.5 px-1 rounded hover:bg-bg-tertiary/30 cursor-pointer"
                   onClick={() => setExpandedAz(isExpanded ? null : az)}>
                   <span className="text-[10px] text-text-secondary w-3">{isExpanded ? '\u25BC' : '\u25B6'}</span>
-                  <button type="button" onClick={e => { e.stopPropagation(); toggleAzDistricts(az); }}
-                    className={`w-3 h-3 rounded-sm border text-[8px] flex items-center justify-center shrink-0 transition-colors ${allSelected ? 'bg-accent border-accent text-bg-primary' : someSelected ? 'bg-accent/30 border-accent/50' : 'border-bg-quaternary/50'}`}>
-                    {allSelected ? '\u2713' : someSelected ? '\u2212' : ''}
-                  </button>
+                  {!singleDistrict && (
+                    <button type="button" onClick={e => { e.stopPropagation(); toggleAzDistricts(az); }}
+                      className={`w-3 h-3 rounded-sm border text-[8px] flex items-center justify-center shrink-0 transition-colors ${allSelected ? 'bg-accent border-accent text-bg-primary' : someSelected ? 'bg-accent/30 border-accent/50' : 'border-bg-quaternary/50'}`}>
+                      {allSelected ? '\u2713' : someSelected ? '\u2212' : ''}
+                    </button>
+                  )}
                   <span className="text-xs font-medium flex-1">{ADMIN_ZONES[az]}</span>
                   <span className="text-[10px] text-text-secondary">{azDistricts.filter(d => selectedDistricts.includes(d.district_id)).length}/{azDistricts.length}</span>
                 </div>

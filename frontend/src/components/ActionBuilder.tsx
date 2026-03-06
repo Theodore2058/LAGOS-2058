@@ -393,6 +393,7 @@ export default function ActionBuilder({ parties, actionTypes, issueNames, lgas, 
           selectedAZs={targetAzs}
           selectedDistricts={targetDistricts}
           scope={scope}
+          singleDistrict={actionType === 'rally'}
           onChange={handleTargetChange}
           onDistrictChange={setTargetDistricts}
         />
