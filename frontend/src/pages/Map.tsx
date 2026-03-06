@@ -8,6 +8,58 @@ import { runElection } from '../api/election';
 
 type ColorMode = 'winner' | 'turnout' | 'margin';
 
+/** Normalize LGA name for matching: lowercase, trim, collapse hyphens/slashes/spaces, strip parentheticals */
+const normalizeLga = (name: string) =>
+  name.toLowerCase().trim()
+    .replace(/\s*\(.*?\)\s*/g, ' ')    // strip parenthetical (gbonyin)
+    .replace(/[-/\s]+/g, ' ')           // collapse hyphens/slashes/spaces
+    .replace(/\s+/g, ' ')
+    .trim();
+
+/**
+ * Alias map for LGA names that differ between GeoJSON (adm2_name) and election data (LGA Name).
+ * Keys are normalized GeoJSON names, values are normalized election-data names.
+ */
+const LGA_ALIASES: Record<string, string> = {
+  'aiyekire': 'gbonyin',
+  'atigbo': 'atisbo',
+  'barikin ladi': 'barkin ladi',
+  'bekwara': 'bekwarra',
+  'birni kudu': 'birnin kudu',
+  'birnin magaji': 'birnin magaji kiyaw',
+  'egbado north': 'yewa north',
+  'egbado south': 'yewa south',
+  'ezinihitte': 'ezinihitte mbaise',
+  'garum mallam': 'garun mallam',
+  'ibeju lekki': 'ibeju lekki',
+  'ifako ijaye': 'ifako ijaiye',
+  'ile oluji okeigbo': 'ile oluji okeigbo',
+  'ilejemeji': 'ilejemeje',
+  'ilesha east': 'ilesa east',
+  'ilesha west': 'ilesa west',
+  'isiukwuato': 'isuikwuato',
+  'kiri kasamma': 'kiri kasama',
+  'markafi': 'makarfi',
+  'muya': 'munya',
+  'obia akpor': 'obio akpor',
+  'olamabolo': 'olamaboro',
+  'omumma': 'omuma',
+  'osisioma ngwa': 'osisioma',
+  'oturkpo': 'otukpo',
+  'shagamu': 'sagamu',
+  'shomgom': 'shongom',
+  'tarmua': 'tarmuwa',
+  'unuimo': 'onuimo',
+  'yenegoa': 'yenagoa',
+  'zango kataf': 'zangon kataf',
+};
+
+/** Resolve a GeoJSON LGA name to match election-data naming */
+const resolveLga = (name: string): string => {
+  const n = normalizeLga(name);
+  return LGA_ALIASES[n] ?? n;
+};
+
 export default function MapPage() {
   const [parties, setParties] = useState<Party[]>([]);
   const [geoData, setGeoData] = useState<GeoJSON.FeatureCollection | null>(null);
@@ -57,16 +109,19 @@ export default function MapPage() {
     if (!results) return new Map<string, LGAResult>();
     const map = new Map<string, LGAResult>();
     for (const lga of results.lga_results) {
-      map.set(lga.lga.toLowerCase().trim(), lga);
+      map.set(normalizeLga(lga.lga), lga);
     }
     return map;
   }, [results]);
 
+  /** Look up election result for a GeoJSON LGA name */
+  const findLga = useCallback((geoName: string) => lgaMap.get(resolveLga(geoName)), [lgaMap]);
+
   const style = useCallback((feature?: GeoJSON.Feature): PathOptions => {
     if (!feature || !results) return { fillColor: '#334155', weight: 0.5, color: '#1e293b', fillOpacity: 0.7 };
 
-    const lgaName = (feature.properties?.lga_name ?? feature.properties?.ADM2_EN ?? feature.properties?.NAME_2 ?? '').toLowerCase().trim();
-    const lga = lgaMap.get(lgaName);
+    const lgaRaw = feature.properties?.adm2_name ?? feature.properties?.lga_name ?? feature.properties?.ADM2_EN ?? feature.properties?.NAME_2 ?? '';
+    const lga = findLga(lgaRaw);
 
     if (!lga) return { fillColor: '#334155', weight: 0.5, color: '#1e293b', fillOpacity: 0.5 };
 
@@ -86,11 +141,11 @@ export default function MapPage() {
     }
 
     return { fillColor, weight: 0.3, color: '#0f172a', fillOpacity: 0.85 };
-  }, [results, colorMode, getColor, lgaMap]);
+  }, [results, colorMode, getColor, findLga]);
 
   const onEachFeature = useCallback((feature: GeoJSON.Feature, layer: Layer) => {
-    const lgaName = (feature.properties?.lga_name ?? feature.properties?.ADM2_EN ?? feature.properties?.NAME_2 ?? '');
-    const lga = lgaMap.get(lgaName.toLowerCase().trim());
+    const lgaName = (feature.properties?.adm2_name ?? feature.properties?.lga_name ?? feature.properties?.ADM2_EN ?? feature.properties?.NAME_2 ?? '');
+    const lga = findLga(lgaName);
 
     let tooltip = lgaName;
     if (lga) {
@@ -101,7 +156,7 @@ export default function MapPage() {
     layer.on('click', () => {
       if (lga) setSelectedLga(lga);
     });
-  }, [lgaMap]);
+  }, [findLga]);
 
   return (
     <div className="flex h-full">
