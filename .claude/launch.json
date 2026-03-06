@@ -7,6 +7,12 @@
       "runtimeArgs": ["node_modules/vite/bin/vite.js", "--port", "5199"],
       "port": 5199,
       "cwd": "frontend"
+    },
+    {
+      "name": "backend",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "uvicorn", "api.main:app", "--host", "127.0.0.1", "--port", "8000", "--reload"],
+      "port": 8000
     }
   ]
 }

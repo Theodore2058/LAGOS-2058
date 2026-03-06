@@ -151,7 +151,7 @@ export default function Campaign() {
                 <span className="text-text-secondary font-mono">
                   {actionTypes.find(at => at.name === a.action_type)?.base_cost ?? '?'} PC
                 </span>
-                <button onClick={() => removeAction(i)} className="text-danger/60 hover:text-danger p-0.5 rounded hover:bg-danger/10 transition-colors">
+                <button onClick={() => removeAction(i)} className="text-danger/60 hover:text-danger p-0.5 rounded hover:bg-danger/10 transition-colors" aria-label={`Remove ${a.action_type} action`}>
                   <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M18 6L6 18M6 6l12 12" /></svg>
                 </button>
               </div>

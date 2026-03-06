@@ -83,7 +83,7 @@ export default function Crises() {
                   <div key={c.id} className="flex items-center gap-2 text-xs py-0.5">
                     <svg className="w-3 h-3 text-danger shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
                     <span className="flex-1 truncate">{c.name}</span>
-                    <button onClick={() => handleDelete(c.id)} className="text-danger/60 hover:text-danger transition-colors">
+                    <button onClick={() => handleDelete(c.id)} className="text-danger/60 hover:text-danger transition-colors" aria-label={`Delete crisis ${c.name}`}>
                       <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M18 6L6 18M6 6l12 12" /></svg>
                     </button>
                   </div>
@@ -149,7 +149,7 @@ export default function Crises() {
             <div className="flex flex-wrap gap-2">
               {[1, 2, 3, 4, 5, 6, 7, 8].map(az => (
                 <button key={az} onClick={() => toggleAz(az)}
-                  className={`px-2 py-1 text-xs rounded ${editing.affected_azs?.includes(az) ? 'bg-accent text-white' : 'bg-bg-tertiary'}`}>
+                  className={`px-2 py-1 text-xs rounded transition-colors duration-150 ${editing.affected_azs?.includes(az) ? 'bg-accent text-white' : 'bg-bg-tertiary hover:bg-bg-tertiary/70'}`}>
                   {ADMIN_ZONES[az]?.split(' ')[0]}
                 </button>
               ))}

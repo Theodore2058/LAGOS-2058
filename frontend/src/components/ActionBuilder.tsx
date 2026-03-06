@@ -51,7 +51,7 @@ export default function ActionBuilder({ parties, actionTypes, issueNames, onAdd,
     <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50 space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold">Add Action</h3>
-        <button onClick={onClose} className="text-text-secondary hover:text-text-primary text-sm">Close</button>
+        <button onClick={onClose} className="text-text-secondary hover:text-text-primary text-sm px-2 py-1 rounded hover:bg-bg-tertiary/50 transition-colors">Close</button>
       </div>
 
       <div className="grid grid-cols-3 gap-3">
@@ -89,7 +89,7 @@ export default function ActionBuilder({ parties, actionTypes, issueNames, onAdd,
           <div className="flex flex-wrap gap-2">
             {AZ_IDS.map(az => (
               <button key={az} onClick={() => toggleAz(az)}
-                className={`px-2 py-1 text-xs rounded ${targetAzs.includes(az) ? 'bg-accent text-white' : 'bg-bg-tertiary'}`}>
+                className={`px-2 py-1 text-xs rounded transition-colors duration-150 ${targetAzs.includes(az) ? 'bg-accent text-white' : 'bg-bg-tertiary hover:bg-bg-tertiary/70'}`}>
                 {ADMIN_ZONES[az]?.split(' ')[0] ?? `AZ ${az}`}
               </button>
             ))}

@@ -156,7 +156,9 @@ export default function Parties() {
               <span className="text-sm flex-1 truncate">{p.name}</span>
               <span className="text-xs text-text-secondary truncate max-w-20">{p.leader_ethnicity}</span>
               <button onClick={(e) => { e.stopPropagation(); handleDelete(p.name); }}
-                className="text-xs text-danger/60 hover:text-danger px-1">x</button>
+                className="text-danger/60 hover:text-danger p-0.5 rounded hover:bg-danger/10 transition-colors" aria-label={`Delete ${p.name}`}>
+                <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M18 6L6 18M6 6l12 12" /></svg>
+              </button>
             </div>
           ))}
           {parties.length === 0 && (
@@ -178,7 +180,7 @@ export default function Parties() {
             className={`px-4 py-2 text-sm ${tab === 'compare' ? 'border-b-2 border-accent text-accent' : 'text-text-secondary'}`}>Compare</button>
         </div>
 
-        {error && <div className="mx-4 mt-2 p-2 bg-danger/20 text-danger text-sm rounded">{error}<button onClick={() => setError(null)} className="ml-2 text-xs">x</button></div>}
+        {error && <div className="mx-4 mt-2 p-2 bg-danger/20 text-danger text-sm rounded flex items-center justify-between border border-danger/30">{error}<button onClick={() => setError(null)} className="text-danger/60 hover:text-danger p-0.5 rounded hover:bg-danger/10 transition-colors shrink-0 ml-2" aria-label="Dismiss error"><svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M18 6L6 18M6 6l12 12" /></svg></button></div>}
 
         <div className="p-4">
           {tab === 'editor' && editing && (

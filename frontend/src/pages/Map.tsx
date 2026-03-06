@@ -140,7 +140,7 @@ export default function MapPage() {
         <div className="w-72 bg-bg-secondary border-l border-bg-tertiary p-4 overflow-y-auto">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold">{selectedLga.lga}</h3>
-            <button onClick={() => setSelectedLga(null)} className="text-text-secondary hover:text-text-primary p-1 rounded hover:bg-bg-tertiary/50 transition-colors">
+            <button onClick={() => setSelectedLga(null)} className="text-text-secondary hover:text-text-primary p-1 rounded hover:bg-bg-tertiary/50 transition-colors" aria-label="Close LGA detail">
               <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M18 6L6 18M6 6l12 12" /></svg>
             </button>
           </div>

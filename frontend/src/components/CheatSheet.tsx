@@ -29,6 +29,9 @@ export default function CheatSheet() {
         <div
           className={`fixed inset-0 z-40 flex items-center justify-center transition-all duration-200 ${visible ? 'bg-black/60 backdrop-blur-sm' : 'bg-black/0'}`}
           onClick={handleClose}
+          role="dialog"
+          aria-modal="true"
+          aria-label="GM Cheat Sheet"
         >
           <div
             className={`bg-bg-secondary rounded-xl border border-bg-tertiary/50 w-[800px] max-h-[80vh] overflow-y-auto p-6 shadow-2xl shadow-black/40 transition-all duration-200 ${visible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}
@@ -37,6 +40,7 @@ export default function CheatSheet() {
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-lg font-bold">GM Cheat Sheet</h2>
               <button onClick={handleClose}
+                aria-label="Close cheat sheet"
                 className="w-7 h-7 rounded-md flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-bg-tertiary/50 transition-colors">
                 <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
