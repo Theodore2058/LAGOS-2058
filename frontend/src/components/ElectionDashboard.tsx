@@ -109,7 +109,7 @@ export default function ElectionDashboard({ results, parties }: Props) {
       </div>
 
       {/* Zonal Breakdown */}
-      <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50/50 overflow-x-auto">
+      <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50 overflow-x-auto">
         <h3 className="text-sm font-semibold mb-3 text-text-secondary">Zonal Breakdown</h3>
         <table className="w-full text-xs">
           <thead>
@@ -123,9 +123,9 @@ export default function ElectionDashboard({ results, parties }: Props) {
             </tr>
           </thead>
           <tbody>
-            {results.zonal_results.map(z => (
-              <tr key={z.az} className="border-b border-bg-tertiary/30">
-                <td className="py-1 px-2">{z.az_name || ADMIN_ZONES[z.az]}</td>
+            {results.zonal_results.map((z, i) => (
+              <tr key={z.az} className={`border-b border-bg-tertiary/30 hover:bg-bg-tertiary/20 transition-colors ${i % 2 === 1 ? 'bg-bg-tertiary/10' : ''}`}>
+                <td className="py-1.5 px-2 font-medium">{z.az_name || ADMIN_ZONES[z.az]}</td>
                 <td className="text-right py-1 px-2">{(z.turnout * 100).toFixed(1)}%</td>
                 {sortedParties.slice(0, 8).map(([name]) => (
                   <td key={name} className="text-right py-1 px-2">{((z.vote_shares[name] ?? 0) * 100).toFixed(1)}%</td>
@@ -146,20 +146,20 @@ export default function ElectionDashboard({ results, parties }: Props) {
           <div className="max-h-64 overflow-y-auto">
             <table className="w-full text-xs">
               <thead>
-                <tr className="border-b border-bg-tertiary">
-                  <th className="text-left py-1 px-2">LGA</th>
-                  <th className="text-left py-1 px-2">State</th>
-                  <th className="text-right py-1 px-2">Margin</th>
-                  <th className="text-left py-1 px-2">Top Parties</th>
+                <tr className="border-b border-bg-tertiary sticky top-0 bg-bg-secondary">
+                  <th className="text-left py-1.5 px-2">LGA</th>
+                  <th className="text-left py-1.5 px-2">State</th>
+                  <th className="text-right py-1.5 px-2">Margin</th>
+                  <th className="text-left py-1.5 px-2">Top Parties</th>
                 </tr>
               </thead>
               <tbody>
                 {results.swing_lgas.slice(0, 50).map((s, i) => (
-                  <tr key={i} className="border-b border-bg-tertiary/30">
-                    <td className="py-0.5 px-2">{s.lga}</td>
-                    <td className="py-0.5 px-2">{s.state}</td>
-                    <td className="text-right py-0.5 px-2">{(s.margin * 100).toFixed(2)}%</td>
-                    <td className="py-0.5 px-2">{s.top_parties.join(' vs ')}</td>
+                  <tr key={i} className={`border-b border-bg-tertiary/30 hover:bg-bg-tertiary/20 transition-colors ${i % 2 === 1 ? 'bg-bg-tertiary/10' : ''}`}>
+                    <td className="py-1 px-2 font-medium">{s.lga}</td>
+                    <td className="py-1 px-2">{s.state}</td>
+                    <td className="text-right py-1 px-2">{(s.margin * 100).toFixed(2)}%</td>
+                    <td className="py-1 px-2">{s.top_parties.join(' vs ')}</td>
                   </tr>
                 ))}
               </tbody>
@@ -173,7 +173,7 @@ export default function ElectionDashboard({ results, parties }: Props) {
 
 function SummaryCard({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
-    <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50/50 hover:border-bg-quaternary/50 transition-colors">
+    <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50 hover:border-bg-quaternary/50 transition-colors">
       <p className="text-xs text-text-secondary mb-1.5 uppercase tracking-wider">{label}</p>
       <p className="text-xl font-bold" style={color ? { color } : undefined}>{value}</p>
     </div>

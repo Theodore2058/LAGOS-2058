@@ -86,7 +86,7 @@ class CampaignSession:
         # Initialize campaign state
         n_lga = len(df)
         self.state = CampaignState(
-            turn=0, n_lga=n_lga, n_parties=len(self.party_names),
+            turn=1, n_lga=n_lga, n_parties=len(self.party_names),
             party_names=list(self.party_names),
         )
         self.state.awareness = compute_base_awareness(self.engine_parties, df)
@@ -136,7 +136,6 @@ class CampaignSession:
 
     def advance_turn(self, action_inputs: list[ActionInput],
                      crisis_inputs: list[CrisisInput]) -> TurnResultResponse:
-        self.state.turn += 1
         df = self.lga_data.df
         n_lga = len(df)
 
@@ -293,6 +292,7 @@ class CampaignSession:
             scandals=scandals_serializable,
         )
         self.turn_results.append(turn_result)
+        self.state.turn += 1
         return turn_result
 
 

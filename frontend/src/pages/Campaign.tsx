@@ -76,7 +76,7 @@ export default function Campaign() {
         <h2 className="text-2xl font-bold mb-2">Campaign Mode</h2>
         <p className="text-text-secondary mb-6">{parties.length} parties loaded. Start a new 12-turn campaign simulation.</p>
         {error && <div className="mb-4 p-3 bg-danger/20 text-danger rounded-md text-sm border border-danger/30">{error}</div>}
-        <div className="bg-bg-secondary rounded-lg p-6 border border-bg-tertiary/50/50">
+        <div className="bg-bg-secondary rounded-lg p-6 border border-bg-tertiary/50">
           <div className="flex items-center gap-4 mb-4">
             <div className="w-12 h-12 rounded-lg bg-accent/10 flex items-center justify-center">
               <svg className="w-6 h-6 text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75}><path d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
@@ -144,13 +144,16 @@ export default function Campaign() {
           <h3 className="text-sm font-semibold mb-2">Queued Actions ({actions.length})</h3>
           <div className="space-y-1">
             {actions.map((a, i) => (
-              <div key={i} className="flex items-center gap-3 text-xs py-1 border-b border-bg-tertiary/30">
+              <div key={i} className="flex items-center gap-3 text-xs py-1.5 border-b border-bg-tertiary/30 hover:bg-bg-tertiary/20 transition-colors rounded">
+                <div className="w-2 h-2 rounded-sm shrink-0" style={{ backgroundColor: parties.find(p => p.name === a.party)?.color }} />
                 <span className="font-mono w-12" style={{ color: parties.find(p => p.name === a.party)?.color }}>{a.party}</span>
                 <span className="flex-1">{a.action_type}</span>
-                <span className="text-text-secondary">
+                <span className="text-text-secondary font-mono">
                   {actionTypes.find(at => at.name === a.action_type)?.base_cost ?? '?'} PC
                 </span>
-                <button onClick={() => removeAction(i)} className="text-danger/60 hover:text-danger px-1">x</button>
+                <button onClick={() => removeAction(i)} className="text-danger/60 hover:text-danger p-0.5 rounded hover:bg-danger/10 transition-colors">
+                  <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M18 6L6 18M6 6l12 12" /></svg>
+                </button>
               </div>
             ))}
           </div>
@@ -217,7 +220,7 @@ function PartyCard({ status, color, pcUsed }: { status: PartyStatus; color: stri
   const cohesionPct = (status.cohesion / 10) * 100;
 
   return (
-    <div className="bg-bg-secondary rounded-lg p-3.5 border border-bg-tertiary/50/50 hover:border-bg-quaternary/50 transition-colors"
+    <div className="bg-bg-secondary rounded-lg p-3.5 border border-bg-tertiary/50 hover:border-bg-quaternary/50 transition-colors"
       style={{ borderTopColor: color, borderTopWidth: 2 }}>
       <div className="flex items-center gap-2 mb-3">
         <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: color }} />
