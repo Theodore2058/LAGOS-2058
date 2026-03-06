@@ -8,15 +8,7 @@ import Campaign from './pages/Campaign';
 import Crises from './pages/Crises';
 import Results from './pages/Results';
 import MapPage from './pages/Map';
-
-function Placeholder({ title }: { title: string }) {
-  return (
-    <div className="p-8">
-      <h2 className="text-2xl font-bold mb-4">{title}</h2>
-      <p className="text-text-secondary">Coming soon...</p>
-    </div>
-  );
-}
+import Scenarios from './pages/Scenarios';
 
 export default function App() {
   return (
@@ -33,7 +25,7 @@ export default function App() {
             <Route path="/crises" element={<Crises />} />
             <Route path="/results" element={<Results />} />
             <Route path="/map" element={<MapPage />} />
-            <Route path="/scenarios" element={<Placeholder title="Scenarios" />} />
+            <Route path="/scenarios" element={<Scenarios />} />
           </Routes>
         </main>
       </div>
