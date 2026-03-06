@@ -207,9 +207,36 @@ export default function Campaign() {
               <p className="text-xs text-text-secondary">Actions, crises, PC economy, synergies, and scandals</p>
             </div>
           </div>
-          <button onClick={handleNewCampaign} disabled={loading}
+          {/* Party preview */}
+          {parties.length > 0 && (
+            <div className="mb-4 p-3 bg-bg-tertiary/30 rounded-md">
+              <div className="text-[9px] text-text-secondary/40 uppercase tracking-wider mb-2 font-medium">{parties.length} Contesting Parties</div>
+              <div className="flex gap-1 mb-2">
+                {parties.map(p => (
+                  <div key={p.name} className="flex-1 h-2 rounded-sm" style={{ backgroundColor: p.color }} title={p.name} />
+                ))}
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {parties.slice(0, 8).map(p => (
+                  <span key={p.name} className="text-[10px] flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-sm inline-block" style={{ backgroundColor: p.color }} />
+                    <span style={{ color: p.color }}>{p.name}</span>
+                  </span>
+                ))}
+                {parties.length > 8 && <span className="text-[10px] text-text-secondary/40">+{parties.length - 8} more</span>}
+              </div>
+            </div>
+          )}
+          {/* Campaign parameters summary */}
+          <div className="mb-4 flex gap-4 text-[10px] text-text-secondary/50">
+            <span>tau_0: 3.0</span>
+            <span>MC runs: 5</span>
+            <span>PC/turn: 7</span>
+            <span>Max actions: 3/party</span>
+          </div>
+          <button onClick={handleNewCampaign} disabled={loading || parties.length < 2}
             className="w-full px-6 py-2.5 bg-accent rounded-md hover:bg-accent-hover text-bg-primary font-medium disabled:opacity-50 btn-accent">
-            {loading ? 'Initializing...' : 'Start New Campaign'}
+            {loading ? 'Initializing...' : parties.length < 2 ? 'Need 2+ Parties' : 'Start New Campaign'}
           </button>
         </div>
       </div>
@@ -298,11 +325,22 @@ export default function Campaign() {
       {!isComplete && (
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-bold tracking-wide" style={{ fontFamily: "'JetBrains Mono', 'Courier New', monospace" }}>
-              Turn {campaignState.turn} <span className="text-text-secondary font-normal">of {campaignState.n_turns}</span>
-            </h2>
+            <div className="flex items-center gap-3">
+              <h2 className="text-2xl font-bold tracking-wide" style={{ fontFamily: "'JetBrains Mono', 'Courier New', monospace" }}>
+                Turn {campaignState.turn} <span className="text-text-secondary font-normal">of {campaignState.n_turns}</span>
+              </h2>
+              {campaignState.n_turns - campaignState.turn <= 2 && campaignState.n_turns - campaignState.turn >= 0 && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-danger/10 text-danger font-medium animate-pulse">
+                  {campaignState.n_turns - campaignState.turn + 1} turn{campaignState.n_turns - campaignState.turn > 0 ? 's' : ''} left
+                </span>
+              )}
+            </div>
             <div className="flex items-center gap-2">
-              <span className="text-xs text-accent uppercase tracking-[0.1em] font-medium">{campaignState.phase}</span>
+              <span className={`text-xs uppercase tracking-[0.1em] font-medium ${
+                campaignState.phase.toLowerCase() === 'final push' ? 'text-danger' :
+                campaignState.phase.toLowerCase() === 'intensification' ? 'text-warning' :
+                campaignState.phase.toLowerCase() === 'expansion' ? 'text-teal' : 'text-accent'
+              }`}>{campaignState.phase}</span>
               {PHASE_DESCRIPTIONS[campaignState.phase.toLowerCase()] && (
                 <span className="text-[10px] text-text-secondary">{PHASE_DESCRIPTIONS[campaignState.phase.toLowerCase()]}</span>
               )}
