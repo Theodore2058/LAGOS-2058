@@ -14,6 +14,38 @@ interface Props {
   onClose: () => void;
 }
 
+// Categorize actions for grouped display
+const ACTION_CATEGORIES: { label: string; actions: string[] }[] = [
+  { label: 'Outreach', actions: ['rally', 'advertising', 'ground_game', 'media'] },
+  { label: 'Political', actions: ['endorsement', 'patronage', 'ethnic_mobilization', 'pledge', 'eto_engagement'] },
+  { label: 'Strategic', actions: ['opposition_research', 'crisis_response', 'coalition_signal', 'manifesto'] },
+  { label: 'Resources', actions: ['fundraising', 'poll', 'eto_intelligence'] },
+];
+
+// Which effect channels each action primarily affects
+const ACTION_CHANNELS: Record<string, { ch: string; color: string }[]> = {
+  rally:                [{ ch: 'awareness', color: 'bg-blue-400' }, { ch: 'salience', color: 'bg-purple-400' }, { ch: 'tau', color: 'bg-emerald-400' }],
+  advertising:          [{ ch: 'awareness', color: 'bg-blue-400' }, { ch: 'salience', color: 'bg-purple-400' }],
+  ground_game:          [{ ch: 'awareness', color: 'bg-blue-400' }, { ch: 'tau', color: 'bg-emerald-400' }],
+  media:                [{ ch: 'valence', color: 'bg-amber-400' }, { ch: 'salience', color: 'bg-purple-400' }],
+  endorsement:          [{ ch: 'valence', color: 'bg-amber-400' }],
+  patronage:            [{ ch: 'ceiling', color: 'bg-rose-400' }, { ch: 'awareness', color: 'bg-blue-400' }],
+  ethnic_mobilization:  [{ ch: 'ceiling', color: 'bg-rose-400' }],
+  pledge:               [{ ch: 'salience', color: 'bg-purple-400' }],
+  eto_engagement:       [{ ch: 'valence', color: 'bg-amber-400' }],
+  opposition_research:  [{ ch: 'valence', color: 'bg-amber-400' }],
+  crisis_response:      [{ ch: 'valence', color: 'bg-amber-400' }, { ch: 'awareness', color: 'bg-blue-400' }],
+  fundraising:          [],
+  poll:                 [],
+  coalition_signal:     [{ ch: 'valence', color: 'bg-amber-400' }],
+  manifesto:            [{ ch: 'salience', color: 'bg-purple-400' }, { ch: 'valence', color: 'bg-amber-400' }],
+  eto_intelligence:     [],
+};
+
+function formatActionName(name: string): string {
+  return name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
 // Client-side cost computation mirroring backend logic
 function computeActionCost(
   actionType: string,
@@ -160,29 +192,55 @@ export default function ActionBuilder({ parties, actionTypes, issueNames, lgas, 
       <div className="grid grid-cols-3 gap-3">
         <div>
           <label className="text-xs text-text-secondary block mb-1">Party</label>
-          <select value={party} onChange={e => setParty(e.target.value)}
-            className={`w-full ${selectClass}`}>
-            {parties.map(p => <option key={p.name} value={p.name}>{p.name}</option>)}
-          </select>
-          {partyPC && party && (
-            <div className="text-[10px] mt-0.5">
-              <span className="text-text-secondary">Budget: </span>
-              <span className={`font-mono font-medium ${((partyPC[party] ?? 0) - (pcUsedByParty?.[party] ?? 0) - cost) < 0 ? 'text-danger' : 'text-success'}`}>
-                {(partyPC[party] ?? 0).toFixed(0)} PC
-              </span>
-              {(pcUsedByParty?.[party] ?? 0) > 0 && (
-                <span className="text-warning"> (-{pcUsedByParty![party]} queued)</span>
-              )}
-            </div>
-          )}
+          <div className="flex items-center gap-1.5">
+            <div className="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: parties.find(p => p.name === party)?.color ?? '#888' }} />
+            <select value={party} onChange={e => setParty(e.target.value)}
+              className={`w-full ${selectClass}`}>
+              {parties.map(p => <option key={p.name} value={p.name}>{p.name}</option>)}
+            </select>
+          </div>
+          {partyPC && party && (() => {
+            const total = partyPC[party] ?? 0;
+            const queued = pcUsedByParty?.[party] ?? 0;
+            const remaining = total - queued - cost;
+            const maxPC = 18;
+            return (
+              <div className="mt-1">
+                <div className="flex items-center gap-1 h-2.5 bg-bg-tertiary rounded-full overflow-hidden">
+                  {queued > 0 && <div className="h-full bg-warning/60 rounded-l-full" style={{ width: `${(queued / maxPC) * 100}%` }} title={`${queued} PC queued`} />}
+                  {cost > 0 && <div className={`h-full ${remaining < 0 ? 'bg-danger/60' : 'bg-accent/60'}`} style={{ width: `${(Math.min(cost, total - queued) / maxPC) * 100}%` }} title={`${cost} PC this action`} />}
+                  <div className="flex-1" />
+                </div>
+                <div className="flex justify-between text-[10px] mt-0.5">
+                  <span className="text-text-secondary">{total} PC total</span>
+                  <span className={`font-mono font-medium ${remaining < 0 ? 'text-danger' : 'text-text-secondary'}`}>
+                    {remaining >= 0 ? `${remaining} left` : `${Math.abs(remaining)} over`}
+                  </span>
+                </div>
+              </div>
+            );
+          })()}
         </div>
         <div>
           <label className="text-xs text-text-secondary block mb-1">Action Type</label>
           <select value={actionType} onChange={e => { setActionType(e.target.value); setParams({}); setTargetLGAs([]); setTargetAzs([]); }}
             className={`w-full ${selectClass}`}>
-            <option value="">-- Select --</option>
-            {actionTypes.map(a => (
-              <option key={a.name} value={a.name}>{a.name} ({a.base_cost}+ PC)</option>
+            <option value="">-- Select action --</option>
+            {ACTION_CATEGORIES.map(cat => {
+              const available = cat.actions.filter(a => actionTypes.some(at => at.name === a));
+              if (available.length === 0) return null;
+              return (
+                <optgroup key={cat.label} label={cat.label}>
+                  {available.map(a => {
+                    const at = actionTypes.find(at => at.name === a)!;
+                    return <option key={a} value={a}>{formatActionName(a)} ({at.base_cost}+ PC)</option>;
+                  })}
+                </optgroup>
+              );
+            })}
+            {/* Any uncategorized actions */}
+            {actionTypes.filter(a => !ACTION_CATEGORIES.some(c => c.actions.includes(a.name))).map(a => (
+              <option key={a.name} value={a.name}>{formatActionName(a.name)} ({a.base_cost}+ PC)</option>
             ))}
           </select>
         </div>
@@ -198,7 +256,19 @@ export default function ActionBuilder({ parties, actionTypes, issueNames, lgas, 
       </div>
 
       {selectedAction && (
-        <p className="text-xs text-text-secondary">{selectedAction.description}</p>
+        <div className="space-y-1">
+          <p className="text-xs text-text-secondary">{selectedAction.description}</p>
+          {ACTION_CHANNELS[actionType]?.length > 0 && (
+            <div className="flex items-center gap-1">
+              <span className="text-[10px] text-text-secondary/50">Channels:</span>
+              {ACTION_CHANNELS[actionType].map(({ ch, color }) => (
+                <span key={ch} className={`text-[10px] px-1.5 py-0.5 rounded-full ${color}/20 text-text-secondary`}>
+                  {ch}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
       )}
 
       {/* Target selector */}
