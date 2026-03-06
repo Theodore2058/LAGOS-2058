@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { saveScenario, listScenarios, deleteScenario, compareScenarios, exportSession, importSession } from '../api/scenarios';
+import { saveScenario, listScenarios, deleteScenario, compareScenarios, exportSession, importSession, restoreScenario } from '../api/scenarios';
 import { useToast } from '../components/Toast';
 import ConfirmModal from '../components/ConfirmModal';
 import ErrorBanner from '../components/ErrorBanner';
@@ -8,6 +8,8 @@ interface ScenarioSummary {
   name: string;
   n_parties: number;
   n_turns: number;
+  winner: string | null;
+  saved_at: string | null;
 }
 
 interface CompareResult {
@@ -38,6 +40,18 @@ function DeltaBar({ diff, max, label }: { diff: number; max: number; label: stri
   );
 }
 
+function formatTimeAgo(iso: string | null): string {
+  if (!iso) return '';
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  return `${days}d ago`;
+}
+
 export default function Scenarios() {
   const [scenarios, setScenarios] = useState<ScenarioSummary[]>([]);
   const [newName, setNewName] = useState('');
@@ -47,6 +61,7 @@ export default function Scenarios() {
   const [comparing, setComparing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [restoreTarget, setRestoreTarget] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
 
@@ -77,6 +92,15 @@ export default function Scenarios() {
       toast(`Deleted "${name}"`, 'success');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to delete scenario');
+    }
+  };
+
+  const handleRestore = async (name: string) => {
+    try {
+      const res = await restoreScenario(name);
+      toast(`Restored "${name}" (${res.n_parties} parties)`, 'success');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to restore scenario');
     }
   };
 
@@ -177,31 +201,67 @@ export default function Scenarios() {
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-2">
-            {scenarios.map(s => (
-              <div key={s.name} className="bg-bg-tertiary/40 rounded-md p-3 border border-bg-quaternary/20 hover:border-accent/20 transition-colors group/card card-glow">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    <div className="text-sm font-medium truncate">{s.name}</div>
-                    <div className="flex gap-2 mt-1.5">
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-bg-quaternary/30 text-text-secondary">{s.n_parties} parties</span>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-bg-quaternary/30 text-text-secondary">{s.n_turns} turns</span>
+            {scenarios.map(s => {
+              const isCompareSelected = compareA === s.name || compareB === s.name;
+              return (
+                <div key={s.name} className={`bg-bg-tertiary/40 rounded-md p-3 border transition-colors group/card card-glow ${isCompareSelected ? 'border-teal/40 bg-teal/5' : 'border-bg-quaternary/20 hover:border-accent/20'}`}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <div className="text-sm font-medium truncate">{s.name}</div>
+                        {s.saved_at && (
+                          <span className="text-[9px] text-text-secondary/30 shrink-0">{formatTimeAgo(s.saved_at)}</span>
+                        )}
+                      </div>
+                      <div className="flex gap-2 mt-1.5 flex-wrap">
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-bg-quaternary/30 text-text-secondary">{s.n_parties} parties</span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-bg-quaternary/30 text-text-secondary">{s.n_turns} turns</span>
+                        {s.winner && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-success/10 text-success font-medium">{s.winner}</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-0.5 shrink-0">
+                      <button onClick={() => setRestoreTarget(s.name)}
+                        className="opacity-0 group-hover/card:opacity-100 text-accent/50 hover:text-accent p-1 rounded hover:bg-accent/10 transition-all"
+                        aria-label={`Restore scenario ${s.name}`} title="Restore">
+                        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 105.64-12.36L1 10" /></svg>
+                      </button>
+                      <button onClick={() => setDeleteTarget(s.name)}
+                        className="opacity-0 group-hover/card:opacity-100 text-danger/50 hover:text-danger p-1 rounded hover:bg-danger/10 transition-all"
+                        aria-label={`Delete scenario ${s.name}`} title="Delete">
+                        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" /></svg>
+                      </button>
                     </div>
                   </div>
-                  <button onClick={() => setDeleteTarget(s.name)}
-                    className="opacity-0 group-hover/card:opacity-100 text-danger/50 hover:text-danger p-1 rounded hover:bg-danger/10 transition-all shrink-0"
-                    aria-label={`Delete scenario ${s.name}`}>
-                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" /></svg>
-                  </button>
-                </div>
-                {/* Turn progress bar */}
-                <div className="mt-2">
-                  <div className="h-1 bg-bg-quaternary/30 rounded-full overflow-hidden">
-                    <div className="h-full bg-accent/40 rounded-full transition-all" style={{ width: `${Math.min((s.n_turns / 12) * 100, 100)}%` }} />
+                  {/* Turn progress bar */}
+                  <div className="mt-2">
+                    <div className="h-1 bg-bg-quaternary/30 rounded-full overflow-hidden">
+                      <div className="h-full bg-accent/40 rounded-full transition-all" style={{ width: `${Math.min((s.n_turns / 12) * 100, 100)}%` }} />
+                    </div>
+                    <div className="flex justify-between items-center mt-0.5">
+                      <span className="text-[9px] text-text-secondary/40">{s.n_turns}/12 turns</span>
+                      {scenarios.length >= 2 && (
+                        <button
+                          onClick={() => {
+                            if (isCompareSelected) {
+                              if (compareA === s.name) setCompareA('');
+                              else setCompareB('');
+                            } else {
+                              if (!compareA) setCompareA(s.name);
+                              else if (!compareB) setCompareB(s.name);
+                              else { setCompareA(compareB); setCompareB(s.name); }
+                            }
+                          }}
+                          className={`text-[9px] px-1.5 py-0.5 rounded transition-colors ${isCompareSelected ? 'bg-teal/20 text-teal' : 'text-text-secondary/30 hover:text-teal hover:bg-teal/10'}`}>
+                          {isCompareSelected ? (compareA === s.name ? 'A' : 'B') : 'compare'}
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <div className="text-[9px] text-text-secondary/40 mt-0.5">{s.n_turns}/12 turns</div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -302,6 +362,18 @@ export default function Scenarios() {
           setDeleteTarget(null);
         }}
         onCancel={() => setDeleteTarget(null)}
+      />
+
+      <ConfirmModal
+        open={!!restoreTarget}
+        title="Restore Scenario"
+        message={`Replace current parties with those from "${restoreTarget}"? Current unsaved state will be lost.`}
+        confirmLabel="Restore"
+        onConfirm={() => {
+          if (restoreTarget) handleRestore(restoreTarget);
+          setRestoreTarget(null);
+        }}
+        onCancel={() => setRestoreTarget(null)}
       />
     </div>
   );

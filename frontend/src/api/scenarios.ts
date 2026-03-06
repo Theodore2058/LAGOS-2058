@@ -19,6 +19,11 @@ export async function deleteScenario(name: string) {
   await api.delete(`/scenarios/${encodeURIComponent(name)}`);
 }
 
+export async function restoreScenario(name: string) {
+  const res = await api.post(`/scenarios/${encodeURIComponent(name)}/restore`);
+  return res.data;
+}
+
 export async function compareScenarios(a: string, b: string) {
   const res = await api.get(`/scenarios/compare/${encodeURIComponent(a)}/${encodeURIComponent(b)}`);
   return res.data;

@@ -1,5 +1,6 @@
 """Scenario save/load/compare endpoints."""
 
+from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
@@ -28,14 +29,43 @@ def save_scenario(req: SaveScenarioRequest):
         "name": req.name,
         "parties": parties,
         "campaign_history": campaign_history,
+        "saved_at": datetime.now(timezone.utc).isoformat(),
     }
     return {"saved": req.name, "total_scenarios": len(_scenarios)}
 
 
 @router.get("/list")
 def list_scenarios():
-    return [{"name": name, "n_parties": len(s["parties"]), "n_turns": len(s["campaign_history"])}
-            for name, s in _scenarios.items()]
+    result = []
+    for name, s in _scenarios.items():
+        hist = s.get("campaign_history", [])
+        winner = None
+        if hist:
+            final_votes = hist[-1].get("national_vote_shares", {})
+            if final_votes:
+                winner = max(final_votes, key=final_votes.get)
+        result.append({
+            "name": name,
+            "n_parties": len(s["parties"]),
+            "n_turns": len(hist),
+            "winner": winner,
+            "saved_at": s.get("saved_at"),
+        })
+    return result
+
+
+@router.post("/{name}/restore")
+def restore_scenario(name: str):
+    """Restore parties from a saved scenario into the active session."""
+    if name not in _scenarios:
+        raise HTTPException(404, f"Scenario '{name}' not found")
+    from api.schemas.party import PartySchema
+    s = _scenarios[name]
+    session.parties.clear()
+    for pd_dict in s["parties"]:
+        p = PartySchema(**pd_dict)
+        session.parties[p.name] = p
+    return {"restored": name, "n_parties": len(s["parties"])}
 
 
 @router.get("/{name}")
