@@ -119,17 +119,17 @@ export default function MapPage() {
         )}
 
         {/* Controls overlay */}
-        <div className="absolute top-4 right-4 bg-bg-secondary/90 rounded-lg p-3 border border-bg-tertiary/50 z-[1000]">
-          <div className="flex gap-2 mb-2">
+        <div className="absolute top-4 right-4 bg-bg-secondary/95 backdrop-blur-sm rounded-lg p-3 border border-bg-tertiary/50 z-[1000] shadow-lg shadow-black/20">
+          <div className="flex gap-1.5 mb-2.5">
             {(['winner', 'turnout', 'margin'] as ColorMode[]).map(mode => (
               <button key={mode} onClick={() => setColorMode(mode)}
-                className={`px-2 py-1 text-xs rounded ${colorMode === mode ? 'bg-accent text-white' : 'bg-bg-tertiary'}`}>
+                className={`px-3 py-1 text-xs rounded-md font-medium transition-colors ${colorMode === mode ? 'bg-accent text-white shadow-sm shadow-accent/30' : 'bg-bg-tertiary hover:bg-bg-quaternary/50'}`}>
                 {mode}
               </button>
             ))}
           </div>
           <button onClick={handleRunElection} disabled={loading || parties.length < 2}
-            className="w-full px-3 py-1.5 text-xs bg-accent rounded hover:bg-accent-hover text-white disabled:opacity-50">
+            className="w-full px-3 py-1.5 text-xs bg-accent rounded-md hover:bg-accent-hover text-white font-medium disabled:opacity-50 shadow-sm shadow-accent/20">
             {loading ? 'Running...' : results ? 'Re-run Election' : 'Run Election for Map'}
           </button>
         </div>
@@ -140,7 +140,9 @@ export default function MapPage() {
         <div className="w-72 bg-bg-secondary border-l border-bg-tertiary p-4 overflow-y-auto">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold">{selectedLga.lga}</h3>
-            <button onClick={() => setSelectedLga(null)} className="text-text-secondary hover:text-text-primary text-xs">x</button>
+            <button onClick={() => setSelectedLga(null)} className="text-text-secondary hover:text-text-primary p-1 rounded hover:bg-bg-tertiary/50 transition-colors">
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M18 6L6 18M6 6l12 12" /></svg>
+            </button>
           </div>
           <div className="text-xs space-y-2">
             <div><span className="text-text-secondary">State:</span> {selectedLga.state}</div>

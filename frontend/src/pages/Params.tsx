@@ -55,10 +55,10 @@ export function ParamsEditor({ params, onChange }: Props) {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2 flex-wrap">
-        <span className="text-xs text-text-secondary">Presets:</span>
+        <span className="text-xs text-text-secondary mr-1">Presets:</span>
         {Object.keys(PRESETS).map(name => (
           <button key={name} onClick={() => applyPreset(name)}
-            className="px-2 py-1 text-xs bg-bg-tertiary rounded hover:bg-bg-tertiary/80">{name}</button>
+            className="px-3 py-1 text-xs bg-bg-tertiary border border-bg-quaternary/30 rounded-full hover:border-accent/50 hover:text-accent transition-colors">{name}</button>
         ))}
       </div>
 
@@ -66,7 +66,7 @@ export function ParamsEditor({ params, onChange }: Props) {
         {PARAMS.map(p => {
           const val = params[p.key] as number;
           return (
-            <div key={p.key} className="flex items-center gap-3 group" title={p.tooltip}>
+            <div key={p.key} className="flex items-center gap-3 group py-1 px-2 -mx-2 rounded hover:bg-bg-tertiary/30 transition-colors" title={p.tooltip}>
               <span className="w-48 text-xs text-text-secondary">{p.label}</span>
               <input type="range" min={p.min} max={p.max} step={p.step} value={val}
                 onChange={(e) => update(p.key, parseFloat(e.target.value))}
@@ -123,7 +123,7 @@ export default function ParamsPage() {
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold">Engine Parameters</h2>
         <button onClick={resetToDefaults}
-          className="px-3 py-1.5 text-sm bg-bg-tertiary rounded hover:bg-bg-tertiary/80">Reset to Defaults</button>
+          className="px-3 py-1.5 text-sm bg-bg-tertiary border border-bg-quaternary/30 rounded-md hover:border-danger/50 hover:text-danger transition-colors">Reset to Defaults</button>
       </div>
       <div className="bg-bg-secondary rounded-lg p-6 border border-bg-tertiary/50">
         <ParamsEditor params={params} onChange={setParams} />

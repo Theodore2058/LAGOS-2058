@@ -145,7 +145,7 @@ export default function Parties() {
         <div className="flex-1 overflow-y-auto">
           {parties.map(p => (
             <div key={p.name}
-              className={`flex items-center gap-2 px-3 py-2 cursor-pointer border-b border-bg-tertiary/30 ${selected === p.name ? 'bg-accent/15' : 'hover:bg-bg-tertiary/30'}`}
+              className={`flex items-center gap-2 px-3 py-2.5 cursor-pointer border-b border-bg-tertiary/30 transition-colors ${selected === p.name ? 'bg-accent/15 border-l-2 border-l-accent' : 'hover:bg-bg-tertiary/30'}`}
               onClick={() => handleSelect(p.name)}>
               {tab === 'compare' && (
                 <input type="checkbox" checked={compareSelected.has(p.name)}
@@ -202,7 +202,13 @@ export default function Parties() {
             </div>
           )}
           {tab === 'editor' && !editing && (
-            <p className="text-text-secondary">Select a party from the list or create a new one.</p>
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <svg className="w-12 h-12 text-text-secondary/30 mb-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
+                <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4-4v2m8-4a4 4 0 100-8 4 4 0 000 8zm10 0l2 2m-2-2l-2 2m2-2l2-2m-2 2l-2-2" />
+              </svg>
+              <p className="text-text-secondary mb-1">No party selected</p>
+              <p className="text-xs text-text-secondary/60">Select a party from the list or click "+ Add" to create a new one.</p>
+            </div>
           )}
           {tab === 'compare' && (
             <PartyComparison

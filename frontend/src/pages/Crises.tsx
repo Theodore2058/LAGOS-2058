@@ -77,13 +77,15 @@ export default function Crises() {
           {Array.from({ length: 12 }, (_, i) => i + 1).map(turn => {
             const turnCrises = crises.filter(c => c.turn === turn);
             return (
-              <div key={turn} className={`px-3 py-2 border-b border-bg-tertiary/30 ${turnCrises.length > 0 ? 'bg-danger/5' : ''}`}>
-                <div className="text-xs text-text-secondary mb-1">Turn {turn}</div>
+              <div key={turn} className={`px-3 py-2.5 border-b border-bg-tertiary/30 transition-colors ${turnCrises.length > 0 ? 'bg-danger/5 border-l-2 border-l-danger/40' : 'hover:bg-bg-tertiary/20'}`}>
+                <div className="text-xs text-text-secondary mb-1 font-mono">Turn {turn}</div>
                 {turnCrises.map(c => (
-                  <div key={c.id} className="flex items-center gap-2 text-xs">
-                    <span className="text-danger">!</span>
-                    <span className="flex-1">{c.name}</span>
-                    <button onClick={() => handleDelete(c.id)} className="text-danger/60 hover:text-danger">x</button>
+                  <div key={c.id} className="flex items-center gap-2 text-xs py-0.5">
+                    <svg className="w-3 h-3 text-danger shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
+                    <span className="flex-1 truncate">{c.name}</span>
+                    <button onClick={() => handleDelete(c.id)} className="text-danger/60 hover:text-danger transition-colors">
+                      <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M18 6L6 18M6 6l12 12" /></svg>
+                    </button>
                   </div>
                 ))}
               </div>
@@ -107,7 +109,7 @@ export default function Crises() {
           <div className="flex flex-wrap gap-2">
             {templates.map(t => (
               <button key={t.name} onClick={() => loadTemplate(t)}
-                className="px-2 py-1 text-xs bg-bg-tertiary rounded hover:bg-bg-tertiary/80" title={t.description}>
+                className="px-3 py-1 text-xs bg-bg-tertiary border border-bg-quaternary/30 rounded-full hover:border-danger/40 hover:text-danger transition-colors" title={t.description}>
                 {t.name}
               </button>
             ))}

@@ -66,7 +66,10 @@ export default function Scenarios() {
 
       {/* Save */}
       <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50">
-        <h3 className="text-sm font-semibold mb-2">Save Current State</h3>
+        <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+          <svg className="w-4 h-4 text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" /></svg>
+          Save Current State
+        </h3>
         <div className="flex gap-2">
           <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Scenario name"
             className="flex-1 bg-bg-tertiary border border-bg-quaternary/50 rounded-md px-3 py-1.5 text-sm focus:border-accent focus:ring-1 focus:ring-accent/30 transition-colors" />
@@ -76,16 +79,19 @@ export default function Scenarios() {
 
       {/* List */}
       <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50">
-        <h3 className="text-sm font-semibold mb-2">Saved Scenarios ({scenarios.length})</h3>
+        <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+          <svg className="w-4 h-4 text-text-secondary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /></svg>
+          Saved Scenarios ({scenarios.length})
+        </h3>
         {scenarios.length === 0 ? (
           <p className="text-xs text-text-secondary">No scenarios saved yet.</p>
         ) : (
           <div className="space-y-1">
             {scenarios.map(s => (
-              <div key={s.name} className="flex items-center gap-3 text-sm py-1 border-b border-bg-tertiary/30">
+              <div key={s.name} className="flex items-center gap-3 text-sm py-2 px-2 -mx-2 rounded hover:bg-bg-tertiary/20 transition-colors border-b border-bg-tertiary/30">
                 <span className="flex-1 font-mono">{s.name}</span>
                 <span className="text-xs text-text-secondary">{s.n_parties} parties, {s.n_turns} turns</span>
-                <button onClick={() => handleDelete(s.name)} className="text-xs text-danger/60 hover:text-danger">Delete</button>
+                <button onClick={() => handleDelete(s.name)} className="text-xs text-danger/60 hover:text-danger transition-colors">Delete</button>
               </div>
             ))}
           </div>
@@ -95,7 +101,10 @@ export default function Scenarios() {
       {/* Compare */}
       {scenarios.length >= 2 && (
         <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50">
-          <h3 className="text-sm font-semibold mb-2">Compare Scenarios</h3>
+          <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+            <svg className="w-4 h-4 text-text-secondary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><line x1="18" y1="20" x2="18" y2="10" /><line x1="12" y1="20" x2="12" y2="4" /><line x1="6" y1="20" x2="6" y2="14" /></svg>
+            Compare Scenarios
+          </h3>
           <div className="flex gap-2 mb-3">
             <select value={compareA} onChange={e => setCompareA(e.target.value)}
               className="flex-1 bg-bg-tertiary border border-bg-quaternary/50 rounded-md px-3 py-1.5 text-sm focus:border-accent focus:ring-1 focus:ring-accent/30 transition-colors">
@@ -146,7 +155,10 @@ export default function Scenarios() {
 
       {/* Export/Import */}
       <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50">
-        <h3 className="text-sm font-semibold mb-2">Session Data</h3>
+        <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+          <svg className="w-4 h-4 text-text-secondary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
+          Session Data
+        </h3>
         <div className="flex gap-2">
           <button onClick={() => exportSession()}
             className="px-4 py-1.5 text-sm bg-bg-tertiary rounded hover:bg-bg-tertiary/80">Export Session</button>
