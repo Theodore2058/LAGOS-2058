@@ -58,9 +58,9 @@ export default function CheatSheet() {
                       ['poll', '1-5 (= tier)'], ['pledge', '1'],
                       ['eto_intelligence', '0 (needs ETO >= 5.0)'],
                     ].map(([name, cost]) => (
-                      <tr key={name} className="border-b border-bg-tertiary/30">
-                        <td className="py-0.5 font-mono">{name}</td>
-                        <td className="py-0.5 text-right text-text-secondary">{cost}</td>
+                      <tr key={name} className="border-b border-bg-tertiary/30 hover:bg-bg-tertiary/20">
+                        <td className="py-1 font-mono">{name}</td>
+                        <td className="py-1 text-right text-text-secondary">{cost}</td>
                       </tr>
                     ))}
                   </tbody>

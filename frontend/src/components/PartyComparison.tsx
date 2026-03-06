@@ -8,7 +8,15 @@ interface Props {
 
 export default function PartyComparison({ parties, issueNames }: Props) {
   if (parties.length === 0) {
-    return <p className="text-text-secondary text-sm">Select parties to compare.</p>;
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-center">
+        <svg className="w-12 h-12 text-text-secondary/30 mb-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
+          <path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4-4v2m8-4a4 4 0 100-8 4 4 0 000 8zm6 0a3 3 0 100-6 3 3 0 000 6z" />
+        </svg>
+        <p className="text-text-secondary mb-1">No parties selected</p>
+        <p className="text-xs text-text-secondary/60">Check the boxes next to parties in the list to compare them.</p>
+      </div>
+    );
   }
 
   // Show at most 10 dimensions for readability in radar
@@ -54,7 +62,7 @@ export default function PartyComparison({ parties, issueNames }: Props) {
           </thead>
           <tbody>
             {issueNames.map((name, idx) => (
-              <tr key={name} className="border-b border-bg-tertiary/30">
+              <tr key={name} className={`border-b border-bg-tertiary/30 ${idx % 2 === 1 ? 'bg-bg-tertiary/10' : ''}`}>
                 <td className="py-0.5 px-2 text-text-secondary">{name}</td>
                 {parties.map(p => {
                   const v = p.positions[idx] ?? 0;

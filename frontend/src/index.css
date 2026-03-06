@@ -110,12 +110,13 @@ input[type="range"]::-webkit-slider-thumb:hover {
 }
 
 /* Table improvements */
-table tbody tr {
-  transition: background-color 0.1s ease;
+table thead th {
+  font-weight: 600;
+  letter-spacing: 0.01em;
 }
 
-table tbody tr:hover {
-  background-color: rgba(51, 65, 85, 0.3);
+table tbody tr {
+  transition: background-color 0.1s ease;
 }
 
 /* Smoother loading spinner */

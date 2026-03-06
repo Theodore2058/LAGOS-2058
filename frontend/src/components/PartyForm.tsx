@@ -107,7 +107,7 @@ export default function PartyForm({ party, issueNames, ethnicGroups, religiousGr
       </div>
 
       {/* Positions */}
-      <div>
+      <div className="border-t border-bg-tertiary/30 pt-4">
         <h4 className="text-sm font-semibold mb-2 text-text-secondary">Issue Positions (28 dimensions)</h4>
         <div className="bg-bg-primary rounded-lg p-3 max-h-96 overflow-y-auto space-y-0.5">
           {issueNames.map((name, idx) => (
@@ -123,7 +123,7 @@ export default function PartyForm({ party, issueNames, ethnicGroups, religiousGr
       </div>
 
       {/* Regional Strongholds */}
-      <div>
+      <div className="border-t border-bg-tertiary/30 pt-4">
         <h4 className="text-sm font-semibold mb-2 text-text-secondary">Regional Strongholds</h4>
         <div className="grid grid-cols-2 gap-2">
           {AZ_IDS.map(azId => {

@@ -281,8 +281,11 @@ class CampaignSession:
                 "pc_damage": int(sc.get("pc_damage", 0)),
             })
 
+        processed_turn = self.state.turn
+        self.state.turn += 1  # Advance to next turn for state response
+
         turn_result = TurnResultResponse(
-            turn=self.state.turn,
+            turn=processed_turn,
             state=self.get_state_response(),
             national_vote_shares=national_shares,
             national_turnout=turnout,
@@ -292,7 +295,6 @@ class CampaignSession:
             scandals=scandals_serializable,
         )
         self.turn_results.append(turn_result)
-        self.state.turn += 1
         return turn_result
 
 
