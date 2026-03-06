@@ -17,7 +17,7 @@ export default function MapPage() {
   const [selectedLga, setSelectedLga] = useState<LGAResult | null>(null);
 
   useEffect(() => {
-    fetchParties().then(setParties);
+    fetchParties().then(setParties).catch(e => console.error('Failed to fetch parties:', e));
     fetch('/static/geojson/nga_lga_enriched.geojson')
       .then(r => r.json())
       .then(setGeoData)
@@ -25,7 +25,7 @@ export default function MapPage() {
         fetch('/static/geojson/nga_admin2.geojson')
           .then(r => r.json())
           .then(setGeoData)
-          .catch(() => {});
+          .catch(e => console.error('Failed to load GeoJSON:', e));
       });
   }, []);
 
@@ -45,7 +45,9 @@ export default function MapPage() {
         seed: 42,
       });
       setResults(res);
-    } catch {}
+    } catch (e) {
+      console.error('Election failed:', e);
+    }
     setLoading(false);
   };
 

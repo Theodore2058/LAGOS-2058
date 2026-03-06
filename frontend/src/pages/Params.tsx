@@ -73,7 +73,7 @@ export function ParamsEditor({ params, onChange }: Props) {
                 className="flex-1 h-1.5 accent-accent" />
               <input type="number" min={p.min} max={p.max} step={p.step} value={val}
                 onChange={(e) => update(p.key, parseFloat(e.target.value) || p.min)}
-                className="w-20 bg-bg-tertiary border border-bg-tertiary rounded px-2 py-0.5 text-xs text-center" />
+                className="w-20 bg-bg-tertiary border border-bg-quaternary/50 rounded-md px-2 py-0.5 text-xs text-center focus:border-accent focus:ring-1 focus:ring-accent/30 transition-colors" />
             </div>
           );
         })}
@@ -83,20 +83,20 @@ export function ParamsEditor({ params, onChange }: Props) {
           <span className="w-48 text-xs text-text-secondary">Monte Carlo Runs</span>
           <input type="number" min={1} max={1000} value={params.n_monte_carlo}
             onChange={(e) => update('n_monte_carlo', parseInt(e.target.value) || 100)}
-            className="w-20 bg-bg-tertiary border border-bg-tertiary rounded px-2 py-0.5 text-xs text-center" />
+            className="w-20 bg-bg-tertiary border border-bg-quaternary/50 rounded-md px-2 py-0.5 text-xs text-center focus:border-accent focus:ring-1 focus:ring-accent/30 transition-colors" />
         </div>
         <div className="flex items-center gap-3">
           <span className="w-48 text-xs text-text-secondary">Random Seed</span>
           <input type="number" value={params.seed ?? ''} placeholder="(random)"
             onChange={(e) => update('seed', e.target.value ? parseInt(e.target.value) : null as unknown as number)}
-            className="w-20 bg-bg-tertiary border border-bg-tertiary rounded px-2 py-0.5 text-xs text-center" />
+            className="w-20 bg-bg-tertiary border border-bg-quaternary/50 rounded-md px-2 py-0.5 text-xs text-center focus:border-accent focus:ring-1 focus:ring-accent/30 transition-colors" />
         </div>
       </div>
     </div>
   );
 }
 
-const DEFAULT_PARAMS: EngineParams = {
+export const DEFAULT_PARAMS: EngineParams = {
   q: 0.5, beta_s: 3.0, alpha_e: 3.0, alpha_r: 2.0, scale: 1.5,
   tau_0: 4.5, tau_1: 0.3, tau_2: 0.5, beta_econ: 0.3,
   kappa: 200, sigma_national: 0.10, sigma_regional: 0.15,

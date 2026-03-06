@@ -2,16 +2,8 @@ import { useState, useEffect } from 'react';
 import type { Party, EngineParams, ElectionResults } from '../types';
 import { fetchParties } from '../api/parties';
 import { runElection } from '../api/election';
-import { ParamsEditor } from './Params';
+import { ParamsEditor, DEFAULT_PARAMS } from './Params';
 import ElectionDashboard from '../components/ElectionDashboard';
-
-const DEFAULT_PARAMS: EngineParams = {
-  q: 0.5, beta_s: 3.0, alpha_e: 3.0, alpha_r: 2.0, scale: 1.5,
-  tau_0: 4.5, tau_1: 0.3, tau_2: 0.5, beta_econ: 0.3,
-  kappa: 200, sigma_national: 0.10, sigma_regional: 0.15,
-  sigma_turnout: 0.0, sigma_turnout_regional: 0.0,
-  n_monte_carlo: 100, seed: null,
-};
 
 export default function Election() {
   const [parties, setParties] = useState<Party[]>([]);
@@ -21,7 +13,7 @@ export default function Election() {
   const [error, setError] = useState<string | null>(null);
   const [showParams, setShowParams] = useState(false);
 
-  useEffect(() => { fetchParties().then(setParties); }, []);
+  useEffect(() => { fetchParties().then(setParties).catch(e => console.error('Failed to fetch parties:', e)); }, []);
 
   const handleRun = async () => {
     if (parties.length < 2) {

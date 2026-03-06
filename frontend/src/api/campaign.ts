@@ -1,5 +1,5 @@
 import api from './client';
-import type { Party, EngineParams, ActionInput, CrisisInput, CampaignState } from '../types';
+import type { Party, EngineParams, ActionInput, CrisisInput } from '../types';
 
 export interface PartyStatus {
   name: string;

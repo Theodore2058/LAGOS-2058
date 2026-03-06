@@ -71,8 +71,9 @@ export default function ElectionDashboard({ results, parties }: Props) {
               <XAxis type="number" tick={{ fill: '#94a3b8', fontSize: 10 }} domain={[0, 'auto']} />
               <YAxis type="category" dataKey="name" tick={{ fill: '#94a3b8', fontSize: 11 }} width={50} />
               <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', color: '#f1f5f9', fontSize: 12 }}
-                formatter={(value: number, name: string, props: { payload: { std: number } }) =>
-                  [`${value.toFixed(1)} (±${props.payload.std.toFixed(1)})`, 'Seats']} />
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                formatter={((value: any, _name: any, props: any) =>
+                  [`${Number(value ?? 0).toFixed(1)} (±${Number(props?.payload?.std ?? 0).toFixed(1)})`, 'Seats']) as any} />
               <Bar dataKey="seats" name="Mean Seats">
                 {seatData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
               </Bar>

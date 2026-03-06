@@ -60,12 +60,12 @@ export default function PartyForm({ party, issueNames, ethnicGroups, religiousGr
         <div>
           <label className="text-xs text-text-secondary block mb-1">Party Code</label>
           <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value.toUpperCase() })}
-            className="w-full bg-bg-tertiary border border-bg-tertiary rounded px-3 py-1.5 text-sm" placeholder="e.g. NRP" />
+            className="w-full bg-bg-tertiary border border-bg-quaternary/50 rounded-md px-3 py-1.5 text-sm focus:border-accent focus:ring-1 focus:ring-accent/30 transition-colors" placeholder="e.g. NRP" />
         </div>
         <div>
           <label className="text-xs text-text-secondary block mb-1">Full Name</label>
           <input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })}
-            className="w-full bg-bg-tertiary border border-bg-tertiary rounded px-3 py-1.5 text-sm" placeholder="e.g. Nigerian Renaissance Party" />
+            className="w-full bg-bg-tertiary border border-bg-quaternary/50 rounded-md px-3 py-1.5 text-sm focus:border-accent focus:ring-1 focus:ring-accent/30 transition-colors" placeholder="e.g. Nigerian Renaissance Party" />
         </div>
       </div>
 
@@ -73,7 +73,7 @@ export default function PartyForm({ party, issueNames, ethnicGroups, religiousGr
         <div>
           <label className="text-xs text-text-secondary block mb-1">Leader Ethnicity</label>
           <select value={form.leader_ethnicity} onChange={(e) => setForm({ ...form, leader_ethnicity: e.target.value })}
-            className="w-full bg-bg-tertiary border border-bg-tertiary rounded px-3 py-1.5 text-sm">
+            className="w-full bg-bg-tertiary border border-bg-quaternary/50 rounded-md px-3 py-1.5 text-sm focus:border-accent focus:ring-1 focus:ring-accent/30 transition-colors">
             <option value="">-- Select --</option>
             {ethnicGroups.map(g => <option key={g} value={g}>{g}</option>)}
           </select>
@@ -81,7 +81,7 @@ export default function PartyForm({ party, issueNames, ethnicGroups, religiousGr
         <div>
           <label className="text-xs text-text-secondary block mb-1">Religious Alignment</label>
           <select value={form.religious_alignment} onChange={(e) => setForm({ ...form, religious_alignment: e.target.value })}
-            className="w-full bg-bg-tertiary border border-bg-tertiary rounded px-3 py-1.5 text-sm">
+            className="w-full bg-bg-tertiary border border-bg-quaternary/50 rounded-md px-3 py-1.5 text-sm focus:border-accent focus:ring-1 focus:ring-accent/30 transition-colors">
             <option value="">-- Select --</option>
             {religiousGroups.map(g => <option key={g} value={g}>{g}</option>)}
           </select>
@@ -139,7 +139,7 @@ export default function PartyForm({ party, issueNames, ethnicGroups, religiousGr
                 {active && (
                   <input type="number" min={-1} max={1} step={0.05} value={val}
                     onChange={(e) => updateStrongholdValue(azId, parseFloat(e.target.value) || 0)}
-                    className="w-16 bg-bg-tertiary border border-bg-tertiary rounded px-2 py-0.5 text-xs" />
+                    className="w-16 bg-bg-tertiary border border-bg-quaternary/50 rounded-md px-2 py-0.5 text-xs focus:border-accent focus:ring-1 focus:ring-accent/30 transition-colors" />
                 )}
               </div>
             );

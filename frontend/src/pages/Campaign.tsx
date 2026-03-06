@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import type { Party, ActionInput, ActionType } from '../types';
 import { fetchParties } from '../api/parties';
 import { fetchActionTypes, fetchIssueNames } from '../api/config';
-import { newCampaign, advanceTurn, getCampaignState, getCampaignHistory } from '../api/campaign';
+import { newCampaign, advanceTurn } from '../api/campaign';
 import type { CampaignStateResponse, TurnResult, PartyStatus } from '../api/campaign';
 import ActionBuilder from '../components/ActionBuilder';
 
@@ -18,9 +18,9 @@ export default function Campaign() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchParties().then(setParties);
-    fetchActionTypes().then(setActionTypes);
-    fetchIssueNames().then(setIssueNames);
+    fetchParties().then(setParties).catch(e => console.error('Failed to fetch parties:', e));
+    fetchActionTypes().then(setActionTypes).catch(e => console.error('Failed to fetch action types:', e));
+    fetchIssueNames().then(setIssueNames).catch(e => console.error('Failed to fetch issue names:', e));
   }, []);
 
   const handleNewCampaign = async () => {
@@ -101,7 +101,7 @@ export default function Campaign() {
           </button>
           <button onClick={handleAdvance} disabled={loading}
             className="px-4 py-1.5 text-sm bg-accent rounded hover:bg-accent-hover text-white disabled:opacity-50">
-            {loading ? 'Processing...' : `Submit Turn ${campaignState.turn + 1}`}
+            {loading ? 'Processing...' : `Submit Turn ${campaignState.turn}`}
           </button>
         </div>
       </div>
@@ -169,14 +169,14 @@ export default function Campaign() {
                   {h.scandals.length > 0 && (
                     <div className="text-xs text-danger mt-1">
                       {h.scandals.map((s, j) => (
-                        <span key={j}>SCANDAL: {(s as Record<string, unknown>).party} (valence -{(s as Record<string, unknown>).valence_penalty}) </span>
+                        <span key={j}>SCANDAL: {String((s as Record<string, unknown>).party)} (valence -{String((s as Record<string, unknown>).valence_penalty)}) </span>
                       ))}
                     </div>
                   )}
                   {h.synergies.length > 0 && (
                     <div className="text-xs text-success mt-1">
                       {h.synergies.map((s, j) => (
-                        <span key={j}>SYNERGY: {(s as Record<string, unknown>).party} {(s as Record<string, unknown>).channel} +{Number((s as Record<string, unknown>).magnitude).toFixed(2)} </span>
+                        <span key={j}>SYNERGY: {String((s as Record<string, unknown>).party)} {String((s as Record<string, unknown>).channel)} +{Number((s as Record<string, unknown>).magnitude).toFixed(2)} </span>
                       ))}
                     </div>
                   )}
@@ -203,42 +203,53 @@ function PartyCard({ status, color, pcUsed }: { status: PartyStatus; color: stri
   const pcColor = status.pc >= 10 ? '#22c55e' : status.pc >= 5 ? '#f59e0b' : '#ef4444';
   const exposureDanger = status.exposure > 1.5;
   const momentumArrow = status.momentum_direction === 'up' ? '\u2191' : status.momentum_direction === 'down' ? '\u2193' : '\u2194';
+  const cohesionPct = (status.cohesion / 10) * 100;
 
   return (
-    <div className="bg-bg-secondary rounded-lg p-3 border border-bg-tertiary">
-      <div className="flex items-center gap-2 mb-2">
+    <div className="bg-bg-secondary rounded-lg p-3.5 border border-bg-tertiary/50 hover:border-bg-quaternary/50 transition-colors"
+      style={{ borderTopColor: color, borderTopWidth: 2 }}>
+      <div className="flex items-center gap-2 mb-3">
         <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: color }} />
         <span className="font-semibold text-sm">{status.name}</span>
-        <span className="ml-auto text-xs" title="Momentum">
+        <span className="ml-auto text-xs font-mono" title="Momentum">
           {momentumArrow} {status.momentum > 0 ? `+${status.momentum}` : status.momentum}
         </span>
       </div>
-      <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+      <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
         <div>
-          <span className="text-text-secondary">PC: </span>
-          <span style={{ color: pcColor }}>{status.pc.toFixed(0)}</span>
+          <span className="text-text-secondary block mb-0.5">PC</span>
+          <span className="font-semibold" style={{ color: pcColor }}>{status.pc.toFixed(0)}</span>
           {pcUsed > 0 && <span className="text-warning"> (-{pcUsed})</span>}
         </div>
         <div>
-          <span className="text-text-secondary">Vote: </span>
-          <span>{(status.vote_share * 100).toFixed(1)}%</span>
+          <span className="text-text-secondary block mb-0.5">Vote</span>
+          <span className="font-semibold">{(status.vote_share * 100).toFixed(1)}%</span>
         </div>
         <div>
-          <span className="text-text-secondary">Cohesion: </span>
-          <span style={{ color: status.cohesion >= 7 ? '#22c55e' : status.cohesion >= 4 ? '#f59e0b' : '#ef4444' }}>
-            {status.cohesion.toFixed(0)}/10
-          </span>
+          <span className="text-text-secondary block mb-0.5">Cohesion</span>
+          <div className="flex items-center gap-1.5">
+            <div className="flex-1 bg-bg-tertiary rounded-full h-1.5">
+              <div className="h-1.5 rounded-full transition-all"
+                style={{ width: `${cohesionPct}%`, backgroundColor: status.cohesion >= 7 ? '#22c55e' : status.cohesion >= 4 ? '#f59e0b' : '#ef4444' }} />
+            </div>
+            <span className="text-[10px] font-mono w-6 text-right">{status.cohesion.toFixed(0)}</span>
+          </div>
         </div>
         <div>
-          <span className="text-text-secondary">Seats: </span>
-          <span>{status.seats.toFixed(0)}</span>
+          <span className="text-text-secondary block mb-0.5">Seats</span>
+          <span className="font-semibold">{status.seats.toFixed(0)}</span>
         </div>
         <div className="col-span-2">
-          <span className="text-text-secondary">Exposure: </span>
-          <span style={{ color: exposureDanger ? '#ef4444' : '#94a3b8' }}>
-            {status.exposure.toFixed(2)}
-            {exposureDanger && ' DANGER'}
-          </span>
+          <span className="text-text-secondary block mb-0.5">Exposure</span>
+          <div className="flex items-center gap-1.5">
+            <div className="flex-1 bg-bg-tertiary rounded-full h-1.5">
+              <div className="h-1.5 rounded-full transition-all"
+                style={{ width: `${Math.min(status.exposure / 2.5 * 100, 100)}%`, backgroundColor: exposureDanger ? '#ef4444' : '#94a3b8' }} />
+            </div>
+            <span className={`text-[10px] font-mono w-8 text-right ${exposureDanger ? 'text-danger font-bold' : ''}`}>
+              {status.exposure.toFixed(2)}
+            </span>
+          </div>
         </div>
       </div>
     </div>

@@ -32,15 +32,15 @@ export default function Parties() {
     try {
       const data = await fetchParties();
       setParties(data);
-    } catch { setError('Failed to load parties'); }
+    } catch (e) { console.error('Failed to load parties:', e); setError('Failed to load parties'); }
   }, []);
 
   useEffect(() => {
     loadParties();
-    fetchIssueNames().then(setIssueNames);
-    fetchEthnicGroups().then(setEthnicGroups);
-    fetchReligiousGroups().then(setReligiousGroups);
-    fetchAdminZones().then(setAdminZones);
+    fetchIssueNames().then(setIssueNames).catch(e => console.error('Failed to fetch issue names:', e));
+    fetchEthnicGroups().then(setEthnicGroups).catch(e => console.error('Failed to fetch ethnic groups:', e));
+    fetchReligiousGroups().then(setReligiousGroups).catch(e => console.error('Failed to fetch religious groups:', e));
+    fetchAdminZones().then(setAdminZones).catch(e => console.error('Failed to fetch admin zones:', e));
   }, [loadParties]);
 
   const handleSelect = (name: string) => {
@@ -92,7 +92,7 @@ export default function Parties() {
     try {
       const data = await loadExampleParties();
       setParties(data);
-    } catch { setError('Failed to load examples'); }
+    } catch (e) { console.error('Failed to load examples:', e); setError('Failed to load examples'); }
     setLoading(false);
   };
 
@@ -117,7 +117,7 @@ export default function Parties() {
         const partyList = Array.isArray(data) ? data : data.parties ?? [];
         await importParties(partyList);
         await loadParties();
-      } catch { setError('Invalid JSON file'); }
+      } catch (e) { console.error('Import failed:', e); setError('Invalid JSON file'); }
     };
     input.click();
   };

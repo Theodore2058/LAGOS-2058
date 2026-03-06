@@ -19,9 +19,9 @@ export default function Crises() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchTemplates().then(setTemplates);
-    fetchCrises().then(setCrises);
-    fetchIssueNames().then(setIssueNames);
+    fetchTemplates().then(setTemplates).catch(e => console.error('Failed to fetch templates:', e));
+    fetchCrises().then(setCrises).catch(e => console.error('Failed to fetch crises:', e));
+    fetchIssueNames().then(setIssueNames).catch(e => console.error('Failed to fetch issue names:', e));
   }, []);
 
   const loadTemplate = (t: CrisisTemplate) => {
@@ -45,7 +45,7 @@ export default function Crises() {
       setCrises(prev => [...prev, saved]);
       setEditing({ ...BLANK });
       setError(null);
-    } catch { setError('Failed to save crisis'); }
+    } catch (e) { console.error('Failed to save crisis:', e); setError('Failed to save crisis'); }
   };
 
   const handleDelete = async (id: number) => {
@@ -120,13 +120,13 @@ export default function Crises() {
             <div>
               <label className="text-xs text-text-secondary block mb-1">Name</label>
               <input value={editing.name} onChange={e => setEditing({ ...editing, name: e.target.value })}
-                className="w-full bg-bg-tertiary border border-bg-tertiary rounded px-3 py-1.5 text-sm" />
+                className="w-full bg-bg-tertiary border border-bg-quaternary/50 rounded-md px-3 py-1.5 text-sm focus:border-accent focus:ring-1 focus:ring-accent/30 transition-colors" />
             </div>
             <div>
               <label className="text-xs text-text-secondary block mb-1">Turn (1-12)</label>
               <input type="number" min={1} max={12} value={editing.turn}
                 onChange={e => setEditing({ ...editing, turn: parseInt(e.target.value) || 1 })}
-                className="w-full bg-bg-tertiary border border-bg-tertiary rounded px-3 py-1.5 text-sm" />
+                className="w-full bg-bg-tertiary border border-bg-quaternary/50 rounded-md px-3 py-1.5 text-sm focus:border-accent focus:ring-1 focus:ring-accent/30 transition-colors" />
             </div>
             <div>
               <label className="text-xs text-text-secondary block mb-1">Tau Modifier ({editing.tau_modifier.toFixed(1)})</label>
@@ -139,7 +139,7 @@ export default function Crises() {
           <div>
             <label className="text-xs text-text-secondary block mb-1">Description</label>
             <textarea value={editing.description} onChange={e => setEditing({ ...editing, description: e.target.value })}
-              className="w-full bg-bg-tertiary border border-bg-tertiary rounded px-3 py-1.5 text-sm h-16" />
+              className="w-full bg-bg-tertiary border border-bg-quaternary/50 rounded-md px-3 py-1.5 text-sm focus:border-accent focus:ring-1 focus:ring-accent/30 transition-colors h-16" />
           </div>
 
           <div>

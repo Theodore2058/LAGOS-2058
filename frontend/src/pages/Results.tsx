@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, Cell } from 'recharts';
 import type { Party } from '../types';
 import { fetchParties } from '../api/parties';
@@ -11,15 +11,44 @@ export default function Results() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    fetchParties().then(setParties);
+    fetchParties().then(setParties).catch(e => console.error('Failed to fetch parties:', e));
     setLoading(true);
     getCampaignHistory()
       .then(setHistory)
-      .catch(() => {})
+      .catch(e => console.error('Failed to fetch campaign history:', e))
       .finally(() => setLoading(false));
   }, []);
 
-  const getColor = (name: string) => parties.find(p => p.name === name)?.color ?? '#888';
+  const getColor = useCallback((name: string) => parties.find(p => p.name === name)?.color ?? '#888', [parties]);
+
+  const partyNames = useMemo(() => history.length > 0 ? Object.keys(history[0].national_vote_shares) : [], [history]);
+
+  const voteData = useMemo(() => history.map(h => {
+    const entry: Record<string, unknown> = { turn: h.turn };
+    for (const [name, share] of Object.entries(h.national_vote_shares)) {
+      entry[name] = Math.round(share * 10000) / 100;
+    }
+    return entry;
+  }), [history]);
+
+  const seatData = useMemo(() => history.map(h => {
+    const entry: Record<string, unknown> = { turn: h.turn };
+    for (const [name, seats] of Object.entries(h.seat_counts)) {
+      entry[name] = Math.round(seats * 10) / 10;
+    }
+    return entry;
+  }), [history]);
+
+  const turnoutData = useMemo(() => history.map(h => ({
+    turn: h.turn,
+    turnout: Math.round(h.national_turnout * 10000) / 100,
+  })), [history]);
+
+  const sortedFinal = useMemo(() => {
+    if (history.length === 0) return [];
+    const final = history[history.length - 1];
+    return Object.entries(final.national_vote_shares).sort((a, b) => b[1] - a[1]);
+  }, [history]);
 
   if (history.length === 0) {
     return (
@@ -32,46 +61,7 @@ export default function Results() {
     );
   }
 
-  const partyNames = Object.keys(history[0].national_vote_shares);
-
-  // Vote share evolution data
-  const voteData = history.map(h => {
-    const entry: Record<string, unknown> = { turn: h.turn };
-    for (const [name, share] of Object.entries(h.national_vote_shares)) {
-      entry[name] = Math.round(share * 10000) / 100;
-    }
-    return entry;
-  });
-
-  // Seat evolution data
-  const seatData = history.map(h => {
-    const entry: Record<string, unknown> = { turn: h.turn };
-    for (const [name, seats] of Object.entries(h.seat_counts)) {
-      entry[name] = Math.round(seats * 10) / 10;
-    }
-    return entry;
-  });
-
-  // Turnout evolution
-  const turnoutData = history.map(h => ({
-    turn: h.turn,
-    turnout: Math.round(h.national_turnout * 10000) / 100,
-  }));
-
-  // Party state evolution (from last turn result's state)
-  const stateData = history.map(h => {
-    const entry: Record<string, unknown> = { turn: h.turn };
-    for (const ps of h.state.party_statuses) {
-      entry[`${ps.name}_pc`] = ps.pc;
-      entry[`${ps.name}_coh`] = ps.cohesion;
-      entry[`${ps.name}_exp`] = ps.exposure;
-    }
-    return entry;
-  });
-
-  // Final results for summary
   const final = history[history.length - 1];
-  const sortedFinal = Object.entries(final.national_vote_shares).sort((a, b) => b[1] - a[1]);
 
   return (
     <div className="p-6 space-y-6">
@@ -173,7 +163,7 @@ export default function Results() {
               {h.actions_resolved.map((a, i) => (
                 <div key={i} className="text-xs text-text-secondary ml-2">
                   <span style={{ color: getColor(String(a.party)) }}>{String(a.party)}</span>
-                  {' '}{String(a.action_type)} ({a.cost} PC)
+                  {' '}{String(a.action_type)} ({String(a.cost)} PC)
                 </div>
               ))}
               {h.synergies.map((s, i) => (

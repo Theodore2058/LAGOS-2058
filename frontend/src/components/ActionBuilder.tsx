@@ -35,7 +35,10 @@ export default function ActionBuilder({ parties, actionTypes, issueNames, onAdd,
       target_lgas: null,
       target_azs: targetAzs.length > 0 ? targetAzs : null,
       target_party: targetParty || null,
-      parameters: params,
+      parameters: {
+        ...params,
+        ...((['rally', 'advertising', 'ground_game'].includes(actionType)) ? { language } : {}),
+      },
     });
     // Reset for next action
     setActionType('');
@@ -55,14 +58,14 @@ export default function ActionBuilder({ parties, actionTypes, issueNames, onAdd,
         <div>
           <label className="text-xs text-text-secondary block mb-1">Party</label>
           <select value={party} onChange={e => setParty(e.target.value)}
-            className="w-full bg-bg-tertiary border border-bg-tertiary rounded px-2 py-1.5 text-sm">
+            className="w-full bg-bg-tertiary border border-bg-quaternary/50 rounded-md px-2 py-1.5 text-sm focus:border-accent focus:ring-1 focus:ring-accent/30 transition-colors">
             {parties.map(p => <option key={p.name} value={p.name}>{p.name}</option>)}
           </select>
         </div>
         <div>
           <label className="text-xs text-text-secondary block mb-1">Action Type</label>
           <select value={actionType} onChange={e => { setActionType(e.target.value); setParams({}); }}
-            className="w-full bg-bg-tertiary border border-bg-tertiary rounded px-2 py-1.5 text-sm">
+            className="w-full bg-bg-tertiary border border-bg-quaternary/50 rounded-md px-2 py-1.5 text-sm focus:border-accent focus:ring-1 focus:ring-accent/30 transition-colors">
             <option value="">-- Select --</option>
             {actionTypes.map(a => (
               <option key={a.name} value={a.name}>{a.name} ({a.base_cost} PC)</option>
@@ -99,7 +102,7 @@ export default function ActionBuilder({ parties, actionTypes, issueNames, onAdd,
         <div>
           <label className="text-xs text-text-secondary block mb-1">Language</label>
           <select value={language} onChange={e => setLanguage(e.target.value)}
-            className="bg-bg-tertiary border border-bg-tertiary rounded px-2 py-1.5 text-sm">
+            className="bg-bg-tertiary border border-bg-quaternary/50 rounded-md px-2 py-1.5 text-sm focus:border-accent focus:ring-1 focus:ring-accent/30 transition-colors">
             {['english', 'hausa', 'yoruba', 'igbo', 'arabic', 'pidgin', 'mandarin'].map(l => (
               <option key={l} value={l}>{l}</option>
             ))}
@@ -112,7 +115,7 @@ export default function ActionBuilder({ parties, actionTypes, issueNames, onAdd,
         <div>
           <label className="text-xs text-text-secondary block mb-1">Medium</label>
           <select value={(params.medium as string) ?? 'radio'} onChange={e => setParams({ ...params, medium: e.target.value })}
-            className="bg-bg-tertiary border border-bg-tertiary rounded px-2 py-1.5 text-sm">
+            className="bg-bg-tertiary border border-bg-quaternary/50 rounded-md px-2 py-1.5 text-sm focus:border-accent focus:ring-1 focus:ring-accent/30 transition-colors">
             <option value="radio">Radio</option>
             <option value="tv">TV</option>
             <option value="internet">Internet</option>
@@ -147,7 +150,7 @@ export default function ActionBuilder({ parties, actionTypes, issueNames, onAdd,
         <div>
           <label className="text-xs text-text-secondary block mb-1">Target Party</label>
           <select value={targetParty} onChange={e => setTargetParty(e.target.value)}
-            className="bg-bg-tertiary border border-bg-tertiary rounded px-2 py-1.5 text-sm">
+            className="bg-bg-tertiary border border-bg-quaternary/50 rounded-md px-2 py-1.5 text-sm focus:border-accent focus:ring-1 focus:ring-accent/30 transition-colors">
             <option value="">-- Select --</option>
             {parties.filter(p => p.name !== party).map(p => (
               <option key={p.name} value={p.name}>{p.name}</option>
@@ -167,7 +170,7 @@ export default function ActionBuilder({ parties, actionTypes, issueNames, onAdd,
           <label className="text-xs text-text-secondary block mb-1">Poll Tier (cost = tier PC)</label>
           <select value={(params.poll_tier as number) ?? 1}
             onChange={e => setParams({ ...params, poll_tier: parseInt(e.target.value) })}
-            className="bg-bg-tertiary border border-bg-tertiary rounded px-2 py-1.5 text-sm">
+            className="bg-bg-tertiary border border-bg-quaternary/50 rounded-md px-2 py-1.5 text-sm focus:border-accent focus:ring-1 focus:ring-accent/30 transition-colors">
             {[1, 2, 3, 4, 5].map(t => (
               <option key={t} value={t}>Tier {t} ({t} PC)</option>
             ))}
@@ -181,7 +184,7 @@ export default function ActionBuilder({ parties, actionTypes, issueNames, onAdd,
             <label className="text-xs text-text-secondary block mb-1">Category</label>
             <select value={(params.category as string) ?? 'Mobilization'}
               onChange={e => setParams({ ...params, category: e.target.value })}
-              className="bg-bg-tertiary border border-bg-tertiary rounded px-2 py-1.5 text-sm">
+              className="bg-bg-tertiary border border-bg-quaternary/50 rounded-md px-2 py-1.5 text-sm focus:border-accent focus:ring-1 focus:ring-accent/30 transition-colors">
               {['Mobilization', 'Elite', 'Economic', 'Legitimacy'].map(c => (
                 <option key={c} value={c}>{c}</option>
               ))}
@@ -191,7 +194,7 @@ export default function ActionBuilder({ parties, actionTypes, issueNames, onAdd,
             <label className="text-xs text-text-secondary block mb-1">Score Change</label>
             <input type="number" min={1} max={5} value={(params.score_change as number) ?? 2}
               onChange={e => setParams({ ...params, score_change: parseInt(e.target.value) })}
-              className="w-full bg-bg-tertiary border border-bg-tertiary rounded px-2 py-1.5 text-sm" />
+              className="w-full bg-bg-tertiary border border-bg-quaternary/50 rounded-md px-2 py-1.5 text-sm focus:border-accent focus:ring-1 focus:ring-accent/30 transition-colors" />
           </div>
         </div>
       )}
@@ -202,7 +205,7 @@ export default function ActionBuilder({ parties, actionTypes, issueNames, onAdd,
             <label className="text-xs text-text-secondary block mb-1">Issue Dimension</label>
             <select value={(params.dimension as number) ?? 0}
               onChange={e => setParams({ ...params, dimension: parseInt(e.target.value) })}
-              className="bg-bg-tertiary border border-bg-tertiary rounded px-2 py-1.5 text-sm">
+              className="bg-bg-tertiary border border-bg-quaternary/50 rounded-md px-2 py-1.5 text-sm focus:border-accent focus:ring-1 focus:ring-accent/30 transition-colors">
               {issueNames.map((name, i) => <option key={i} value={i}>{name}</option>)}
             </select>
           </div>
@@ -210,7 +213,7 @@ export default function ActionBuilder({ parties, actionTypes, issueNames, onAdd,
             <label className="text-xs text-text-secondary block mb-1">Description</label>
             <input type="text" value={(params.description as string) ?? ''}
               onChange={e => setParams({ ...params, description: e.target.value })}
-              className="w-full bg-bg-tertiary border border-bg-tertiary rounded px-2 py-1.5 text-sm"
+              className="w-full bg-bg-tertiary border border-bg-quaternary/50 rounded-md px-2 py-1.5 text-sm focus:border-accent focus:ring-1 focus:ring-accent/30 transition-colors"
               placeholder="Pledge description" />
           </div>
         </div>
@@ -222,7 +225,7 @@ export default function ActionBuilder({ parties, actionTypes, issueNames, onAdd,
             <label className="text-xs text-text-secondary block mb-1">Tone</label>
             <select value={(params.tone as string) ?? 'positive'}
               onChange={e => setParams({ ...params, tone: e.target.value })}
-              className="bg-bg-tertiary border border-bg-tertiary rounded px-2 py-1.5 text-sm">
+              className="bg-bg-tertiary border border-bg-quaternary/50 rounded-md px-2 py-1.5 text-sm focus:border-accent focus:ring-1 focus:ring-accent/30 transition-colors">
               {['positive', 'negative', 'contrast'].map(t => (
                 <option key={t} value={t}>{t}</option>
               ))}
@@ -232,7 +235,7 @@ export default function ActionBuilder({ parties, actionTypes, issueNames, onAdd,
             <label className="text-xs text-text-secondary block mb-1">Narrative</label>
             <input type="text" value={(params.narrative as string) ?? ''}
               onChange={e => setParams({ ...params, narrative: e.target.value })}
-              className="w-full bg-bg-tertiary border border-bg-tertiary rounded px-2 py-1.5 text-sm"
+              className="w-full bg-bg-tertiary border border-bg-quaternary/50 rounded-md px-2 py-1.5 text-sm focus:border-accent focus:ring-1 focus:ring-accent/30 transition-colors"
               placeholder="Media narrative" />
           </div>
         </div>
@@ -244,14 +247,14 @@ export default function ActionBuilder({ parties, actionTypes, issueNames, onAdd,
             <label className="text-xs text-text-secondary block mb-1">Endorser Type</label>
             <input type="text" value={(params.endorser_type as string) ?? ''}
               onChange={e => setParams({ ...params, endorser_type: e.target.value })}
-              className="w-full bg-bg-tertiary border border-bg-tertiary rounded px-2 py-1.5 text-sm"
+              className="w-full bg-bg-tertiary border border-bg-quaternary/50 rounded-md px-2 py-1.5 text-sm focus:border-accent focus:ring-1 focus:ring-accent/30 transition-colors"
               placeholder="e.g. Traditional ruler, Celebrity" />
           </div>
           <div>
             <label className="text-xs text-text-secondary block mb-1">Endorser Name</label>
             <input type="text" value={(params.endorser_name as string) ?? ''}
               onChange={e => setParams({ ...params, endorser_name: e.target.value })}
-              className="w-full bg-bg-tertiary border border-bg-tertiary rounded px-2 py-1.5 text-sm"
+              className="w-full bg-bg-tertiary border border-bg-quaternary/50 rounded-md px-2 py-1.5 text-sm focus:border-accent focus:ring-1 focus:ring-accent/30 transition-colors"
               placeholder="Name of endorser" />
           </div>
         </div>

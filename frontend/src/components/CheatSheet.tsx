@@ -1,23 +1,45 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export default function CheatSheet() {
   const [open, setOpen] = useState(false);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      requestAnimationFrame(() => setVisible(true));
+    } else {
+      setVisible(false);
+    }
+  }, [open]);
+
+  const handleClose = () => {
+    setVisible(false);
+    setTimeout(() => setOpen(false), 200);
+  };
 
   return (
     <>
       <button onClick={() => setOpen(!open)}
-        className="fixed bottom-4 right-4 z-50 w-10 h-10 bg-accent rounded-full flex items-center justify-center text-white shadow-lg hover:bg-accent-hover text-lg"
+        className="fixed bottom-4 right-4 z-50 w-10 h-10 bg-accent rounded-full flex items-center justify-center text-white shadow-lg shadow-accent/20 hover:bg-accent-hover hover:shadow-accent/30 transition-all duration-200 text-lg font-medium"
         title="GM Cheat Sheet">
         ?
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/50" onClick={() => setOpen(false)}>
-          <div className="bg-bg-secondary rounded-lg border border-bg-tertiary w-[800px] max-h-[80vh] overflow-y-auto p-6"
-            onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
+        <div
+          className={`fixed inset-0 z-40 flex items-center justify-center transition-all duration-200 ${visible ? 'bg-black/60 backdrop-blur-sm' : 'bg-black/0'}`}
+          onClick={handleClose}
+        >
+          <div
+            className={`bg-bg-secondary rounded-xl border border-bg-tertiary/50 w-[800px] max-h-[80vh] overflow-y-auto p-6 shadow-2xl shadow-black/40 transition-all duration-200 ${visible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-5">
               <h2 className="text-lg font-bold">GM Cheat Sheet</h2>
-              <button onClick={() => setOpen(false)} className="text-text-secondary hover:text-text-primary">x</button>
+              <button onClick={handleClose}
+                className="w-7 h-7 rounded-md flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-bg-tertiary/50 transition-colors">
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
             </div>
 
             <div className="grid grid-cols-2 gap-6 text-xs">

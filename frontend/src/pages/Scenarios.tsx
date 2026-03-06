@@ -22,7 +22,7 @@ export default function Scenarios() {
   const [comparison, setComparison] = useState<CompareResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const reload = () => listScenarios().then(setScenarios).catch(() => {});
+  const reload = () => listScenarios().then(setScenarios).catch(e => console.error('Failed to list scenarios:', e));
   useEffect(() => { reload(); }, []);
 
   const handleSave = async () => {
@@ -42,7 +42,7 @@ export default function Scenarios() {
     try {
       const result = await compareScenarios(compareA, compareB);
       setComparison(result);
-    } catch { setError('Comparison failed'); }
+    } catch (e) { console.error('Comparison failed:', e); setError('Comparison failed'); }
   };
 
   const handleImport = () => {
@@ -69,7 +69,7 @@ export default function Scenarios() {
         <h3 className="text-sm font-semibold mb-2">Save Current State</h3>
         <div className="flex gap-2">
           <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Scenario name"
-            className="flex-1 bg-bg-tertiary border border-bg-tertiary rounded px-3 py-1.5 text-sm" />
+            className="flex-1 bg-bg-tertiary border border-bg-quaternary/50 rounded-md px-3 py-1.5 text-sm focus:border-accent focus:ring-1 focus:ring-accent/30 transition-colors" />
           <button onClick={handleSave} className="px-4 py-1.5 text-sm bg-accent rounded hover:bg-accent-hover text-white">Save</button>
         </div>
       </div>
@@ -98,13 +98,13 @@ export default function Scenarios() {
           <h3 className="text-sm font-semibold mb-2">Compare Scenarios</h3>
           <div className="flex gap-2 mb-3">
             <select value={compareA} onChange={e => setCompareA(e.target.value)}
-              className="flex-1 bg-bg-tertiary border border-bg-tertiary rounded px-3 py-1.5 text-sm">
+              className="flex-1 bg-bg-tertiary border border-bg-quaternary/50 rounded-md px-3 py-1.5 text-sm focus:border-accent focus:ring-1 focus:ring-accent/30 transition-colors">
               <option value="">Scenario A</option>
               {scenarios.map(s => <option key={s.name} value={s.name}>{s.name}</option>)}
             </select>
             <span className="text-text-secondary self-center">vs</span>
             <select value={compareB} onChange={e => setCompareB(e.target.value)}
-              className="flex-1 bg-bg-tertiary border border-bg-tertiary rounded px-3 py-1.5 text-sm">
+              className="flex-1 bg-bg-tertiary border border-bg-quaternary/50 rounded-md px-3 py-1.5 text-sm focus:border-accent focus:ring-1 focus:ring-accent/30 transition-colors">
               <option value="">Scenario B</option>
               {scenarios.map(s => <option key={s.name} value={s.name}>{s.name}</option>)}
             </select>
