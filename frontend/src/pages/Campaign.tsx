@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
-import type { Party, ActionInput, ActionType } from '../types';
+import type { Party, ActionInput, ActionType, CrisisInput } from '../types';
 import { fetchParties } from '../api/parties';
 import { fetchActionTypes, fetchIssueNames, fetchLGAs } from '../api/config';
 import type { LGAInfo } from '../api/config';
 import { newCampaign, advanceTurn } from '../api/campaign';
 import type { CampaignStateResponse, TurnResult, PartyStatus } from '../api/campaign';
+import { fetchTemplates } from '../api/crises';
+import type { CrisisTemplate } from '../api/crises';
 import ActionBuilder from '../components/ActionBuilder';
 
 function computeQueuedActionCost(a: ActionInput, actionTypes: ActionType[]): number {
@@ -55,6 +57,8 @@ export default function Campaign() {
   const [campaignState, setCampaignState] = useState<CampaignStateResponse | null>(null);
   const [history, setHistory] = useState<TurnResult[]>([]);
   const [actions, setActions] = useState<ActionInput[]>([]);
+  const [crises, setCrises] = useState<CrisisInput[]>([]);
+  const [crisisTemplates, setCrisisTemplates] = useState<CrisisTemplate[]>([]);
   const [showBuilder, setShowBuilder] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -64,6 +68,7 @@ export default function Campaign() {
     fetchActionTypes().then(setActionTypes).catch(e => console.error('Failed to fetch action types:', e));
     fetchIssueNames().then(setIssueNames).catch(e => console.error('Failed to fetch issue names:', e));
     fetchLGAs().then(setLgas).catch(e => console.error('Failed to fetch LGAs:', e));
+    fetchTemplates().then(setCrisisTemplates).catch(e => console.error('Failed to fetch crisis templates:', e));
   }, []);
 
   const handleNewCampaign = async () => {
@@ -93,10 +98,11 @@ export default function Campaign() {
     setLoading(true);
     setError(null);
     try {
-      const result = await advanceTurn(actions, []);
+      const result = await advanceTurn(actions, crises);
       setCampaignState(result.state);
       setHistory(prev => [...prev, result]);
       setActions([]);
+      setCrises([]);
       setShowBuilder(false);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Turn failed');
@@ -227,6 +233,64 @@ export default function Campaign() {
           onAdd={(a) => setActions(prev => [...prev, a])}
           onClose={() => setShowBuilder(false)}
         />
+        </div>
+      )}
+
+      {/* Crisis Injector & Scandal History */}
+      {!isComplete && (
+        <div className="flex gap-3">
+          {/* Crisis Templates */}
+          <div className="flex-1 bg-bg-secondary rounded-lg p-3 border border-bg-tertiary/50">
+            <h3 className="text-sm font-semibold mb-2">Trigger Crisis</h3>
+            <div className="flex flex-wrap gap-1.5">
+              {crisisTemplates.map(t => {
+                const active = crises.some(c => c.name === t.name);
+                return (
+                  <button key={t.name} onClick={() => {
+                      if (active) {
+                        setCrises(prev => prev.filter(c => c.name !== t.name));
+                      } else {
+                        setCrises(prev => [...prev, {
+                          name: t.name, turn: 0, affected_azs: t.affected_azs, affected_lgas: null,
+                          salience_shifts: t.salience_shifts, valence_effects: t.valence_effects,
+                          awareness_boost: t.awareness_boost, tau_modifier: t.tau_modifier, description: t.description,
+                        }]);
+                      }
+                    }}
+                    className={`text-[11px] px-2 py-1 rounded border transition-colors ${
+                      active ? 'bg-danger/20 border-danger/50 text-danger' : 'border-bg-tertiary/50 text-text-secondary hover:text-text-primary hover:border-bg-quaternary/50'
+                    }`}
+                    title={t.description}
+                  >
+                    {t.name}{active ? ' \u2715' : ''}
+                  </button>
+                );
+              })}
+              {crisisTemplates.length === 0 && <span className="text-xs text-text-secondary">No templates loaded</span>}
+            </div>
+            {crises.length > 0 && (
+              <div className="mt-2 text-xs text-danger">{crises.length} {crises.length > 1 ? 'crises' : 'crisis'} queued for this turn</div>
+            )}
+          </div>
+          {/* Scandal History */}
+          {campaignState.scandal_history.length > 0 && (
+            <div className="w-64 bg-bg-secondary rounded-lg p-3 border border-danger/20 shrink-0">
+              <h3 className="text-sm font-semibold mb-2 text-danger">Scandals</h3>
+              <div className="space-y-1 max-h-32 overflow-y-auto">
+                {campaignState.scandal_history.map((s, i) => {
+                  const sc = s as Record<string, unknown>;
+                  const color = parties.find(p => p.name === sc.party)?.color ?? '#888';
+                  return (
+                    <div key={i} className="flex items-center gap-2 text-xs">
+                      <span className="font-mono text-text-secondary w-6">T{String(sc.turn)}</span>
+                      <span className="font-medium" style={{ color }}>{String(sc.party)}</span>
+                      <span className="text-danger">-{Number(sc.valence_penalty).toFixed(1)}v</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
