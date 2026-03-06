@@ -147,18 +147,28 @@ export default function MapPage() {
 
   const onEachFeature = useCallback((feature: GeoJSON.Feature, layer: Layer) => {
     const lgaName = (feature.properties?.adm2_name ?? feature.properties?.lga_name ?? feature.properties?.ADM2_EN ?? feature.properties?.NAME_2 ?? '');
+    const stateName = feature.properties?.adm1_name ?? feature.properties?.ADM1_EN ?? '';
     const lga = findLga(lgaName);
 
-    let tooltip = lgaName;
     if (lga) {
-      tooltip = `${lgaName}\nWinner: ${lga.winner}\nTurnout: ${(lga.turnout * 100).toFixed(1)}%`;
+      const top3 = Object.entries(lga.vote_shares).sort((a, b) => b[1] - a[1]).slice(0, 3);
+      const maxShare = top3[0]?.[1] ?? 1;
+      const barsHtml = top3.map(([name, share]) => {
+        const color = parties.find(p => p.name === name)?.color ?? '#888';
+        const pct = (share * 100).toFixed(1);
+        const barW = Math.round((share / maxShare) * 100);
+        return `<div style="display:flex;align-items:center;gap:4px;margin:1px 0"><span style="color:${color};font-weight:600;width:32px;font-size:10px">${name}</span><div style="flex:1;height:6px;background:#1e293b;border-radius:3px;overflow:hidden"><div style="height:100%;width:${barW}%;background:${color};border-radius:3px"></div></div><span style="font-size:10px;width:36px;text-align:right">${pct}%</span></div>`;
+      }).join('');
+      const html = `<div style="min-width:140px"><div style="font-weight:700;font-size:11px;margin-bottom:2px">${lgaName}</div>${stateName ? `<div style="font-size:9px;color:#8b9bb4;margin-bottom:4px">${stateName}</div>` : ''}<div style="font-size:10px;color:#8b9bb4;margin-bottom:3px">Turnout: ${(lga.turnout * 100).toFixed(1)}%</div>${barsHtml}</div>`;
+      layer.bindTooltip(html, { sticky: true, className: 'map-tooltip' });
+    } else {
+      layer.bindTooltip(`<div style="font-size:11px">${lgaName}${stateName ? `<br><span style="font-size:9px;color:#8b9bb4">${stateName}</span>` : ''}<br><span style="font-size:9px;color:#64748b">No election data</span></div>`, { sticky: true, className: 'map-tooltip' });
     }
-    layer.bindTooltip(tooltip, { sticky: true, className: 'text-xs' });
 
     layer.on('click', () => {
       if (lga) setSelectedLga(lga);
     });
-  }, [findLga]);
+  }, [findLga, parties]);
 
   return (
     <div className="flex h-full">
@@ -182,6 +192,16 @@ export default function MapPage() {
           </div>
         )}
 
+        {/* Loading overlay */}
+        {loading && (
+          <div className="absolute inset-0 bg-bg-primary/40 backdrop-blur-sm z-[1001] flex items-center justify-center">
+            <div className="bg-bg-secondary/95 rounded-lg p-4 border border-bg-tertiary/50 text-center shadow-lg">
+              <div className="animate-spin w-8 h-8 border-2 border-accent border-t-transparent rounded-full mx-auto mb-2" />
+              <p className="text-xs text-text-secondary">Running election...</p>
+            </div>
+          </div>
+        )}
+
         {/* Controls overlay */}
         <div className="absolute top-4 right-4 bg-bg-secondary/95 backdrop-blur-sm rounded-lg p-3 border border-bg-tertiary/50 z-[1000] shadow-lg shadow-black/20">
           <div className="flex gap-1.5 mb-2.5">
@@ -197,8 +217,9 @@ export default function MapPage() {
             {loading ? 'Running...' : results ? 'Re-run Election' : 'Run Election for Map'}
           </button>
           {results && (
-            <div className="mt-2 text-[10px] text-text-secondary">
-              {lgaMap.size}/{results.lga_results.length} LGAs mapped
+            <div className="mt-2 space-y-1 text-[10px] text-text-secondary">
+              <div>{lgaMap.size}/{results.lga_results.length} LGAs mapped</div>
+              <div>Turnout: {(results.national_turnout * 100).toFixed(1)}% | ENP: {results.enp.toFixed(2)}</div>
             </div>
           )}
         </div>
@@ -206,6 +227,7 @@ export default function MapPage() {
         {/* Winner Legend */}
         {results && colorMode === 'winner' && (
           <div className="absolute bottom-4 right-4 bg-bg-secondary/95 backdrop-blur-sm rounded-lg p-2.5 border border-bg-tertiary/50 z-[1000] shadow-lg shadow-black/20 max-h-48 overflow-y-auto">
+            <div className="text-[9px] text-text-secondary uppercase tracking-wider mb-1.5 font-medium">LGAs Won</div>
             {Object.entries(
               results.lga_results.reduce<Record<string, number>>((acc, lga) => {
                 acc[lga.winner] = (acc[lga.winner] ?? 0) + 1;
@@ -218,6 +240,30 @@ export default function MapPage() {
                 <span className="text-text-secondary">{count}</span>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Turnout Legend */}
+        {results && colorMode === 'turnout' && (
+          <div className="absolute bottom-4 right-4 bg-bg-secondary/95 backdrop-blur-sm rounded-lg p-2.5 border border-bg-tertiary/50 z-[1000] shadow-lg shadow-black/20">
+            <div className="text-[9px] text-text-secondary uppercase tracking-wider mb-1.5 font-medium">Turnout</div>
+            <div className="flex items-center gap-1 text-[10px]">
+              <span className="text-text-secondary">Low</span>
+              <div className="w-24 h-3 rounded-sm" style={{ background: 'linear-gradient(to right, rgb(255,0,80), rgb(128,128,80), rgb(0,255,80))' }} />
+              <span className="text-text-secondary">High</span>
+            </div>
+          </div>
+        )}
+
+        {/* Margin Legend */}
+        {results && colorMode === 'margin' && (
+          <div className="absolute bottom-4 right-4 bg-bg-secondary/95 backdrop-blur-sm rounded-lg p-2.5 border border-bg-tertiary/50 z-[1000] shadow-lg shadow-black/20">
+            <div className="text-[9px] text-text-secondary uppercase tracking-wider mb-1.5 font-medium">Win Margin</div>
+            <div className="flex items-center gap-1 text-[10px]">
+              <span className="text-text-secondary">Close</span>
+              <div className="w-24 h-3 rounded-sm" style={{ background: 'linear-gradient(to right, rgba(59,130,246,0.2), rgba(59,130,246,1))' }} />
+              <span className="text-text-secondary">Safe</span>
+            </div>
           </div>
         )}
       </div>
