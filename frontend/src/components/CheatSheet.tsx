@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 
-type SheetTab = 'costs' | 'strategy' | 'reference';
+type SheetTab = 'costs' | 'strategy' | 'formulas' | 'reference';
 
 const TABS: { key: SheetTab; label: string }[] = [
   { key: 'costs', label: 'PC & Actions' },
   { key: 'strategy', label: 'Strategy' },
+  { key: 'formulas', label: 'Formulas' },
   { key: 'reference', label: 'Reference' },
 ];
 
@@ -89,6 +90,7 @@ export default function CheatSheet() {
             <div className="flex-1 overflow-y-auto p-6">
               {tab === 'costs' && <CostsTab />}
               {tab === 'strategy' && <StrategyTab />}
+              {tab === 'formulas' && <FormulasTab />}
               {tab === 'reference' && <ReferenceTab />}
             </div>
           </div>
@@ -241,6 +243,89 @@ function StrategyTab() {
             <p>To win, a candidate needs:</p>
             <p className="font-medium text-text-primary">1. National vote plurality</p>
             <p className="font-medium text-text-primary">2. 25%+ in at least 24 of 38 states</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FormulasTab() {
+  return (
+    <div className="grid grid-cols-2 gap-6 text-xs">
+      <div className="space-y-4">
+        <div>
+          <h3 className="text-sm font-semibold mb-2 text-accent">Vote Utility</h3>
+          <div className="bg-bg-tertiary/30 rounded-md p-3 font-mono text-[11px] space-y-1.5">
+            <p className="text-text-secondary/60">U(voter, party) =</p>
+            <p className="pl-3">- beta_s * spatial_distance</p>
+            <p className="pl-3">+ alpha_e * ethnic_match</p>
+            <p className="pl-3">+ alpha_r * religious_match</p>
+            <p className="pl-3">+ economic_w * econ_alignment</p>
+            <p className="pl-3">+ valence</p>
+          </div>
+          <p className="text-text-secondary/60 mt-1.5">Spatial distance uses 28-dimensional Euclidean distance weighted by issue salience.</p>
+        </div>
+
+        <div>
+          <h3 className="text-sm font-semibold mb-2 text-accent">Vote Probability</h3>
+          <div className="bg-bg-tertiary/30 rounded-md p-3 font-mono text-[11px] space-y-1.5">
+            <p className="text-text-secondary/60">P(vote for party j) =</p>
+            <p className="pl-3">exp(scale * U_j) / sum(exp(scale * U_k))</p>
+            <p className="text-text-secondary/60 mt-1.5">Multinomial logit with scale=1.5</p>
+          </div>
+        </div>
+
+        <div>
+          <h3 className="text-sm font-semibold mb-2 text-accent">Turnout</h3>
+          <div className="bg-bg-tertiary/30 rounded-md p-3 font-mono text-[11px] space-y-1.5">
+            <p className="text-text-secondary/60">P(turnout) = logistic(</p>
+            <p className="pl-3">(max_utility - threshold) / tau</p>
+            <p className="text-text-secondary/60">)</p>
+            <p className="text-text-secondary/60 mt-1.5">tau_0: 4.5 (static), 3.0 (campaign)</p>
+            <p className="text-text-secondary/60">Lower tau = higher turnout sensitivity</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        <div>
+          <h3 className="text-sm font-semibold mb-2 text-accent">Awareness Gate</h3>
+          <div className="bg-bg-tertiary/30 rounded-md p-3 font-mono text-[11px] space-y-1.5">
+            <p className="text-text-secondary/60">effective_vote_share =</p>
+            <p className="pl-3">raw_share * awareness</p>
+            <p className="text-text-secondary/60 mt-1.5">Floor: 0.60, Cap: 1.0, Monotonic</p>
+          </div>
+        </div>
+
+        <div>
+          <h3 className="text-sm font-semibold mb-2 text-accent">Effect Blending</h3>
+          <div className="bg-bg-tertiary/30 rounded-md p-3 font-mono text-[11px] space-y-1.5">
+            <p className="text-text-secondary/60">EMA overwrite (same key):</p>
+            <p className="pl-3">new = alpha*incoming + (1-alpha)*existing</p>
+            <p className="pl-3">alpha = 0.65</p>
+            <p className="text-text-secondary/60 mt-1.5">Concentration penalty:</p>
+            <p className="pl-3">multiplier = 1 / (1 + 0.15 * N)</p>
+            <p className="pl-3">N = number of same-type actions this turn</p>
+          </div>
+        </div>
+
+        <div>
+          <h3 className="text-sm font-semibold mb-2 text-accent">Effective Number of Parties</h3>
+          <div className="bg-bg-tertiary/30 rounded-md p-3 font-mono text-[11px] space-y-1.5">
+            <p className="text-text-secondary/60">Laakso-Taagepera index:</p>
+            <p className="pl-3">ENP = 1 / sum(share_i^2)</p>
+            <p className="text-text-secondary/60 mt-1.5">Higher = more fragmented party system</p>
+          </div>
+        </div>
+
+        <div>
+          <h3 className="text-sm font-semibold mb-2 text-accent">Seat Allocation</h3>
+          <div className="bg-bg-tertiary/30 rounded-md p-3 font-mono text-[11px] space-y-1.5">
+            <p className="text-text-secondary/60">FPTP per LGA:</p>
+            <p className="pl-3">winner = argmax(vote_share)</p>
+            <p className="text-text-secondary/60">774 LGAs = 774 seats total</p>
+            <p className="text-text-secondary/60">Majority threshold: 387 seats</p>
           </div>
         </div>
       </div>

@@ -32,7 +32,7 @@ const SEVERITY_COLORS = {
   high: { bg: 'bg-danger/10', text: 'text-danger', label: 'High' },
 };
 
-function getSeverity(t: CrisisTemplate): keyof typeof SEVERITY_COLORS {
+function getSeverity(t: { salience_shifts: Record<string, number>; valence_effects: Record<string, number> | null; tau_modifier: number }): keyof typeof SEVERITY_COLORS {
   const salienceMag = Object.values(t.salience_shifts).reduce((s, v) => s + Math.abs(v), 0);
   const valenceMag = t.valence_effects ? Object.values(t.valence_effects).reduce((s, v) => s + Math.abs(v), 0) : 0;
   const tauMag = Math.abs(t.tau_modifier);
@@ -69,6 +69,11 @@ export default function Crises() {
       awareness_boost: t.awareness_boost,
       tau_modifier: t.tau_modifier,
       description: t.description,
+    });
+    setExpandedSections({
+      salience: Object.keys(t.salience_shifts).length > 0,
+      valence: !!(t.valence_effects && Object.keys(t.valence_effects).length > 0),
+      awareness: !!(t.awareness_boost && Object.keys(t.awareness_boost).length > 0),
     });
   };
 
@@ -121,6 +126,9 @@ export default function Crises() {
     setEditing({ ...editing, awareness_boost: Object.keys(boosts).length > 0 ? boosts : null });
   };
 
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({ salience: false, valence: false, awareness: false });
+  const toggleSection = (key: string) => setExpandedSections(prev => ({ ...prev, [key]: !prev[key] }));
+
   const isDirty = editing.name !== '' || editing.description !== '' || editing.tau_modifier !== 0
     || Object.keys(editing.salience_shifts).length > 0 || editing.valence_effects !== null
     || editing.awareness_boost !== null || editing.affected_azs !== null;
@@ -128,6 +136,26 @@ export default function Crises() {
   const activeSalienceCount = Object.keys(editing.salience_shifts).length;
   const activeValenceCount = Object.keys(editing.valence_effects ?? {}).length;
   const activeAwarenessCount = Object.keys(editing.awareness_boost ?? {}).length;
+
+  const severityCounts = useMemo(() => {
+    const counts = { high: 0, medium: 0, low: 0 };
+    for (const c of crises) counts[getSeverity(c)]++;
+    return counts;
+  }, [crises]);
+
+  const handleDuplicate = (c: StoredCrisis) => {
+    setEditing({
+      name: `${c.name} (copy)`,
+      turn: c.turn,
+      affected_azs: c.affected_azs,
+      affected_lgas: c.affected_lgas,
+      salience_shifts: { ...c.salience_shifts },
+      valence_effects: c.valence_effects ? { ...c.valence_effects } : null,
+      awareness_boost: c.awareness_boost ? { ...c.awareness_boost } : null,
+      tau_modifier: c.tau_modifier,
+      description: c.description,
+    });
+  };
 
   const effectSummary = useMemo(() => {
     const items: string[] = [];
@@ -167,21 +195,36 @@ export default function Crises() {
             return (
               <div key={turn} className={`px-3 py-2.5 border-b border-bg-tertiary/30 transition-colors ${turnCrises.length > 0 ? 'bg-danger/5 border-l-2 border-l-danger/40' : 'hover:bg-bg-tertiary/20'}`}>
                 <div className="text-xs text-text-secondary mb-1 font-mono">Turn {turn}</div>
-                {turnCrises.map(c => (
-                  <div key={c.id} className="flex items-center gap-2 text-xs py-0.5 group/crisis">
-                    <svg className="w-3 h-3 text-danger shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
-                    <span className="flex-1 truncate" title={c.description || c.name}>{c.name}</span>
-                    <button onClick={() => handleDelete(c.id)} className="opacity-0 group-hover/crisis:opacity-100 text-danger/60 hover:text-danger transition-all" aria-label={`Delete crisis ${c.name}`}>
-                      <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M18 6L6 18M6 6l12 12" /></svg>
-                    </button>
-                  </div>
-                ))}
+                {turnCrises.map(c => {
+                  const sev = getSeverity(c);
+                  const sevStyle = SEVERITY_COLORS[sev];
+                  return (
+                    <div key={c.id} className="flex items-center gap-2 text-xs py-0.5 group/crisis">
+                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${sev === 'high' ? 'bg-danger' : sev === 'medium' ? 'bg-warning' : 'bg-success'}`} />
+                      <span className="flex-1 truncate" title={c.description || c.name}>{c.name}</span>
+                      <span className={`text-[8px] px-1 py-px rounded ${sevStyle.bg} ${sevStyle.text} opacity-0 group-hover/crisis:opacity-100 transition-opacity shrink-0`}>{sevStyle.label}</span>
+                      <button onClick={() => handleDuplicate(c)} className="opacity-0 group-hover/crisis:opacity-100 text-accent/50 hover:text-accent transition-all" aria-label={`Duplicate crisis ${c.name}`} title="Duplicate">
+                        <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" /></svg>
+                      </button>
+                      <button onClick={() => handleDelete(c.id)} className="opacity-0 group-hover/crisis:opacity-100 text-danger/60 hover:text-danger transition-all" aria-label={`Delete crisis ${c.name}`}>
+                        <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M18 6L6 18M6 6l12 12" /></svg>
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             );
           })}
         </div>
-        <div className="p-2 border-t border-bg-tertiary text-xs text-text-secondary text-center">
-          {crises.length} crisis{crises.length !== 1 ? 'es' : ''} scheduled
+        <div className="p-2 border-t border-bg-tertiary text-xs text-text-secondary text-center space-y-1">
+          <div>{crises.length} crisis{crises.length !== 1 ? 'es' : ''} scheduled</div>
+          {crises.length > 0 && (
+            <div className="flex justify-center gap-2 text-[9px]">
+              {severityCounts.high > 0 && <span className="text-danger">{severityCounts.high} high</span>}
+              {severityCounts.medium > 0 && <span className="text-warning">{severityCounts.medium} med</span>}
+              {severityCounts.low > 0 && <span className="text-success">{severityCounts.low} low</span>}
+            </div>
+          )}
         </div>
       </div>
 
@@ -303,79 +346,88 @@ export default function Crises() {
 
           {/* Salience shifts */}
           <div>
-            <label className="text-xs text-text-secondary block mb-1">
+            <button onClick={() => toggleSection('salience')} className="flex items-center gap-1.5 text-xs text-text-secondary hover:text-text-primary transition-colors w-full text-left mb-1">
+              <svg className={`w-3 h-3 shrink-0 transition-transform ${expandedSections.salience ? 'rotate-90' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M9 18l6-6-6-6" /></svg>
               Salience Shifts
               {activeSalienceCount > 0 && <span className="text-accent ml-1">({activeSalienceCount} active)</span>}
-            </label>
-            <div className="max-h-48 overflow-y-auto space-y-0.5">
-              {issueNames.map((name, idx) => {
-                const val = editing.salience_shifts[String(idx)] ?? 0;
-                return (
-                  <div key={idx} className={`flex items-center gap-2 px-1 rounded ${val !== 0 ? 'bg-accent/5' : ''}`}>
-                    <span className={`w-40 text-xs truncate ${val !== 0 ? 'text-text-primary' : 'text-text-secondary'}`}>{name}</span>
-                    <input type="range" min={-3} max={3} step={0.5} value={val}
-                      onChange={e => updateSalience(idx, parseFloat(e.target.value))}
-                      className="flex-1 h-1 accent-accent" />
-                    <span className={`w-8 text-xs text-center font-mono ${val > 0 ? 'text-success' : val < 0 ? 'text-danger' : ''}`}>
-                      {val !== 0 ? (val > 0 ? '+' : '') + val.toFixed(1) : ''}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Valence effects - per party */}
-          {parties.length > 0 && (
-            <div>
-              <label className="text-xs text-text-secondary block mb-1">
-                Valence Effects
-                {activeValenceCount > 0 && <span className="text-danger ml-1">({activeValenceCount} active)</span>}
-                <span className="text-text-secondary/40 ml-1">— how crisis shifts party image</span>
-              </label>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 max-h-48 overflow-y-auto">
-                {parties.map(p => {
-                  const val = editing.valence_effects?.[p.name] ?? 0;
+            </button>
+            {expandedSections.salience && (
+              <div className="max-h-48 overflow-y-auto space-y-0.5">
+                {issueNames.map((name, idx) => {
+                  const val = editing.salience_shifts[String(idx)] ?? 0;
                   return (
-                    <div key={p.name} className={`flex items-center gap-2 px-1 rounded ${val !== 0 ? 'bg-danger/5' : ''}`}>
-                      <span className={`w-20 text-xs truncate ${val !== 0 ? 'text-text-primary' : 'text-text-secondary'}`}>{p.name}</span>
-                      <input type="range" min={-2} max={2} step={0.25} value={val}
-                        onChange={e => updateValence(p.name, parseFloat(e.target.value))}
-                        className="flex-1 h-1 accent-danger" />
+                    <div key={idx} className={`flex items-center gap-2 px-1 rounded ${val !== 0 ? 'bg-accent/5' : ''}`}>
+                      <span className={`w-40 text-xs truncate ${val !== 0 ? 'text-text-primary' : 'text-text-secondary'}`}>{name}</span>
+                      <input type="range" min={-3} max={3} step={0.5} value={val}
+                        onChange={e => updateSalience(idx, parseFloat(e.target.value))}
+                        className="flex-1 h-1 accent-accent" />
                       <span className={`w-8 text-xs text-center font-mono ${val > 0 ? 'text-success' : val < 0 ? 'text-danger' : ''}`}>
-                        {val !== 0 ? (val > 0 ? '+' : '') + val.toFixed(2) : ''}
+                        {val !== 0 ? (val > 0 ? '+' : '') + val.toFixed(1) : ''}
                       </span>
                     </div>
                   );
                 })}
               </div>
+            )}
+          </div>
+
+          {/* Valence effects - per party */}
+          {parties.length > 0 && (
+            <div>
+              <button onClick={() => toggleSection('valence')} className="flex items-center gap-1.5 text-xs text-text-secondary hover:text-text-primary transition-colors w-full text-left mb-1">
+                <svg className={`w-3 h-3 shrink-0 transition-transform ${expandedSections.valence ? 'rotate-90' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M9 18l6-6-6-6" /></svg>
+                Valence Effects
+                {activeValenceCount > 0 && <span className="text-danger ml-1">({activeValenceCount} active)</span>}
+                <span className="text-text-secondary/40 ml-1">— how crisis shifts party image</span>
+              </button>
+              {expandedSections.valence && (
+                <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 max-h-48 overflow-y-auto">
+                  {parties.map(p => {
+                    const val = editing.valence_effects?.[p.name] ?? 0;
+                    return (
+                      <div key={p.name} className={`flex items-center gap-2 px-1 rounded ${val !== 0 ? 'bg-danger/5' : ''}`}>
+                        <span className={`w-20 text-xs truncate ${val !== 0 ? 'text-text-primary' : 'text-text-secondary'}`}>{p.name}</span>
+                        <input type="range" min={-2} max={2} step={0.25} value={val}
+                          onChange={e => updateValence(p.name, parseFloat(e.target.value))}
+                          className="flex-1 h-1 accent-danger" />
+                        <span className={`w-8 text-xs text-center font-mono ${val > 0 ? 'text-success' : val < 0 ? 'text-danger' : ''}`}>
+                          {val !== 0 ? (val > 0 ? '+' : '') + val.toFixed(2) : ''}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 
           {/* Awareness boost - per party */}
           {parties.length > 0 && (
             <div>
-              <label className="text-xs text-text-secondary block mb-1">
+              <button onClick={() => toggleSection('awareness')} className="flex items-center gap-1.5 text-xs text-text-secondary hover:text-text-primary transition-colors w-full text-left mb-1">
+                <svg className={`w-3 h-3 shrink-0 transition-transform ${expandedSections.awareness ? 'rotate-90' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M9 18l6-6-6-6" /></svg>
                 Awareness Boost
                 {activeAwarenessCount > 0 && <span className="text-teal ml-1">({activeAwarenessCount} active)</span>}
                 <span className="text-text-secondary/40 ml-1">— crisis media exposure per party</span>
-              </label>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 max-h-48 overflow-y-auto">
-                {parties.map(p => {
-                  const val = editing.awareness_boost?.[p.name] ?? 0;
-                  return (
-                    <div key={p.name} className={`flex items-center gap-2 px-1 rounded ${val !== 0 ? 'bg-teal/5' : ''}`}>
-                      <span className={`w-20 text-xs truncate ${val !== 0 ? 'text-text-primary' : 'text-text-secondary'}`}>{p.name}</span>
-                      <input type="range" min={0} max={0.3} step={0.01} value={val}
-                        onChange={e => updateAwareness(p.name, parseFloat(e.target.value))}
-                        className="flex-1 h-1 accent-teal" />
-                      <span className={`w-8 text-xs text-center font-mono ${val > 0 ? 'text-teal' : ''}`}>
-                        {val !== 0 ? '+' + val.toFixed(2) : ''}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
+              </button>
+              {expandedSections.awareness && (
+                <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 max-h-48 overflow-y-auto">
+                  {parties.map(p => {
+                    const val = editing.awareness_boost?.[p.name] ?? 0;
+                    return (
+                      <div key={p.name} className={`flex items-center gap-2 px-1 rounded ${val !== 0 ? 'bg-teal/5' : ''}`}>
+                        <span className={`w-20 text-xs truncate ${val !== 0 ? 'text-text-primary' : 'text-text-secondary'}`}>{p.name}</span>
+                        <input type="range" min={0} max={0.3} step={0.01} value={val}
+                          onChange={e => updateAwareness(p.name, parseFloat(e.target.value))}
+                          className="flex-1 h-1 accent-teal" />
+                        <span className={`w-8 text-xs text-center font-mono ${val > 0 ? 'text-teal' : ''}`}>
+                          {val !== 0 ? '+' + val.toFixed(2) : ''}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 
