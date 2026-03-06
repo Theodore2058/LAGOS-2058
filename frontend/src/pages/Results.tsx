@@ -57,6 +57,25 @@ export default function Results() {
     return Object.entries(final.national_vote_shares).sort((a, b) => b[1] - a[1]);
   }, [history]);
 
+  // Swing: compare first turn to last turn (must be before early return - hooks rule)
+  const swingData = useMemo(() => {
+    if (history.length < 2) return [];
+    const first = history[0].national_vote_shares;
+    const last = history[history.length - 1].national_vote_shares;
+    return Object.keys(last).map(name => ({
+      name,
+      first: (first[name] ?? 0) * 100,
+      last: (last[name] ?? 0) * 100,
+      swing: ((last[name] ?? 0) - (first[name] ?? 0)) * 100,
+    })).sort((a, b) => b.swing - a.swing);
+  }, [history]);
+
+  // Campaign stats (must be before early return - hooks rule)
+  const totalActions = useMemo(() => history.reduce((sum, h) => sum + h.actions_resolved.length, 0), [history]);
+  const totalSynergies = useMemo(() => history.reduce((sum, h) => sum + h.synergies.length, 0), [history]);
+  const totalScandals = useMemo(() => history.reduce((sum, h) => sum + h.scandals.length, 0), [history]);
+  const totalPC = useMemo(() => history.reduce((sum, h) => sum + h.actions_resolved.reduce((s, a) => s + Number(a.cost ?? 0), 0), 0), [history]);
+
   if (history.length === 0) {
     return (
       <div className="p-8 max-w-2xl">
@@ -75,6 +94,13 @@ export default function Results() {
   }
 
   const final = history[history.length - 1];
+
+  const margin = sortedFinal.length >= 2
+    ? ((sortedFinal[0][1] - sortedFinal[1][1]) * 100).toFixed(1)
+    : '0';
+
+  const winnerSeats = Math.round(final.seat_counts[sortedFinal[0][0]] ?? 0);
+  const hasMajority = winnerSeats > 387;
 
   const exportCSV = () => {
     const header = ['Turn', 'Turnout', ...partyNames.map(n => `${n}_VoteShare`), ...partyNames.map(n => `${n}_Seats`)];
@@ -103,24 +129,33 @@ export default function Results() {
       </div>
 
       {/* Final Summary */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-5 gap-3">
         <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/40 card-glow">
           <p className="text-xs text-text-secondary mb-1">Winner</p>
           <p className="text-xl font-bold" style={{ color: getColor(sortedFinal[0][0]) }}>{sortedFinal[0][0]}</p>
-          <p className="text-sm text-text-secondary">{(sortedFinal[0][1] * 100).toFixed(1)}%</p>
+          <p className="text-sm text-text-secondary">{(sortedFinal[0][1] * 100).toFixed(1)}% vote share</p>
         </div>
         <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/40 card-glow">
           <p className="text-xs text-text-secondary mb-1">Runner-up</p>
           <p className="text-xl font-bold" style={{ color: getColor(sortedFinal[1]?.[0] ?? '') }}>{sortedFinal[1]?.[0]}</p>
-          <p className="text-sm text-text-secondary">{((sortedFinal[1]?.[1] ?? 0) * 100).toFixed(1)}%</p>
+          <p className="text-sm text-text-secondary">{((sortedFinal[1]?.[1] ?? 0) * 100).toFixed(1)}%  |  margin: {margin}pp</p>
+        </div>
+        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/40 card-glow">
+          <p className="text-xs text-text-secondary mb-1">Winner Seats</p>
+          <p className="text-xl font-bold">{winnerSeats} / 774</p>
+          <p className={`text-sm font-medium ${hasMajority ? 'text-success' : 'text-warning'}`}>{hasMajority ? 'Majority' : 'No majority'}</p>
         </div>
         <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/40 card-glow">
           <p className="text-xs text-text-secondary mb-1">Final Turnout</p>
           <p className="text-xl font-bold">{(final.national_turnout * 100).toFixed(1)}%</p>
         </div>
         <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/40 card-glow">
-          <p className="text-xs text-text-secondary mb-1">Winner Seats</p>
-          <p className="text-xl font-bold">{Math.round(final.seat_counts[sortedFinal[0][0]] ?? 0)} / 774</p>
+          <p className="text-xs text-text-secondary mb-1">Campaign Stats</p>
+          <div className="space-y-0.5 text-xs">
+            <p><span className="text-text-secondary">{totalActions}</span> actions ({totalPC} PC)</p>
+            <p className="text-success">{totalSynergies} synergies</p>
+            <p className="text-danger">{totalScandals} scandals</p>
+          </div>
         </div>
       </div>
 
@@ -188,15 +223,54 @@ export default function Results() {
         </div>
       </div>
 
+      {/* Swing Analysis */}
+      {swingData.length > 0 && (
+        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50">
+          <h3 className="text-sm font-semibold mb-3 text-text-secondary">Vote Share Swing <span className="font-normal">— Turn 1 vs Turn {history.length}</span></h3>
+          <div className="grid grid-cols-2 gap-x-6 gap-y-1">
+            {swingData.slice(0, 8).map(d => (
+              <div key={d.name} className="flex items-center gap-2 py-0.5">
+                <div className="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: getColor(d.name) }} />
+                <span className="text-xs w-12 truncate">{d.name}</span>
+                <div className="flex-1 h-1.5 bg-bg-tertiary rounded-full relative overflow-hidden">
+                  {d.swing >= 0 ? (
+                    <div className="absolute left-1/2 h-full bg-success/60 rounded-r-full" style={{ width: `${Math.min(50, Math.abs(d.swing) * 5)}%` }} />
+                  ) : (
+                    <div className="absolute right-1/2 h-full bg-danger/60 rounded-l-full" style={{ width: `${Math.min(50, Math.abs(d.swing) * 5)}%` }} />
+                  )}
+                </div>
+                <span className={`text-xs font-mono w-16 text-right ${d.swing > 0 ? 'text-success' : d.swing < 0 ? 'text-danger' : 'text-text-secondary'}`}>
+                  {d.swing > 0 ? '+' : ''}{d.swing.toFixed(1)}pp
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Action Log */}
       <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50">
-        <h3 className="text-sm font-semibold mb-3 text-text-secondary">Action Log</h3>
-        <div className="max-h-64 overflow-y-auto space-y-0">
+        <h3 className="text-sm font-semibold mb-3 text-text-secondary">
+          Action Log
+          <span className="font-normal text-text-secondary/50 ml-2">{totalActions} actions across {history.length} turns</span>
+        </h3>
+        <div className="max-h-80 overflow-y-auto space-y-0">
           {history.map((h, idx) => {
             const hasContent = h.actions_resolved.length > 0 || h.synergies.length > 0 || h.scandals.length > 0;
+            const turnPC = h.actions_resolved.reduce((s, a) => s + Number(a.cost ?? 0), 0);
             return (
             <div key={h.turn} className={`border-b border-bg-tertiary/30 py-2 px-2 -mx-2 rounded hover:bg-bg-tertiary/20 transition-colors ${idx % 2 === 1 ? 'bg-bg-tertiary/10' : ''}`}>
-              <div className="text-xs font-semibold mb-1 text-accent font-mono">Turn {h.turn}</div>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-semibold text-accent font-mono">Turn {h.turn}</span>
+                {hasContent && (
+                  <span className="text-[10px] text-text-secondary/40">
+                    {h.actions_resolved.length} action{h.actions_resolved.length !== 1 ? 's' : ''}
+                    {turnPC > 0 && <span className="ml-1">({turnPC} PC)</span>}
+                    {h.synergies.length > 0 && <span className="text-success ml-1">+{h.synergies.length} syn</span>}
+                    {h.scandals.length > 0 && <span className="text-danger ml-1">{h.scandals.length} scn</span>}
+                  </span>
+                )}
+              </div>
               {h.actions_resolved.map((a, i) => (
                 <div key={i} className="text-xs text-text-secondary ml-3">
                   <span style={{ color: getColor(String(a.party)) }}>{String(a.party)}</span>
