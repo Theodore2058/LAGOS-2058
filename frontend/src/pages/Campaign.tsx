@@ -24,8 +24,10 @@ function computeQueuedActionCost(a: ActionInput, actionTypes: ActionType[]): num
   const nLGAs = a.target_lgas?.length ?? 0;
   const nAZs = a.target_azs?.length ?? 0;
 
-  // Area surcharge
-  if (scope === 'lga' || scope === 'district') {
+  // Area surcharge (rally is flat cost, no surcharge)
+  if (a.action_type === 'rally') {
+    // Rally always costs base (2 PC)
+  } else if (scope === 'lga' || scope === 'district') {
     if (nLGAs === 0 && !(a.target_districts?.length)) cost += 3;
     else if (nLGAs > 10) cost += Math.min(5, Math.ceil((nLGAs - 10) / 20));
   } else if (scope === 'regional') {
@@ -40,11 +42,6 @@ function computeQueuedActionCost(a: ActionInput, actionTypes: ActionType[]): num
     if (budget > 2.0) cost += 2;
     else if (budget > 1.5) cost += 1;
     if ((p.medium as string) === 'tv') cost += 1;
-  } else if (a.action_type === 'rally') {
-    const sf = Math.max(1, Math.min(5, (p.strategic_fit as number) ?? 3));
-    let q = Math.max(1, Math.min(5, (p.quality as number) ?? 3));
-    q = Math.min(5, q + (p.has_content ? 1 : 0) + (p.has_visual_audio ? 1 : 0) + (p.has_strategic_docs ? 1 : 0));
-    if (sf + q >= 9) cost += 1;
   } else if (a.action_type === 'ground_game') {
     const intensity = (p.intensity as number) ?? 1.0;
     if (intensity > 1.5) cost += 2;

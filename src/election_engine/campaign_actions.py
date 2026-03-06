@@ -85,6 +85,8 @@ def _area_surcharge(action_type: str, n_target_lgas: int, n_target_azs: int) -> 
     None-scope actions: no surcharge.
     """
     scope = ACTION_TARGET_SCOPE.get(action_type, "none")
+    if scope == "district":
+        return 0  # Rally: flat cost, no area surcharge
     if scope == "lga":
         if n_target_lgas == 0:
             return 3  # national blanket
@@ -142,10 +144,6 @@ def compute_action_cost(
         if intensity > 1.5:
             base += 2
         elif intensity > 1.0:
-            base += 1
-    elif action_type == "rally":
-        raw_score = compute_gm_score(params)
-        if raw_score >= 9.0:
             base += 1
     elif action_type == "patronage":
         scale = params.get("scale", 1.0)

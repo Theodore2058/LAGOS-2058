@@ -58,8 +58,10 @@ function computeActionCost(
 ): number {
   let cost = baseCost;
 
-  // Area-based surcharge
-  if (scope === 'lga' || scope === 'district') {
+  // Area-based surcharge (rally is flat cost, no surcharge)
+  if (actionType === 'rally') {
+    // Rally always costs base (2 PC), no area surcharge
+  } else if (scope === 'lga' || scope === 'district') {
     if (nTargetLGAs === 0) {
       cost += 3; // national blanket
     } else if (nTargetLGAs > 10) {
@@ -80,9 +82,6 @@ function computeActionCost(
     if (budget > 2.0) cost += 2;
     else if (budget > 1.5) cost += 1;
     if (medium === 'tv') cost += 1;
-  } else if (actionType === 'rally') {
-    const rawScore = computeGMScore(params);
-    if (rawScore >= 9) cost += 1;
   } else if (actionType === 'ground_game') {
     const intensity = (params.intensity as number) ?? 1.0;
     if (intensity > 1.5) cost += 2;
