@@ -96,6 +96,9 @@ class CampaignSession:
         for party in self.engine_parties:
             self.state.last_positions[party.name] = party.positions.copy()
 
+        # Give turn-1 PC income so the UI shows available budget immediately
+        process_pc_income(self.state)
+
         self.rng = np.random.default_rng(seed) if seed else np.random.default_rng()
         self.history: list[dict] = []
         self.turn_results: list[TurnResultResponse] = []
@@ -144,9 +147,6 @@ class CampaignSession:
         if delivered:
             self.state.poll_results.extend(delivered)
             self.state.pending_polls = [p for p in self.state.pending_polls if p["turn_delivered"] > self.state.turn]
-
-        # PC income
-        process_pc_income(self.state)
 
         # Apply crises
         for ci in crisis_inputs:
@@ -283,6 +283,10 @@ class CampaignSession:
 
         processed_turn = self.state.turn
         self.state.turn += 1  # Advance to next turn for state response
+
+        # Give next turn's PC income so the UI shows available budget
+        if self.state.turn <= self.n_turns:
+            process_pc_income(self.state)
 
         turn_result = TurnResultResponse(
             turn=processed_turn,

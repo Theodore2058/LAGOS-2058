@@ -117,7 +117,14 @@ export default function Campaign() {
         </div>
       </div>
 
-      {error && <div className="p-3 bg-danger/20 text-danger rounded text-sm">{error}</div>}
+      {error && (
+        <div className="p-3 bg-danger/20 text-danger rounded text-sm flex items-center justify-between border border-danger/30">
+          {error}
+          <button onClick={() => setError(null)} className="text-danger/60 hover:text-danger p-0.5 rounded hover:bg-danger/10 transition-colors shrink-0 ml-2" aria-label="Dismiss error">
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M18 6L6 18M6 6l12 12" /></svg>
+          </button>
+        </div>
+      )}
 
       {/* Party Status Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
@@ -141,22 +148,49 @@ export default function Campaign() {
       {/* Action Queue */}
       {actions.length > 0 && (
         <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50">
-          <h3 className="text-sm font-semibold mb-2">Queued Actions ({actions.length})</h3>
-          <div className="space-y-1">
-            {actions.map((a, i) => (
-              <div key={i} className="flex items-center gap-3 text-xs py-1.5 border-b border-bg-tertiary/30 hover:bg-bg-tertiary/20 transition-colors rounded">
-                <div className="w-2 h-2 rounded-sm shrink-0" style={{ backgroundColor: parties.find(p => p.name === a.party)?.color }} />
-                <span className="font-mono w-12" style={{ color: parties.find(p => p.name === a.party)?.color }}>{a.party}</span>
-                <span className="flex-1">{a.action_type}</span>
-                <span className="text-text-secondary font-mono">
-                  {actionTypes.find(at => at.name === a.action_type)?.base_cost ?? '?'} PC
-                </span>
-                <button onClick={() => removeAction(i)} className="text-danger/60 hover:text-danger p-0.5 rounded hover:bg-danger/10 transition-colors" aria-label={`Remove ${a.action_type} action`}>
-                  <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M18 6L6 18M6 6l12 12" /></svg>
-                </button>
-              </div>
-            ))}
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-semibold">Queued Actions ({actions.length})</h3>
+            <button onClick={() => setActions([])} className="text-xs text-danger/60 hover:text-danger transition-colors">Clear All</button>
           </div>
+          {/* Group by party */}
+          {Object.entries(
+            actions.reduce<Record<string, { actions: { action: ActionInput; idx: number }[]; totalCost: number }>>((acc, a, i) => {
+              const cost = actionTypes.find(at => at.name === a.action_type)?.base_cost ?? 0;
+              if (!acc[a.party]) acc[a.party] = { actions: [], totalCost: 0 };
+              acc[a.party].actions.push({ action: a, idx: i });
+              acc[a.party].totalCost += cost;
+              return acc;
+            }, {})
+          ).map(([partyName, group]) => {
+            const partyColor = parties.find(p => p.name === partyName)?.color ?? '#888';
+            const partyStatus = campaignState.party_statuses.find(ps => ps.name === partyName);
+            const overBudget = partyStatus && group.totalCost > partyStatus.pc;
+            return (
+              <div key={partyName} className="mb-2">
+                <div className="flex items-center gap-2 mb-1">
+                  <div className="w-2 h-2 rounded-sm" style={{ backgroundColor: partyColor }} />
+                  <span className="text-xs font-semibold" style={{ color: partyColor }}>{partyName}</span>
+                  <span className={`text-xs font-mono ml-auto ${overBudget ? 'text-danger font-bold' : 'text-text-secondary'}`}>
+                    {group.totalCost} PC{overBudget ? ` (exceeds ${partyStatus!.pc.toFixed(0)} available!)` : ''}
+                  </span>
+                </div>
+                {group.actions.map(({ action: a, idx }) => (
+                  <div key={idx} className="flex items-center gap-3 text-xs py-1 pl-4 border-b border-bg-tertiary/20 hover:bg-bg-tertiary/20 transition-colors rounded">
+                    <span className="flex-1">{a.action_type}</span>
+                    {a.target_azs && a.target_azs.length > 0 && (
+                      <span className="text-text-secondary text-[10px]">AZ: {a.target_azs.join(',')}</span>
+                    )}
+                    <span className="text-text-secondary font-mono w-10 text-right">
+                      {actionTypes.find(at => at.name === a.action_type)?.base_cost ?? '?'} PC
+                    </span>
+                    <button onClick={() => removeAction(idx)} className="text-danger/60 hover:text-danger p-0.5 rounded hover:bg-danger/10 transition-colors" aria-label={`Remove ${a.action_type} action`}>
+                      <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M18 6L6 18M6 6l12 12" /></svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            );
+          })}
         </div>
       )}
 
