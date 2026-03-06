@@ -1,0 +1,217 @@
+import { useState, useEffect, useCallback } from 'react';
+import type { Party } from '../types';
+import { fetchParties, createParty, updateParty, deleteParty, loadExampleParties, exportParties, importParties } from '../api/parties';
+import { fetchIssueNames, fetchEthnicGroups, fetchReligiousGroups, fetchAdminZones } from '../api/config';
+import PartyForm from '../components/PartyForm';
+import PartyComparison from '../components/PartyComparison';
+
+const BLANK_PARTY: Party = {
+  name: '', full_name: '', positions: new Array(28).fill(0),
+  valence: 0, leader_ethnicity: '', religious_alignment: '',
+  demographic_coefficients: null, regional_strongholds: null,
+  economic_positioning: 0, color: '#3b82f6',
+};
+
+type Tab = 'editor' | 'compare';
+
+export default function Parties() {
+  const [parties, setParties] = useState<Party[]>([]);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [editing, setEditing] = useState<Party | null>(null);
+  const [isNew, setIsNew] = useState(false);
+  const [tab, setTab] = useState<Tab>('editor');
+  const [compareSelected, setCompareSelected] = useState<Set<string>>(new Set());
+  const [issueNames, setIssueNames] = useState<string[]>([]);
+  const [ethnicGroups, setEthnicGroups] = useState<string[]>([]);
+  const [religiousGroups, setReligiousGroups] = useState<string[]>([]);
+  const [adminZones, setAdminZones] = useState<{ id: number; name: string }[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadParties = useCallback(async () => {
+    try {
+      const data = await fetchParties();
+      setParties(data);
+    } catch { setError('Failed to load parties'); }
+  }, []);
+
+  useEffect(() => {
+    loadParties();
+    fetchIssueNames().then(setIssueNames);
+    fetchEthnicGroups().then(setEthnicGroups);
+    fetchReligiousGroups().then(setReligiousGroups);
+    fetchAdminZones().then(setAdminZones);
+  }, [loadParties]);
+
+  const handleSelect = (name: string) => {
+    setSelected(name);
+    const party = parties.find(p => p.name === name);
+    if (party) { setEditing({ ...party }); setIsNew(false); }
+  };
+
+  const handleNew = () => {
+    setEditing({ ...BLANK_PARTY });
+    setIsNew(true);
+    setSelected(null);
+  };
+
+  const handleDuplicate = (p: Party) => {
+    setEditing({ ...p, name: p.name + '_COPY', full_name: p.full_name + ' (Copy)' });
+    setIsNew(true);
+    setSelected(null);
+  };
+
+  const handleSave = async (party: Party) => {
+    setLoading(true);
+    setError(null);
+    try {
+      if (isNew) {
+        await createParty(party);
+      } else if (selected) {
+        await updateParty(selected, party);
+      }
+      await loadParties();
+      setSelected(party.name);
+      setEditing(party);
+      setIsNew(false);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Save failed';
+      setError(msg);
+    } finally { setLoading(false); }
+  };
+
+  const handleDelete = async (name: string) => {
+    if (!confirm(`Delete party "${name}"?`)) return;
+    await deleteParty(name);
+    if (selected === name) { setSelected(null); setEditing(null); }
+    await loadParties();
+  };
+
+  const handleLoadExamples = async () => {
+    setLoading(true);
+    try {
+      const data = await loadExampleParties();
+      setParties(data);
+    } catch { setError('Failed to load examples'); }
+    setLoading(false);
+  };
+
+  const handleExport = async () => {
+    const data = await exportParties();
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'lagos2058_parties.json'; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImport = () => {
+    const input = document.createElement('input');
+    input.type = 'file'; input.accept = '.json';
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      const text = await file.text();
+      try {
+        const data = JSON.parse(text);
+        const partyList = Array.isArray(data) ? data : data.parties ?? [];
+        await importParties(partyList);
+        await loadParties();
+      } catch { setError('Invalid JSON file'); }
+    };
+    input.click();
+  };
+
+  const toggleCompare = (name: string) => {
+    const next = new Set(compareSelected);
+    if (next.has(name)) next.delete(name); else next.add(name);
+    setCompareSelected(next);
+  };
+
+  return (
+    <div className="flex h-full">
+      {/* Sidebar */}
+      <div className="w-64 bg-bg-secondary border-r border-bg-tertiary flex flex-col shrink-0">
+        <div className="p-3 border-b border-bg-tertiary">
+          <div className="flex gap-2 mb-2">
+            <button onClick={handleNew} className="flex-1 px-2 py-1.5 text-xs bg-accent rounded hover:bg-accent-hover text-white">+ Add</button>
+            <button onClick={handleLoadExamples} className="flex-1 px-2 py-1.5 text-xs bg-bg-tertiary rounded hover:bg-bg-tertiary/80" disabled={loading}>Load Examples</button>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={handleExport} className="flex-1 px-2 py-1 text-xs bg-bg-tertiary rounded hover:bg-bg-tertiary/80">Export</button>
+            <button onClick={handleImport} className="flex-1 px-2 py-1 text-xs bg-bg-tertiary rounded hover:bg-bg-tertiary/80">Import</button>
+          </div>
+        </div>
+        <div className="flex-1 overflow-y-auto">
+          {parties.map(p => (
+            <div key={p.name}
+              className={`flex items-center gap-2 px-3 py-2 cursor-pointer border-b border-bg-tertiary/30 ${selected === p.name ? 'bg-accent/15' : 'hover:bg-bg-tertiary/30'}`}
+              onClick={() => handleSelect(p.name)}>
+              {tab === 'compare' && (
+                <input type="checkbox" checked={compareSelected.has(p.name)}
+                  onChange={(e) => { e.stopPropagation(); toggleCompare(p.name); }}
+                  className="accent-accent" />
+              )}
+              <div className="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: p.color }} />
+              <span className="text-sm flex-1 truncate">{p.name}</span>
+              <span className="text-xs text-text-secondary truncate max-w-20">{p.leader_ethnicity}</span>
+              <button onClick={(e) => { e.stopPropagation(); handleDelete(p.name); }}
+                className="text-xs text-danger/60 hover:text-danger px-1">x</button>
+            </div>
+          ))}
+          {parties.length === 0 && (
+            <p className="p-3 text-xs text-text-secondary">No parties. Click "Add" or "Load Examples".</p>
+          )}
+        </div>
+        <div className="p-2 border-t border-bg-tertiary text-xs text-text-secondary text-center">
+          {parties.length} parties
+        </div>
+      </div>
+
+      {/* Main panel */}
+      <div className="flex-1 overflow-y-auto">
+        {/* Tabs */}
+        <div className="flex border-b border-bg-tertiary px-4">
+          <button onClick={() => setTab('editor')}
+            className={`px-4 py-2 text-sm ${tab === 'editor' ? 'border-b-2 border-accent text-accent' : 'text-text-secondary'}`}>Editor</button>
+          <button onClick={() => setTab('compare')}
+            className={`px-4 py-2 text-sm ${tab === 'compare' ? 'border-b-2 border-accent text-accent' : 'text-text-secondary'}`}>Compare</button>
+        </div>
+
+        {error && <div className="mx-4 mt-2 p-2 bg-danger/20 text-danger text-sm rounded">{error}<button onClick={() => setError(null)} className="ml-2 text-xs">x</button></div>}
+
+        <div className="p-4">
+          {tab === 'editor' && editing && (
+            <div>
+              <PartyForm
+                party={editing}
+                issueNames={issueNames}
+                ethnicGroups={ethnicGroups}
+                religiousGroups={religiousGroups}
+                adminZones={adminZones}
+                onSave={handleSave}
+                onCancel={() => { setEditing(null); setSelected(null); }}
+                isNew={isNew}
+              />
+              {!isNew && (
+                <button onClick={() => handleDuplicate(editing)}
+                  className="mt-4 px-3 py-1.5 text-xs bg-bg-tertiary rounded hover:bg-bg-tertiary/80">
+                  Duplicate Party
+                </button>
+              )}
+            </div>
+          )}
+          {tab === 'editor' && !editing && (
+            <p className="text-text-secondary">Select a party from the list or create a new one.</p>
+          )}
+          {tab === 'compare' && (
+            <PartyComparison
+              parties={parties.filter(p => compareSelected.has(p.name))}
+              issueNames={issueNames}
+            />
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

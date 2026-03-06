@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import Dashboard from './pages/Dashboard';
+import Parties from './pages/Parties';
 
 function Placeholder({ title }: { title: string }) {
   return (
@@ -19,7 +20,7 @@ export default function App() {
         <main className="flex-1 overflow-y-auto">
           <Routes>
             <Route path="/" element={<Dashboard />} />
-            <Route path="/parties" element={<Placeholder title="Parties" />} />
+            <Route path="/parties" element={<Parties />} />
             <Route path="/params" element={<Placeholder title="Engine Parameters" />} />
             <Route path="/election" element={<Placeholder title="Static Election" />} />
             <Route path="/campaign" element={<Placeholder title="Campaign" />} />
