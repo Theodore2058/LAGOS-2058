@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { Party, EngineParams, ElectionResults } from '../types';
 import { fetchParties } from '../api/parties';
 import { runElection } from '../api/election';
 import { ParamsEditor, DEFAULT_PARAMS } from './Params';
 import ElectionDashboard from '../components/ElectionDashboard';
+import { useToast } from '../components/Toast';
+import { useKeyboard } from '../hooks/useKeyboard';
 
 export default function Election() {
   const [parties, setParties] = useState<Party[]>([]);
@@ -12,6 +14,7 @@ export default function Election() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showParams, setShowParams] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => { fetchParties().then(setParties).catch(e => console.error('Failed to fetch parties:', e)); }, []);
 
@@ -26,11 +29,18 @@ export default function Election() {
       const { n_monte_carlo, seed, ...engineParams } = params;
       const res = await runElection({ params: engineParams, parties, n_monte_carlo, seed });
       setResults(res);
+      toast('Election complete', 'success');
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Election failed');
     }
     setLoading(false);
   };
+
+  const handleRunRef = useCallback(() => {
+    if (!loading && parties.length >= 2) handleRun();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, parties.length]);
+  useKeyboard({ 'ctrl+enter': handleRunRef }, [handleRunRef]);
 
   return (
     <div className="p-6">
@@ -42,7 +52,7 @@ export default function Election() {
             className="px-3 py-1.5 text-sm bg-bg-tertiary rounded hover:bg-bg-tertiary/80 transition-colors">
             {showParams ? 'Hide' : 'Show'} Parameters
           </button>
-          <button onClick={handleRun} disabled={loading}
+          <button onClick={handleRun} disabled={loading} title="Run election (Ctrl+Enter)"
             className="px-4 py-1.5 text-sm bg-accent rounded-md hover:bg-accent-hover text-bg-primary font-medium disabled:opacity-50 btn-accent">
             {loading ? 'Running...' : 'Run Election'}
           </button>

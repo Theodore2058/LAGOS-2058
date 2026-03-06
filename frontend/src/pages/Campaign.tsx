@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { Party, ActionInput, ActionType, CrisisInput } from '../types';
 import { fetchParties } from '../api/parties';
 import { fetchActionTypes, fetchIssueNames, fetchLGAs } from '../api/config';
@@ -12,6 +12,7 @@ import { saveScenario } from '../api/scenarios';
 import ActionBuilder from '../components/ActionBuilder';
 import { useToast } from '../components/Toast';
 import ConfirmModal from '../components/ConfirmModal';
+import { useKeyboard } from '../hooks/useKeyboard';
 
 function computeQueuedActionCost(a: ActionInput, actionTypes: ActionType[]): number {
   const at = actionTypes.find(t => t.name === a.action_type);
@@ -138,6 +139,17 @@ export default function Campaign() {
     setActions(prev => prev.filter((_, i) => i !== idx));
   };
 
+  // Keyboard shortcuts: Ctrl+S save, Ctrl+Enter submit turn
+  const handleSaveRef = useCallback(() => {
+    if (campaignState && campaignState.turn <= campaignState.n_turns) handleSave();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [campaignState]);
+  const handleAdvanceRef = useCallback(() => {
+    if (campaignState && !loading && campaignState.turn <= campaignState.n_turns) handleAdvance();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [campaignState, loading, actions, crises]);
+  useKeyboard({ 'ctrl+s': handleSaveRef, 'ctrl+enter': handleAdvanceRef }, [handleSaveRef, handleAdvanceRef]);
+
   const totalPCByParty = actions.reduce<Record<string, number>>((acc, a) => {
     acc[a.party] = (acc[a.party] ?? 0) + computeQueuedActionCost(a, actionTypes);
     return acc;
@@ -261,7 +273,7 @@ export default function Campaign() {
             </div>
           </div>
           <div className="flex gap-2 items-center">
-            <button onClick={handleSave} title="Save campaign to scenarios"
+            <button onClick={handleSave} title="Save campaign to scenarios (Ctrl+S)"
               className="px-2 py-1.5 text-sm bg-bg-tertiary rounded hover:bg-bg-tertiary/80" aria-label="Save campaign">
               <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" /></svg>
             </button>
@@ -273,7 +285,7 @@ export default function Campaign() {
               className="px-3 py-1.5 text-sm bg-bg-tertiary rounded hover:bg-bg-tertiary/80">
               {showBuilder ? 'Hide' : 'Add Actions'}
             </button>
-            <button onClick={handleAdvance} disabled={loading}
+            <button onClick={handleAdvance} disabled={loading} title="Submit turn (Ctrl+Enter)"
               className="px-4 py-1.5 text-sm bg-accent rounded hover:bg-accent-hover text-bg-primary font-medium disabled:opacity-50 btn-accent">
               {loading ? 'Processing...' : `Submit Turn ${campaignState.turn}`}
             </button>
