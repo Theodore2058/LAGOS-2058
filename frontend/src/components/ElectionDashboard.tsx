@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import type { Party, ElectionResults } from '../types';
 import { ADMIN_ZONES } from '../types';
@@ -12,38 +13,66 @@ function getPartyColor(parties: Party[], name: string): string {
 }
 
 export default function ElectionDashboard({ results, parties }: Props) {
-  const sortedParties = Object.entries(results.national_vote_shares)
-    .sort((a, b) => b[1] - a[1]);
+  const sortedParties = useMemo(() =>
+    Object.entries(results.national_vote_shares).sort((a, b) => b[1] - a[1]),
+    [results.national_vote_shares]
+  );
 
   const winner = sortedParties[0];
+  const runnerUp = sortedParties[1];
   const winnerColor = getPartyColor(parties, winner[0]);
 
-  // Vote share bar chart data
-  const voteData = sortedParties.map(([name, share]) => ({
+  const voteData = useMemo(() => sortedParties.map(([name, share]) => ({
     name,
     share: Math.round(share * 10000) / 100,
     color: getPartyColor(parties, name),
-  }));
+  })), [sortedParties, parties]);
 
-  // Seat data
-  const seatData = Object.entries(results.seat_counts)
+  const seatData = useMemo(() => Object.entries(results.seat_counts)
     .sort((a, b) => b[1] - a[1])
     .map(([name, seats]) => ({
       name,
       seats: Math.round(seats * 10) / 10,
       std: results.seat_std[name] ?? 0,
       color: getPartyColor(parties, name),
-    }));
+    })), [results.seat_counts, results.seat_std, parties]);
+
+  const winMargin = winner[1] - (runnerUp?.[1] ?? 0);
 
   return (
     <div className="space-y-6">
       {/* Summary Bar */}
       <div className="grid grid-cols-5 gap-4">
-        <SummaryCard label="Winner" value={winner[0]} color={winnerColor} />
-        <SummaryCard label="Win Probability" value={`${Math.round((results.win_probability[winner[0]] ?? 0) * 100)}%`} />
-        <SummaryCard label="Winner Seats" value={`${Math.round(results.seat_counts[winner[0]] ?? 0)} / 774`} />
-        <SummaryCard label="Turnout" value={`${(results.national_turnout * 100).toFixed(1)}%`} />
-        <SummaryCard label="ENP" value={results.enp.toFixed(2)} />
+        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/40 card-glow">
+          <p className="text-[10px] text-text-secondary mb-1 uppercase tracking-[0.12em] font-medium">Winner</p>
+          <p className="text-xl font-bold" style={{ color: winnerColor, fontFamily: "'JetBrains Mono', 'Courier New', monospace" }}>{winner[0]}</p>
+          <p className="text-xs text-text-secondary mt-0.5">{(winner[1] * 100).toFixed(1)}% vote share</p>
+        </div>
+        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/40 card-glow">
+          <p className="text-[10px] text-text-secondary mb-1 uppercase tracking-[0.12em] font-medium">Win Probability</p>
+          <p className="text-xl font-bold" style={{ fontFamily: "'JetBrains Mono', 'Courier New', monospace" }}>
+            {Math.round((results.win_probability[winner[0]] ?? 0) * 100)}%
+          </p>
+          <div className="mt-1.5 h-1.5 bg-bg-tertiary rounded-full overflow-hidden">
+            <div className="h-full rounded-full transition-all" style={{ width: `${(results.win_probability[winner[0]] ?? 0) * 100}%`, backgroundColor: winnerColor }} />
+          </div>
+        </div>
+        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/40 card-glow">
+          <p className="text-[10px] text-text-secondary mb-1 uppercase tracking-[0.12em] font-medium">Winner Seats</p>
+          <p className="text-xl font-bold" style={{ fontFamily: "'JetBrains Mono', 'Courier New', monospace" }}>{Math.round(results.seat_counts[winner[0]] ?? 0)} / 774</p>
+          <p className="text-xs text-text-secondary/50 mt-0.5">&plusmn;{(results.seat_std[winner[0]] ?? 0).toFixed(1)} std</p>
+        </div>
+        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/40 card-glow">
+          <p className="text-[10px] text-text-secondary mb-1 uppercase tracking-[0.12em] font-medium">Turnout</p>
+          <p className="text-xl font-bold" style={{ fontFamily: "'JetBrains Mono', 'Courier New', monospace" }}>{(results.national_turnout * 100).toFixed(1)}%</p>
+        </div>
+        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/40 card-glow">
+          <p className="text-[10px] text-text-secondary mb-1 uppercase tracking-[0.12em] font-medium">Margin</p>
+          <p className="text-xl font-bold" style={{ fontFamily: "'JetBrains Mono', 'Courier New', monospace", color: winMargin > 0.1 ? '#22c55e' : '#f59e0b' }}>
+            {(winMargin * 100).toFixed(1)}%
+          </p>
+          <p className="text-xs text-text-secondary/50 mt-0.5">ENP {results.enp.toFixed(2)}</p>
+        </div>
       </div>
 
       {/* Charts Row */}
@@ -81,9 +110,60 @@ export default function ElectionDashboard({ results, parties }: Props) {
         </div>
       </div>
 
+      {/* Full Ranking Table */}
+      <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50">
+        <h3 className="text-sm font-semibold mb-3 text-text-secondary">Party Rankings</h3>
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="border-b border-bg-tertiary">
+              <th className="text-left py-1.5 px-2 w-8">#</th>
+              <th className="text-left py-1.5 px-2">Party</th>
+              <th className="text-right py-1.5 px-2">Vote Share</th>
+              <th className="py-1.5 px-2 w-32"></th>
+              <th className="text-right py-1.5 px-2">Seats</th>
+              <th className="text-right py-1.5 px-2">Seat Std</th>
+              <th className="text-right py-1.5 px-2">Win Prob</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sortedParties.map(([name, share], i) => {
+              const color = getPartyColor(parties, name);
+              const seats = results.seat_counts[name] ?? 0;
+              const std = results.seat_std[name] ?? 0;
+              const winProb = results.win_probability[name] ?? 0;
+              return (
+                <tr key={name} className={`border-b border-bg-tertiary/30 hover:bg-bg-tertiary/20 transition-colors ${i % 2 === 1 ? 'bg-bg-tertiary/10' : ''}`}>
+                  <td className="py-1.5 px-2 text-text-secondary/40 font-mono">{i + 1}</td>
+                  <td className="py-1.5 px-2">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ backgroundColor: color }} />
+                      <span className="font-medium">{name}</span>
+                    </div>
+                  </td>
+                  <td className="text-right py-1.5 px-2 font-mono">{(share * 100).toFixed(2)}%</td>
+                  <td className="py-1.5 px-2">
+                    <div className="h-1.5 bg-bg-tertiary rounded-full overflow-hidden">
+                      <div className="h-full rounded-full" style={{ width: `${(share / (sortedParties[0]?.[1] ?? 1)) * 100}%`, backgroundColor: color }} />
+                    </div>
+                  </td>
+                  <td className="text-right py-1.5 px-2 font-mono">{Math.round(seats)}</td>
+                  <td className="text-right py-1.5 px-2 font-mono text-text-secondary">&plusmn;{std.toFixed(1)}</td>
+                  <td className="text-right py-1.5 px-2 font-mono">
+                    {winProb > 0 ? <span className="text-success">{(winProb * 100).toFixed(0)}%</span> : <span className="text-text-secondary/30">0%</span>}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
       {/* Presidential Spread */}
       <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50">
-        <h3 className="text-sm font-semibold mb-3 text-text-secondary">Presidential Spread Check (need 25% in 24+ states)</h3>
+        <h3 className="text-sm font-semibold mb-3 text-text-secondary">
+          Presidential Spread Check
+          <span className="font-normal text-text-secondary/50 ml-1">(need 25% in 24+ states)</span>
+        </h3>
         <div className="grid grid-cols-2 gap-2">
           {Object.entries(results.spread_check)
             .sort((a, b) => b[1].states_above_25 - a[1].states_above_25)
@@ -97,11 +177,12 @@ export default function ElectionDashboard({ results, parties }: Props) {
                       width: `${(sc.states_above_25 / 38) * 100}%`,
                       backgroundColor: sc.met ? '#22c55e' : getPartyColor(parties, name),
                     }} />
-                  <div className="absolute top-0 h-2 w-px bg-warning" style={{ left: `${(24 / 38) * 100}%` }} />
+                  <div className="absolute top-0 h-2 w-px bg-warning" style={{ left: `${(24 / 38) * 100}%` }} title="24 state threshold" />
                 </div>
-                <span className={`text-xs w-10 text-right ${sc.met ? 'text-success' : 'text-text-secondary'}`}>
+                <span className={`text-xs w-10 text-right font-mono ${sc.met ? 'text-success font-semibold' : 'text-text-secondary'}`}>
                   {sc.states_above_25}/38
                 </span>
+                {sc.met && <span className="text-[9px] text-success">PASS</span>}
               </div>
             ))}
         </div>
@@ -122,18 +203,27 @@ export default function ElectionDashboard({ results, parties }: Props) {
             </tr>
           </thead>
           <tbody>
-            {results.zonal_results.map((z, i) => (
-              <tr key={z.az} className={`border-b border-bg-tertiary/30 hover:bg-bg-tertiary/20 transition-colors ${i % 2 === 1 ? 'bg-bg-tertiary/10' : ''}`}>
-                <td className="py-1.5 px-2 font-medium">{z.az_name || ADMIN_ZONES[z.az]}</td>
-                <td className="text-right py-1 px-2">{(z.turnout * 100).toFixed(1)}%</td>
-                {sortedParties.slice(0, 8).map(([name]) => (
-                  <td key={name} className="text-right py-1 px-2">{((z.vote_shares[name] ?? 0) * 100).toFixed(1)}%</td>
-                ))}
-                <td className="text-right py-1 px-2 font-semibold" style={{ color: getPartyColor(parties, z.winner) }}>
-                  {z.winner}
-                </td>
-              </tr>
-            ))}
+            {results.zonal_results.map((z, i) => {
+              const zonalWinner = z.winner;
+              return (
+                <tr key={z.az} className={`border-b border-bg-tertiary/30 hover:bg-bg-tertiary/20 transition-colors ${i % 2 === 1 ? 'bg-bg-tertiary/10' : ''}`}>
+                  <td className="py-1.5 px-2 font-medium">{z.az_name || ADMIN_ZONES[z.az]}</td>
+                  <td className="text-right py-1 px-2">{(z.turnout * 100).toFixed(1)}%</td>
+                  {sortedParties.slice(0, 8).map(([name]) => {
+                    const share = z.vote_shares[name] ?? 0;
+                    const isZonalWinner = name === zonalWinner;
+                    return (
+                      <td key={name} className={`text-right py-1 px-2 ${isZonalWinner ? 'font-semibold' : ''}`}>
+                        {(share * 100).toFixed(1)}%
+                      </td>
+                    );
+                  })}
+                  <td className="text-right py-1 px-2 font-semibold" style={{ color: getPartyColor(parties, z.winner) }}>
+                    {z.winner}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -142,7 +232,7 @@ export default function ElectionDashboard({ results, parties }: Props) {
       {results.swing_lgas.length > 0 && (
         <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50">
           <h3 className="text-sm font-semibold mb-3 text-text-secondary">
-            Swing LGAs <span className="font-normal">({results.swing_lgas.length} with margin &lt; 5%)</span>
+            Swing LGAs <span className="font-normal text-text-secondary/50">({results.swing_lgas.length} with margin &lt; 5%)</span>
           </h3>
           <div className="max-h-64 overflow-y-auto">
             <table className="w-full text-xs">
@@ -178,15 +268,6 @@ export default function ElectionDashboard({ results, parties }: Props) {
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-function SummaryCard({ label, value, color }: { label: string; value: string; color?: string }) {
-  return (
-    <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/40 card-glow">
-      <p className="text-[10px] text-text-secondary mb-1.5 uppercase tracking-[0.12em] font-medium">{label}</p>
-      <p className="text-xl font-bold" style={{ ...(color ? { color } : {}), fontFamily: "'JetBrains Mono', 'Courier New', monospace" }}>{value}</p>
     </div>
   );
 }
