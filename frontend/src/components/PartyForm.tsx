@@ -108,7 +108,26 @@ export default function PartyForm({ party, issueNames, ethnicGroups, religiousGr
 
       {/* Positions */}
       <div className="border-t border-bg-tertiary/30 pt-4">
-        <h4 className="text-sm font-semibold mb-2 text-text-secondary">Issue Positions (28 dimensions)</h4>
+        <div className="flex items-center justify-between mb-2">
+          <h4 className="text-sm font-semibold text-text-secondary">Issue Positions (28 dimensions)</h4>
+          <div className="flex gap-2">
+            <button onClick={() => setForm({ ...form, positions: new Array(28).fill(0) })}
+              className="px-2 py-1 text-[10px] bg-bg-tertiary rounded hover:bg-bg-tertiary/80 text-text-secondary">
+              Reset All to 0
+            </button>
+            <button onClick={() => setForm({ ...form, positions: form.positions.map(() => Math.round((Math.random() * 2 - 1) * 10) / 10) })}
+              className="px-2 py-1 text-[10px] bg-bg-tertiary rounded hover:bg-bg-tertiary/80 text-text-secondary">
+              Randomize
+            </button>
+          </div>
+        </div>
+        {/* Position summary bar */}
+        <div className="flex gap-px mb-2 h-2 rounded-full overflow-hidden bg-bg-tertiary">
+          {form.positions.map((v, i) => (
+            <div key={i} className="flex-1" style={{ backgroundColor: v > 0.3 ? '#22c55e' : v < -0.3 ? '#ef4444' : '#334155', opacity: 0.5 + Math.abs(v) * 0.5 }}
+              title={`${issueNames[i] ?? i}: ${v.toFixed(1)}`} />
+          ))}
+        </div>
         <div className="bg-bg-primary rounded-lg p-3 max-h-96 overflow-y-auto space-y-0.5">
           {issueNames.map((name, idx) => (
             <PositionSlider

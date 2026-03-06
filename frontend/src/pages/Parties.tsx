@@ -155,7 +155,7 @@ export default function Parties() {
         <div className="flex-1 overflow-y-auto">
           {parties.map(p => (
             <div key={p.name}
-              className={`flex items-center gap-2 px-3 py-2.5 cursor-pointer border-b border-bg-tertiary/30 transition-colors ${selected === p.name ? 'bg-accent/15 border-l-2 border-l-accent' : 'hover:bg-bg-tertiary/30'}`}
+              className={`flex items-center gap-2 px-3 py-2 cursor-pointer border-b border-bg-tertiary/30 transition-colors ${selected === p.name ? 'bg-accent/15 border-l-2 border-l-accent' : 'hover:bg-bg-tertiary/30'}`}
               onClick={() => handleSelect(p.name)}>
               {tab === 'compare' && (
                 <input type="checkbox" checked={compareSelected.has(p.name)}
@@ -163,10 +163,14 @@ export default function Parties() {
                   className="accent-accent" />
               )}
               <div className="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: p.color }} />
-              <span className="text-sm flex-1 truncate">{p.name}</span>
-              <span className="text-xs text-text-secondary truncate max-w-20">{p.leader_ethnicity}</span>
+              <div className="flex-1 min-w-0">
+                <span className="text-sm block truncate">{p.name}</span>
+                <span className="text-[10px] text-text-secondary truncate block">
+                  {p.leader_ethnicity}{p.valence !== 0 ? ` · v${p.valence > 0 ? '+' : ''}${p.valence.toFixed(1)}` : ''}
+                </span>
+              </div>
               <button onClick={(e) => { e.stopPropagation(); setDeleteTarget(p.name); }}
-                className="text-danger/60 hover:text-danger p-0.5 rounded hover:bg-danger/10 transition-colors" aria-label={`Delete ${p.name}`}>
+                className="text-danger/60 hover:text-danger p-0.5 rounded hover:bg-danger/10 transition-colors shrink-0" aria-label={`Delete ${p.name}`}>
                 <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M18 6L6 18M6 6l12 12" /></svg>
               </button>
             </div>
