@@ -28,7 +28,7 @@ export default function PositionSlider({ dimension, value, description, onChange
         step={0.1}
         value={value}
         onChange={(e) => onChange(Math.max(-5, Math.min(5, parseFloat(e.target.value) || 0)))}
-        className="w-16 bg-bg-tertiary border border-bg-tertiary rounded px-2 py-0.5 text-xs text-center"
+        className="w-16 bg-bg-tertiary border border-bg-quaternary/50 rounded px-2 py-0.5 text-xs text-center focus:border-accent focus:ring-1 focus:ring-accent/30 transition-colors"
       />
       <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: color }} />
     </div>

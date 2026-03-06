@@ -69,28 +69,28 @@ export default function Results() {
 
       {/* Final Summary */}
       <div className="grid grid-cols-4 gap-4">
-        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary">
+        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50">
           <p className="text-xs text-text-secondary mb-1">Winner</p>
           <p className="text-xl font-bold" style={{ color: getColor(sortedFinal[0][0]) }}>{sortedFinal[0][0]}</p>
           <p className="text-sm text-text-secondary">{(sortedFinal[0][1] * 100).toFixed(1)}%</p>
         </div>
-        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary">
+        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50">
           <p className="text-xs text-text-secondary mb-1">Runner-up</p>
           <p className="text-xl font-bold" style={{ color: getColor(sortedFinal[1]?.[0] ?? '') }}>{sortedFinal[1]?.[0]}</p>
           <p className="text-sm text-text-secondary">{((sortedFinal[1]?.[1] ?? 0) * 100).toFixed(1)}%</p>
         </div>
-        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary">
+        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50">
           <p className="text-xs text-text-secondary mb-1">Final Turnout</p>
           <p className="text-xl font-bold">{(final.national_turnout * 100).toFixed(1)}%</p>
         </div>
-        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary">
+        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50">
           <p className="text-xs text-text-secondary mb-1">Winner Seats</p>
           <p className="text-xl font-bold">{Math.round(final.seat_counts[sortedFinal[0][0]] ?? 0)} / 774</p>
         </div>
       </div>
 
       {/* Vote Share Evolution */}
-      <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary">
+      <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50">
         <h3 className="text-sm font-semibold mb-3 text-text-secondary">Vote Share Evolution (%)</h3>
         <ResponsiveContainer width="100%" height={350}>
           <LineChart data={voteData}>
@@ -107,7 +107,7 @@ export default function Results() {
       </div>
 
       {/* Seat Evolution */}
-      <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary">
+      <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50">
         <h3 className="text-sm font-semibold mb-3 text-text-secondary">Seat Count Evolution</h3>
         <ResponsiveContainer width="100%" height={300}>
           <LineChart data={seatData}>
@@ -125,7 +125,7 @@ export default function Results() {
 
       <div className="grid grid-cols-2 gap-6">
         {/* Turnout Evolution */}
-        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary">
+        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50">
           <h3 className="text-sm font-semibold mb-3 text-text-secondary">National Turnout (%)</h3>
           <ResponsiveContainer width="100%" height={200}>
             <LineChart data={turnoutData}>
@@ -138,7 +138,7 @@ export default function Results() {
         </div>
 
         {/* Final Vote Share Bar */}
-        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary">
+        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50">
           <h3 className="text-sm font-semibold mb-3 text-text-secondary">Final Vote Shares</h3>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={sortedFinal.map(([name, share]) => ({ name, share: Math.round(share * 10000) / 100 }))} layout="vertical">
@@ -154,7 +154,7 @@ export default function Results() {
       </div>
 
       {/* Action Log */}
-      <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary">
+      <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50">
         <h3 className="text-sm font-semibold mb-3 text-text-secondary">Action Log</h3>
         <div className="max-h-64 overflow-y-auto space-y-2">
           {history.map(h => (

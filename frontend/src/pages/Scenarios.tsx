@@ -65,7 +65,7 @@ export default function Scenarios() {
       {error && <div className="p-3 bg-danger/20 text-danger rounded text-sm">{error}</div>}
 
       {/* Save */}
-      <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary">
+      <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50">
         <h3 className="text-sm font-semibold mb-2">Save Current State</h3>
         <div className="flex gap-2">
           <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Scenario name"
@@ -75,7 +75,7 @@ export default function Scenarios() {
       </div>
 
       {/* List */}
-      <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary">
+      <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50">
         <h3 className="text-sm font-semibold mb-2">Saved Scenarios ({scenarios.length})</h3>
         {scenarios.length === 0 ? (
           <p className="text-xs text-text-secondary">No scenarios saved yet.</p>
@@ -94,7 +94,7 @@ export default function Scenarios() {
 
       {/* Compare */}
       {scenarios.length >= 2 && (
-        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary">
+        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50">
           <h3 className="text-sm font-semibold mb-2">Compare Scenarios</h3>
           <div className="flex gap-2 mb-3">
             <select value={compareA} onChange={e => setCompareA(e.target.value)}
@@ -145,7 +145,7 @@ export default function Scenarios() {
       )}
 
       {/* Export/Import */}
-      <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary">
+      <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50">
         <h3 className="text-sm font-semibold mb-2">Session Data</h3>
         <div className="flex gap-2">
           <button onClick={() => exportSession()}

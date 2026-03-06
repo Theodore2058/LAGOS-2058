@@ -43,16 +43,16 @@ export default function Election() {
             {showParams ? 'Hide' : 'Show'} Parameters
           </button>
           <button onClick={handleRun} disabled={loading}
-            className="px-4 py-1.5 text-sm bg-accent rounded hover:bg-accent-hover text-white disabled:opacity-50">
+            className="px-4 py-1.5 text-sm bg-accent rounded-md hover:bg-accent-hover text-white font-medium disabled:opacity-50 shadow-sm shadow-accent/20">
             {loading ? 'Running...' : 'Run Election'}
           </button>
         </div>
       </div>
 
-      {error && <div className="mb-4 p-3 bg-danger/20 text-danger rounded text-sm">{error}</div>}
+      {error && <div className="mb-4 p-3 bg-danger/20 text-danger rounded-md text-sm border border-danger/30">{error}</div>}
 
       {showParams && (
-        <div className="mb-6 bg-bg-secondary rounded-lg p-4 border border-bg-tertiary">
+        <div className="mb-6 bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50">
           <ParamsEditor params={params} onChange={setParams} />
         </div>
       )}
@@ -60,8 +60,8 @@ export default function Election() {
       {loading && (
         <div className="flex items-center justify-center py-20">
           <div className="text-center">
-            <div className="animate-spin w-8 h-8 border-2 border-accent border-t-transparent rounded-full mx-auto mb-3" />
-            <p className="text-text-secondary">Running election simulation...</p>
+            <div className="animate-spin w-10 h-10 border-[3px] border-accent/30 border-t-accent rounded-full mx-auto mb-4" />
+            <p className="text-text-secondary font-medium">Running election simulation...</p>
             <p className="text-xs text-text-secondary mt-1">This may take 10-60 seconds depending on MC runs</p>
           </div>
         </div>

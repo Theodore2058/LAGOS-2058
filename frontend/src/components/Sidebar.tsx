@@ -27,16 +27,16 @@ export default function Sidebar() {
         <h1 className="text-lg font-bold tracking-wide text-accent">LAGOS-2058</h1>
         <p className="text-xs text-text-secondary mt-1">Game Master Console</p>
       </div>
-      <nav className="flex-1 py-2 space-y-0.5 px-2">
+      <nav className="flex-1 py-3 space-y-0.5 px-2">
         {NAV_ITEMS.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
             className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2 text-sm rounded-md transition-all duration-150 ${
+              `flex items-center gap-3 px-3 py-2 text-sm rounded-md transition-all duration-150 relative ${
                 isActive
-                  ? 'bg-accent/15 text-accent font-medium shadow-sm shadow-accent/5'
-                  : 'text-text-secondary hover:text-text-primary hover:bg-bg-tertiary/40'
+                  ? 'bg-accent/10 text-accent font-medium before:absolute before:left-0 before:top-1 before:bottom-1 before:w-[3px] before:bg-accent before:rounded-full'
+                  : 'text-text-secondary hover:text-text-primary hover:bg-bg-tertiary/30'
               }`
             }
           >

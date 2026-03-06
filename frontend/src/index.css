@@ -23,6 +23,8 @@ body {
   background-color: var(--color-bg-primary);
   color: var(--color-text-primary);
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 #root {
@@ -63,4 +65,65 @@ body {
 ::selection {
   background-color: rgba(59, 130, 246, 0.3);
   color: var(--color-text-primary);
+}
+
+/* Global button polish */
+button {
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+/* Improved range input styling */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+  height: 6px;
+}
+
+input[type="range"]::-webkit-slider-track {
+  background: var(--color-bg-tertiary);
+  border-radius: 3px;
+  height: 4px;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  border: 2px solid var(--color-bg-secondary);
+  margin-top: -5px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+  background: var(--color-accent-hover);
+  transform: scale(1.1);
+}
+
+/* Table improvements */
+table tbody tr {
+  transition: background-color 0.1s ease;
+}
+
+table tbody tr:hover {
+  background-color: rgba(51, 65, 85, 0.3);
+}
+
+/* Smoother loading spinner */
+@keyframes spin-smooth {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.animate-spin {
+  animation: spin-smooth 0.8s linear infinite;
 }

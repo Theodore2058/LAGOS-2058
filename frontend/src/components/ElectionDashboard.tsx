@@ -49,7 +49,7 @@ export default function ElectionDashboard({ results, parties }: Props) {
       {/* Charts Row */}
       <div className="grid grid-cols-2 gap-6">
         {/* Vote Share Bar Chart */}
-        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary">
+        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50">
           <h3 className="text-sm font-semibold mb-3 text-text-secondary">National Vote Shares (%)</h3>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={voteData} layout="vertical">
@@ -64,7 +64,7 @@ export default function ElectionDashboard({ results, parties }: Props) {
         </div>
 
         {/* Seat Allocation */}
-        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary">
+        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50">
           <h3 className="text-sm font-semibold mb-3 text-text-secondary">Seat Allocation (774 LGAs)</h3>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={seatData} layout="vertical">
@@ -83,7 +83,7 @@ export default function ElectionDashboard({ results, parties }: Props) {
       </div>
 
       {/* Presidential Spread */}
-      <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary">
+      <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50">
         <h3 className="text-sm font-semibold mb-3 text-text-secondary">Presidential Spread Check (need 25% in 24+ states)</h3>
         <div className="grid grid-cols-2 gap-2">
           {Object.entries(results.spread_check)
@@ -109,7 +109,7 @@ export default function ElectionDashboard({ results, parties }: Props) {
       </div>
 
       {/* Zonal Breakdown */}
-      <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary overflow-x-auto">
+      <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50/50 overflow-x-auto">
         <h3 className="text-sm font-semibold mb-3 text-text-secondary">Zonal Breakdown</h3>
         <table className="w-full text-xs">
           <thead>
@@ -141,7 +141,7 @@ export default function ElectionDashboard({ results, parties }: Props) {
 
       {/* Swing LGAs */}
       {results.swing_lgas.length > 0 && (
-        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary">
+        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50">
           <h3 className="text-sm font-semibold mb-3 text-text-secondary">Swing LGAs (margin &lt; 5%)</h3>
           <div className="max-h-64 overflow-y-auto">
             <table className="w-full text-xs">
@@ -173,8 +173,8 @@ export default function ElectionDashboard({ results, parties }: Props) {
 
 function SummaryCard({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
-    <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary">
-      <p className="text-xs text-text-secondary mb-1">{label}</p>
+    <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50/50 hover:border-bg-quaternary/50 transition-colors">
+      <p className="text-xs text-text-secondary mb-1.5 uppercase tracking-wider">{label}</p>
       <p className="text-xl font-bold" style={color ? { color } : undefined}>{value}</p>
     </div>
   );

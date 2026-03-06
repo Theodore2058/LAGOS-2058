@@ -115,7 +115,7 @@ export default function Crises() {
         </div>
 
         {/* Crisis form */}
-        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary space-y-4">
+        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50 space-y-4">
           <div className="grid grid-cols-3 gap-4">
             <div>
               <label className="text-xs text-text-secondary block mb-1">Name</label>

@@ -72,14 +72,25 @@ export default function Campaign() {
 
   if (!campaignState) {
     return (
-      <div className="p-8">
-        <h2 className="text-2xl font-bold mb-4">Campaign Mode</h2>
-        <p className="text-text-secondary mb-4">{parties.length} parties loaded. Start a new 12-turn campaign simulation.</p>
-        {error && <div className="mb-4 p-3 bg-danger/20 text-danger rounded text-sm">{error}</div>}
-        <button onClick={handleNewCampaign} disabled={loading}
-          className="px-6 py-2 bg-accent rounded hover:bg-accent-hover text-white disabled:opacity-50">
-          {loading ? 'Initializing...' : 'Start New Campaign'}
-        </button>
+      <div className="p-8 max-w-2xl">
+        <h2 className="text-2xl font-bold mb-2">Campaign Mode</h2>
+        <p className="text-text-secondary mb-6">{parties.length} parties loaded. Start a new 12-turn campaign simulation.</p>
+        {error && <div className="mb-4 p-3 bg-danger/20 text-danger rounded-md text-sm border border-danger/30">{error}</div>}
+        <div className="bg-bg-secondary rounded-lg p-6 border border-bg-tertiary/50/50">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="w-12 h-12 rounded-lg bg-accent/10 flex items-center justify-center">
+              <svg className="w-6 h-6 text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75}><path d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold">12-Turn Campaign Simulation</h3>
+              <p className="text-xs text-text-secondary">Actions, crises, PC economy, synergies, and scandals</p>
+            </div>
+          </div>
+          <button onClick={handleNewCampaign} disabled={loading}
+            className="w-full px-6 py-2.5 bg-accent rounded-md hover:bg-accent-hover text-white font-medium disabled:opacity-50 shadow-sm shadow-accent/20">
+            {loading ? 'Initializing...' : 'Start New Campaign'}
+          </button>
+        </div>
       </div>
     );
   }
@@ -129,7 +140,7 @@ export default function Campaign() {
 
       {/* Action Queue */}
       {actions.length > 0 && (
-        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary">
+        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50">
           <h3 className="text-sm font-semibold mb-2">Queued Actions ({actions.length})</h3>
           <div className="space-y-1">
             {actions.map((a, i) => (
@@ -148,7 +159,7 @@ export default function Campaign() {
 
       {/* Turn History */}
       {history.length > 0 && (
-        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary">
+        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50">
           <h3 className="text-sm font-semibold mb-2">Turn History</h3>
           <div className="space-y-2">
             {history.map((h, i) => {
@@ -206,7 +217,7 @@ function PartyCard({ status, color, pcUsed }: { status: PartyStatus; color: stri
   const cohesionPct = (status.cohesion / 10) * 100;
 
   return (
-    <div className="bg-bg-secondary rounded-lg p-3.5 border border-bg-tertiary/50 hover:border-bg-quaternary/50 transition-colors"
+    <div className="bg-bg-secondary rounded-lg p-3.5 border border-bg-tertiary/50/50 hover:border-bg-quaternary/50 transition-colors"
       style={{ borderTopColor: color, borderTopWidth: 2 }}>
       <div className="flex items-center gap-2 mb-3">
         <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: color }} />

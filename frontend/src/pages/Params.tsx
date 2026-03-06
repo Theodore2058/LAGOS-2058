@@ -125,7 +125,7 @@ export default function ParamsPage() {
         <button onClick={resetToDefaults}
           className="px-3 py-1.5 text-sm bg-bg-tertiary rounded hover:bg-bg-tertiary/80">Reset to Defaults</button>
       </div>
-      <div className="bg-bg-secondary rounded-lg p-6 border border-bg-tertiary">
+      <div className="bg-bg-secondary rounded-lg p-6 border border-bg-tertiary/50">
         <ParamsEditor params={params} onChange={setParams} />
       </div>
     </div>

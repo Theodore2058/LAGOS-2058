@@ -48,7 +48,7 @@ export default function ActionBuilder({ parties, actionTypes, issueNames, onAdd,
   };
 
   return (
-    <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary space-y-4">
+    <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50 space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold">Add Action</h3>
         <button onClick={onClose} className="text-text-secondary hover:text-text-primary text-sm">Close</button>

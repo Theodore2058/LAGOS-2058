@@ -119,7 +119,7 @@ export default function MapPage() {
         )}
 
         {/* Controls overlay */}
-        <div className="absolute top-4 right-4 bg-bg-secondary/90 rounded-lg p-3 border border-bg-tertiary z-[1000]">
+        <div className="absolute top-4 right-4 bg-bg-secondary/90 rounded-lg p-3 border border-bg-tertiary/50 z-[1000]">
           <div className="flex gap-2 mb-2">
             {(['winner', 'turnout', 'margin'] as ColorMode[]).map(mode => (
               <button key={mode} onClick={() => setColorMode(mode)}
