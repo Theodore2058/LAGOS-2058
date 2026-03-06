@@ -51,7 +51,7 @@ export default function PartyForm({ party, issueNames, ethnicGroups, religiousGr
         <h3 className="text-lg font-semibold">{isNew ? 'New Party' : `Edit: ${party.name}`}</h3>
         <div className="flex gap-2">
           <button onClick={onCancel} className="px-3 py-1.5 text-sm bg-bg-tertiary rounded hover:bg-bg-tertiary/80">Cancel</button>
-          <button onClick={() => onSave(form)} className="px-3 py-1.5 text-sm bg-accent rounded hover:bg-accent-hover text-white">Save</button>
+          <button onClick={() => onSave(form)} className="px-3 py-1.5 text-sm bg-accent rounded hover:bg-accent-hover text-bg-primary font-medium btn-accent">Save</button>
         </div>
       </div>
 

@@ -20,8 +20,9 @@ export default function CheatSheet() {
   return (
     <>
       <button onClick={() => setOpen(!open)}
-        className="fixed bottom-4 right-4 z-50 w-10 h-10 bg-accent rounded-full flex items-center justify-center text-white shadow-lg shadow-accent/20 hover:bg-accent-hover hover:shadow-accent/30 transition-all duration-200 text-lg font-medium"
-        title="GM Cheat Sheet">
+        className="fixed bottom-4 right-4 z-50 w-10 h-10 bg-accent rounded-full flex items-center justify-center text-bg-primary shadow-lg shadow-accent/25 hover:bg-accent-hover hover:shadow-accent/40 transition-all duration-200 text-lg font-bold btn-accent"
+        title="GM Cheat Sheet"
+        style={{ fontFamily: "'JetBrains Mono', 'Courier New', monospace" }}>
         ?
       </button>
 
@@ -38,7 +39,7 @@ export default function CheatSheet() {
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-lg font-bold">GM Cheat Sheet</h2>
+              <h2 className="text-lg font-bold tracking-wide uppercase" style={{ fontFamily: "'JetBrains Mono', 'Courier New', monospace" }}>GM Cheat Sheet</h2>
               <button onClick={handleClose}
                 aria-label="Close cheat sheet"
                 className="w-7 h-7 rounded-md flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-bg-tertiary/50 transition-colors">

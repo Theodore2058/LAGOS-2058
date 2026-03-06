@@ -134,7 +134,7 @@ export default function Parties() {
       <div className="w-64 bg-bg-secondary border-r border-bg-tertiary flex flex-col shrink-0">
         <div className="p-3 border-b border-bg-tertiary">
           <div className="flex gap-2 mb-2">
-            <button onClick={handleNew} className="flex-1 px-2 py-1.5 text-xs bg-accent rounded hover:bg-accent-hover text-white">+ Add</button>
+            <button onClick={handleNew} className="flex-1 px-2 py-1.5 text-xs bg-accent rounded hover:bg-accent-hover text-bg-primary font-medium">+ Add</button>
             <button onClick={handleLoadExamples} className="flex-1 px-2 py-1.5 text-xs bg-bg-tertiary rounded hover:bg-bg-tertiary/80" disabled={loading}>Load Examples</button>
           </div>
           <div className="flex gap-2">

@@ -4,10 +4,10 @@ import api from '../api/client';
 import { fetchParties } from '../api/parties';
 
 const QUICK_START = [
-  { to: '/parties', step: '1', title: 'Set Up Parties', desc: 'Create parties or load the 14 example parties', color: '#3b82f6' },
-  { to: '/params', step: '2', title: 'Configure Parameters', desc: 'Tune the Merrill-Grofman model parameters', color: '#8b5cf6' },
-  { to: '/election', step: '3', title: 'Run Static Election', desc: 'One-shot election with Monte Carlo simulation', color: '#22c55e' },
-  { to: '/campaign', step: '4', title: 'Run Campaign', desc: '12-turn campaign with actions, crises, and strategy', color: '#f59e0b' },
+  { to: '/parties', step: '01', title: 'Set Up Parties', desc: 'Create parties or load the 14 example parties', color: '#d4a843' },
+  { to: '/params', step: '02', title: 'Configure Parameters', desc: 'Tune the Merrill-Grofman model parameters', color: '#2dd4bf' },
+  { to: '/election', step: '03', title: 'Run Static Election', desc: 'One-shot election with Monte Carlo simulation', color: '#22c55e' },
+  { to: '/campaign', step: '04', title: 'Run Campaign', desc: '12-turn campaign with actions, crises, and strategy', color: '#f59e0b' },
 ];
 
 export default function Dashboard() {
@@ -21,36 +21,47 @@ export default function Dashboard() {
 
   return (
     <div className="p-8 max-w-4xl">
-      <h2 className="text-2xl font-bold mb-1">LAGOS-2058</h2>
-      <p className="text-text-secondary mb-8">Game Master Console</p>
+      {/* Title */}
+      <div className="mb-8">
+        <h2 className="text-2xl font-bold tracking-[0.08em] uppercase"
+          style={{ fontFamily: "'JetBrains Mono', 'Courier New', monospace" }}>
+          LAGOS-2058
+        </h2>
+        <p className="text-text-secondary text-sm tracking-wide">Game Master Console</p>
+      </div>
 
+      {/* Status Cards */}
       <div className="grid grid-cols-3 gap-4 mb-8">
-        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50 hover:border-bg-quaternary/50 transition-colors">
-          <p className="text-xs text-text-secondary mb-1.5 uppercase tracking-wider">API Status</p>
+        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/40 card-glow">
+          <p className="text-[10px] text-text-secondary mb-1.5 uppercase tracking-[0.12em] font-medium">API Status</p>
           <div className="flex items-center gap-2">
             <div className={`w-2 h-2 rounded-full ${health === 'ok' ? 'bg-success animate-pulse' : 'bg-danger'}`} />
-            <p className={`text-lg font-bold ${health === 'ok' ? 'text-success' : 'text-danger'}`}>{health}</p>
+            <p className={`text-lg font-bold tracking-wider uppercase ${health === 'ok' ? 'text-success' : 'text-danger'}`}
+              style={{ fontFamily: "'JetBrains Mono', 'Courier New', monospace" }}>
+              {health}
+            </p>
           </div>
         </div>
-        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50 hover:border-bg-quaternary/50 transition-colors">
-          <p className="text-xs text-text-secondary mb-1.5 uppercase tracking-wider">Parties Loaded</p>
-          <p className="text-lg font-bold">{partyCount}</p>
+        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/40 card-glow">
+          <p className="text-[10px] text-text-secondary mb-1.5 uppercase tracking-[0.12em] font-medium">Parties Loaded</p>
+          <p className="text-lg font-bold" style={{ fontFamily: "'JetBrains Mono', 'Courier New', monospace" }}>{partyCount}</p>
         </div>
-        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50 hover:border-bg-quaternary/50 transition-colors">
-          <p className="text-xs text-text-secondary mb-1.5 uppercase tracking-wider">LGAs</p>
-          <p className="text-lg font-bold">774</p>
+        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/40 card-glow">
+          <p className="text-[10px] text-text-secondary mb-1.5 uppercase tracking-[0.12em] font-medium">LGAs</p>
+          <p className="text-lg font-bold" style={{ fontFamily: "'JetBrains Mono', 'Courier New', monospace" }}>774</p>
         </div>
       </div>
 
-      <div className="bg-bg-secondary rounded-lg p-6 border border-bg-tertiary/50 mb-8">
-        <h3 className="text-sm font-semibold mb-4 uppercase tracking-wider text-text-secondary">Quick Start</h3>
+      {/* Quick Start */}
+      <div className="bg-bg-secondary rounded-lg p-6 border border-bg-tertiary/40 mb-8">
+        <h3 className="text-[10px] font-semibold mb-4 uppercase tracking-[0.12em] text-text-secondary">Quick Start</h3>
         <div className="grid grid-cols-2 gap-3">
           {QUICK_START.map(item => (
             <Link key={item.to} to={item.to}
-              className="group flex gap-3 p-3 rounded-lg border border-bg-tertiary/30 hover:border-bg-quaternary/50 hover:bg-bg-tertiary/20 transition-all duration-150"
+              className="group flex gap-3 p-3 rounded-lg border border-bg-tertiary/30 hover:border-accent/30 hover:bg-bg-tertiary/20 transition-all duration-150 card-glow"
             >
-              <div className="w-8 h-8 rounded-md flex items-center justify-center text-sm font-bold shrink-0 text-white"
-                style={{ backgroundColor: item.color + '20', color: item.color }}>
+              <div className="w-8 h-8 rounded-md flex items-center justify-center text-xs font-bold shrink-0"
+                style={{ backgroundColor: item.color + '15', color: item.color, fontFamily: "'JetBrains Mono', 'Courier New', monospace" }}>
                 {item.step}
               </div>
               <div>
@@ -62,8 +73,9 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="bg-bg-secondary rounded-lg p-6 border border-bg-tertiary/50 text-xs text-text-secondary space-y-2">
-        <h3 className="text-sm font-semibold text-text-primary mb-3 uppercase tracking-wider">System Info</h3>
+      {/* System Info */}
+      <div className="bg-bg-secondary rounded-lg p-6 border border-bg-tertiary/40 text-xs text-text-secondary space-y-2">
+        <h3 className="text-[10px] font-semibold text-text-primary mb-3 uppercase tracking-[0.12em]">System Info</h3>
         <p>Model: Merrill-Grofman spatial voting, 28 issue dimensions</p>
         <p>Voter types: 174,960 (ethnic x religious x demographic profiles)</p>
         <p>Administrative zones: 8 | States: 38 | LGAs: 774</p>

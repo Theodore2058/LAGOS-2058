@@ -22,11 +22,16 @@ function NavIcon({ path }: { path: string }) {
 
 export default function Sidebar() {
   return (
-    <aside className="w-56 bg-bg-secondary border-r border-bg-tertiary/50 flex flex-col shrink-0">
-      <div className="p-4 border-b border-bg-tertiary/50">
-        <h1 className="text-lg font-bold tracking-wide text-accent">LAGOS-2058</h1>
-        <p className="text-xs text-text-secondary mt-1">Game Master Console</p>
+    <aside className="w-56 bg-bg-secondary border-r border-bg-tertiary/40 flex flex-col shrink-0 relative">
+      {/* Header */}
+      <div className="p-4 border-b border-accent/20">
+        <h1 className="text-base font-bold tracking-[0.15em] text-accent uppercase" style={{ fontFamily: "'JetBrains Mono', 'Courier New', monospace" }}>
+          LAGOS-2058
+        </h1>
+        <p className="text-[10px] text-text-secondary mt-0.5 tracking-[0.08em] uppercase">Game Master Console</p>
       </div>
+
+      {/* Nav */}
       <nav className="flex-1 py-3 space-y-0.5 px-2">
         {NAV_ITEMS.map((item) => (
           <NavLink
@@ -43,12 +48,15 @@ export default function Sidebar() {
             aria-label={item.label}
           >
             <NavIcon path={item.icon} />
-            {item.label}
+            <span className="tracking-wide">{item.label}</span>
           </NavLink>
         ))}
       </nav>
-      <div className="p-4 border-t border-bg-tertiary/50 text-xs text-text-secondary">
-        v0.1.0
+
+      {/* Footer */}
+      <div className="p-3 border-t border-bg-tertiary/40 text-[10px] text-text-secondary tracking-wider uppercase text-center"
+        style={{ fontFamily: "'JetBrains Mono', 'Courier New', monospace" }}>
+        v0.1.0 // WAR ROOM
       </div>
     </aside>
   );

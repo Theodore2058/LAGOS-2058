@@ -178,7 +178,7 @@ export default function MapPage() {
           <div className="flex gap-1.5 mb-2.5">
             {(['winner', 'turnout', 'margin'] as ColorMode[]).map(mode => (
               <button key={mode} onClick={() => setColorMode(mode)}
-                className={`px-3 py-1 text-xs rounded-md font-medium transition-colors ${colorMode === mode ? 'bg-accent text-white shadow-sm shadow-accent/30' : 'bg-bg-tertiary hover:bg-bg-quaternary/50'}`}>
+                className={`px-3 py-1 text-xs rounded-md font-medium transition-colors ${colorMode === mode ? 'bg-accent text-bg-primary shadow-sm shadow-accent/30' : 'bg-bg-tertiary hover:bg-bg-quaternary/50'}`}>
                 {mode}
               </button>
             ))}

@@ -149,7 +149,7 @@ export default function Crises() {
             <div className="flex flex-wrap gap-2">
               {[1, 2, 3, 4, 5, 6, 7, 8].map(az => (
                 <button key={az} onClick={() => toggleAz(az)}
-                  className={`px-2 py-1 text-xs rounded transition-colors duration-150 ${editing.affected_azs?.includes(az) ? 'bg-accent text-white' : 'bg-bg-tertiary hover:bg-bg-tertiary/70'}`}>
+                  className={`px-2 py-1 text-xs rounded transition-colors duration-150 ${editing.affected_azs?.includes(az) ? 'bg-accent text-bg-primary' : 'bg-bg-tertiary hover:bg-bg-tertiary/70'}`}>
                   {ADMIN_ZONES[az]?.split(' ')[0]}
                 </button>
               ))}

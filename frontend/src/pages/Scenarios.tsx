@@ -73,7 +73,7 @@ export default function Scenarios() {
         <div className="flex gap-2">
           <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Scenario name"
             className="flex-1 bg-bg-tertiary border border-bg-quaternary/50 rounded-md px-3 py-1.5 text-sm focus:border-accent focus:ring-1 focus:ring-accent/30 transition-colors" />
-          <button onClick={handleSave} className="px-4 py-1.5 text-sm bg-accent rounded hover:bg-accent-hover text-white">Save</button>
+          <button onClick={handleSave} className="px-4 py-1.5 text-sm bg-accent rounded hover:bg-accent-hover text-bg-primary">Save</button>
         </div>
       </div>
 
@@ -126,7 +126,7 @@ export default function Scenarios() {
               {scenarios.map(s => <option key={s.name} value={s.name}>{s.name}</option>)}
             </select>
             <button onClick={handleCompare}
-              className="px-4 py-1.5 text-sm bg-accent rounded hover:bg-accent-hover text-white">Compare</button>
+              className="px-4 py-1.5 text-sm bg-accent rounded hover:bg-accent-hover text-bg-primary">Compare</button>
           </div>
 
           {comparison && (

@@ -43,7 +43,7 @@ export default function Election() {
             {showParams ? 'Hide' : 'Show'} Parameters
           </button>
           <button onClick={handleRun} disabled={loading}
-            className="px-4 py-1.5 text-sm bg-accent rounded-md hover:bg-accent-hover text-white font-medium disabled:opacity-50 shadow-sm shadow-accent/20">
+            className="px-4 py-1.5 text-sm bg-accent rounded-md hover:bg-accent-hover text-bg-primary font-medium disabled:opacity-50 btn-accent">
             {loading ? 'Running...' : 'Run Election'}
           </button>
         </div>

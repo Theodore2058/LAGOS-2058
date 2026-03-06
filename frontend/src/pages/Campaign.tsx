@@ -87,7 +87,7 @@ export default function Campaign() {
             </div>
           </div>
           <button onClick={handleNewCampaign} disabled={loading}
-            className="w-full px-6 py-2.5 bg-accent rounded-md hover:bg-accent-hover text-white font-medium disabled:opacity-50 shadow-sm shadow-accent/20">
+            className="w-full px-6 py-2.5 bg-accent rounded-md hover:bg-accent-hover text-bg-primary font-medium disabled:opacity-50 btn-accent">
             {loading ? 'Initializing...' : 'Start New Campaign'}
           </button>
         </div>
@@ -100,10 +100,10 @@ export default function Campaign() {
       {/* Turn Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold">
-            Turn {campaignState.turn} of {campaignState.n_turns}
+          <h2 className="text-2xl font-bold tracking-wide" style={{ fontFamily: "'JetBrains Mono', 'Courier New', monospace" }}>
+            Turn {campaignState.turn} <span className="text-text-secondary font-normal">of {campaignState.n_turns}</span>
           </h2>
-          <span className="text-sm text-text-secondary">{campaignState.phase}</span>
+          <span className="text-xs text-accent uppercase tracking-[0.1em] font-medium">{campaignState.phase}</span>
         </div>
         <div className="flex gap-2">
           <button onClick={() => setShowBuilder(!showBuilder)}
@@ -111,7 +111,7 @@ export default function Campaign() {
             {showBuilder ? 'Hide' : 'Add Actions'}
           </button>
           <button onClick={handleAdvance} disabled={loading}
-            className="px-4 py-1.5 text-sm bg-accent rounded hover:bg-accent-hover text-white disabled:opacity-50">
+            className="px-4 py-1.5 text-sm bg-accent rounded hover:bg-accent-hover text-bg-primary font-medium disabled:opacity-50 btn-accent">
             {loading ? 'Processing...' : `Submit Turn ${campaignState.turn}`}
           </button>
         </div>

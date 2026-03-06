@@ -89,7 +89,7 @@ export default function ActionBuilder({ parties, actionTypes, issueNames, onAdd,
           <div className="flex flex-wrap gap-2">
             {AZ_IDS.map(az => (
               <button key={az} onClick={() => toggleAz(az)}
-                className={`px-2 py-1 text-xs rounded transition-colors duration-150 ${targetAzs.includes(az) ? 'bg-accent text-white' : 'bg-bg-tertiary hover:bg-bg-tertiary/70'}`}>
+                className={`px-2 py-1 text-xs rounded transition-colors duration-150 ${targetAzs.includes(az) ? 'bg-accent text-bg-primary' : 'bg-bg-tertiary hover:bg-bg-tertiary/70'}`}>
                 {ADMIN_ZONES[az]?.split(' ')[0] ?? `AZ ${az}`}
               </button>
             ))}
@@ -261,7 +261,7 @@ export default function ActionBuilder({ parties, actionTypes, issueNames, onAdd,
       )}
 
       <button onClick={handleSubmit} disabled={!party || !actionType}
-        className="w-full px-4 py-2 bg-accent rounded hover:bg-accent-hover text-white text-sm disabled:opacity-50">
+        className="w-full px-4 py-2 bg-accent rounded hover:bg-accent-hover text-bg-primary text-sm font-medium disabled:opacity-50 btn-accent">
         Add Action
       </button>
     </div>

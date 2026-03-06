@@ -38,9 +38,9 @@ export default function PartyComparison({ parties, issueNames }: Props) {
       <h4 className="text-sm font-semibold mb-2 text-text-secondary">Position Comparison (normalized 0-10)</h4>
       <ResponsiveContainer width="100%" height={400}>
         <RadarChart data={data}>
-          <PolarGrid stroke="#334155" />
-          <PolarAngleAxis dataKey="dimension" tick={{ fill: '#94a3b8', fontSize: 10 }} />
-          <PolarRadiusAxis domain={[0, 10]} tick={{ fill: '#64748b', fontSize: 9 }} />
+          <PolarGrid stroke="#1f2937" />
+          <PolarAngleAxis dataKey="dimension" tick={{ fill: '#8b9bb4', fontSize: 10 }} />
+          <PolarRadiusAxis domain={[0, 10]} tick={{ fill: '#6b7a8d', fontSize: 9 }} />
           {parties.map(p => (
             <Radar key={p.name} name={p.name} dataKey={p.name}
               stroke={p.color} fill={p.color} fillOpacity={0.1} />

@@ -82,21 +82,21 @@ export default function Results() {
 
       {/* Final Summary */}
       <div className="grid grid-cols-4 gap-4">
-        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50 hover:border-bg-quaternary/50 transition-colors">
+        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/40 card-glow">
           <p className="text-xs text-text-secondary mb-1">Winner</p>
           <p className="text-xl font-bold" style={{ color: getColor(sortedFinal[0][0]) }}>{sortedFinal[0][0]}</p>
           <p className="text-sm text-text-secondary">{(sortedFinal[0][1] * 100).toFixed(1)}%</p>
         </div>
-        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50 hover:border-bg-quaternary/50 transition-colors">
+        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/40 card-glow">
           <p className="text-xs text-text-secondary mb-1">Runner-up</p>
           <p className="text-xl font-bold" style={{ color: getColor(sortedFinal[1]?.[0] ?? '') }}>{sortedFinal[1]?.[0]}</p>
           <p className="text-sm text-text-secondary">{((sortedFinal[1]?.[1] ?? 0) * 100).toFixed(1)}%</p>
         </div>
-        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50 hover:border-bg-quaternary/50 transition-colors">
+        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/40 card-glow">
           <p className="text-xs text-text-secondary mb-1">Final Turnout</p>
           <p className="text-xl font-bold">{(final.national_turnout * 100).toFixed(1)}%</p>
         </div>
-        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50 hover:border-bg-quaternary/50 transition-colors">
+        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/40 card-glow">
           <p className="text-xs text-text-secondary mb-1">Winner Seats</p>
           <p className="text-xl font-bold">{Math.round(final.seat_counts[sortedFinal[0][0]] ?? 0)} / 774</p>
         </div>
@@ -107,9 +107,9 @@ export default function Results() {
         <h3 className="text-sm font-semibold mb-3 text-text-secondary">Vote Share Evolution (%)</h3>
         <ResponsiveContainer width="100%" height={350}>
           <LineChart data={voteData}>
-            <XAxis dataKey="turn" tick={{ fill: '#94a3b8', fontSize: 11 }} />
-            <YAxis tick={{ fill: '#94a3b8', fontSize: 10 }} />
-            <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', color: '#f1f5f9', fontSize: 11 }} />
+            <XAxis dataKey="turn" tick={{ fill: '#8b9bb4', fontSize: 11 }} />
+            <YAxis tick={{ fill: '#8b9bb4', fontSize: 10 }} />
+            <Tooltip contentStyle={{ backgroundColor: '#111827', border: '1px solid #1f2937', color: '#e8e0d4', fontSize: 11 }} />
             <Legend wrapperStyle={{ fontSize: 10 }} />
             {partyNames.map(name => (
               <Line key={name} type="monotone" dataKey={name} stroke={getColor(name)}
@@ -124,9 +124,9 @@ export default function Results() {
         <h3 className="text-sm font-semibold mb-3 text-text-secondary">Seat Count Evolution</h3>
         <ResponsiveContainer width="100%" height={300}>
           <LineChart data={seatData}>
-            <XAxis dataKey="turn" tick={{ fill: '#94a3b8', fontSize: 11 }} />
-            <YAxis tick={{ fill: '#94a3b8', fontSize: 10 }} />
-            <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', color: '#f1f5f9', fontSize: 11 }} />
+            <XAxis dataKey="turn" tick={{ fill: '#8b9bb4', fontSize: 11 }} />
+            <YAxis tick={{ fill: '#8b9bb4', fontSize: 10 }} />
+            <Tooltip contentStyle={{ backgroundColor: '#111827', border: '1px solid #1f2937', color: '#e8e0d4', fontSize: 11 }} />
             <Legend wrapperStyle={{ fontSize: 10 }} />
             {partyNames.map(name => (
               <Line key={name} type="monotone" dataKey={name} stroke={getColor(name)}
@@ -142,10 +142,10 @@ export default function Results() {
           <h3 className="text-sm font-semibold mb-3 text-text-secondary">National Turnout (%)</h3>
           <ResponsiveContainer width="100%" height={200}>
             <LineChart data={turnoutData}>
-              <XAxis dataKey="turn" tick={{ fill: '#94a3b8', fontSize: 11 }} />
-              <YAxis tick={{ fill: '#94a3b8', fontSize: 10 }} domain={['auto', 'auto']} />
-              <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', color: '#f1f5f9', fontSize: 11 }} />
-              <Line type="monotone" dataKey="turnout" stroke="#3b82f6" strokeWidth={2} dot={{ r: 3 }} />
+              <XAxis dataKey="turn" tick={{ fill: '#8b9bb4', fontSize: 11 }} />
+              <YAxis tick={{ fill: '#8b9bb4', fontSize: 10 }} domain={['auto', 'auto']} />
+              <Tooltip contentStyle={{ backgroundColor: '#111827', border: '1px solid #1f2937', color: '#e8e0d4', fontSize: 11 }} />
+              <Line type="monotone" dataKey="turnout" stroke="#2dd4bf" strokeWidth={2} dot={{ r: 3 }} />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -155,9 +155,9 @@ export default function Results() {
           <h3 className="text-sm font-semibold mb-3 text-text-secondary">Final Vote Shares</h3>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={sortedFinal.map(([name, share]) => ({ name, share: Math.round(share * 10000) / 100 }))} layout="vertical">
-              <XAxis type="number" tick={{ fill: '#94a3b8', fontSize: 10 }} />
-              <YAxis type="category" dataKey="name" tick={{ fill: '#94a3b8', fontSize: 10 }} width={50} />
-              <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', color: '#f1f5f9', fontSize: 11 }} />
+              <XAxis type="number" tick={{ fill: '#8b9bb4', fontSize: 10 }} />
+              <YAxis type="category" dataKey="name" tick={{ fill: '#8b9bb4', fontSize: 10 }} width={50} />
+              <Tooltip contentStyle={{ backgroundColor: '#111827', border: '1px solid #1f2937', color: '#e8e0d4', fontSize: 11 }} />
               <Bar dataKey="share">
                 {sortedFinal.map(([name], i) => <Cell key={i} fill={getColor(name)} />)}
               </Bar>

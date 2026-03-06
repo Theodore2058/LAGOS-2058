@@ -53,9 +53,9 @@ export default function ElectionDashboard({ results, parties }: Props) {
           <h3 className="text-sm font-semibold mb-3 text-text-secondary">National Vote Shares (%)</h3>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={voteData} layout="vertical">
-              <XAxis type="number" tick={{ fill: '#94a3b8', fontSize: 10 }} domain={[0, 'auto']} />
-              <YAxis type="category" dataKey="name" tick={{ fill: '#94a3b8', fontSize: 11 }} width={50} />
-              <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', color: '#f1f5f9', fontSize: 12 }} />
+              <XAxis type="number" tick={{ fill: '#8b9bb4', fontSize: 10 }} domain={[0, 'auto']} />
+              <YAxis type="category" dataKey="name" tick={{ fill: '#8b9bb4', fontSize: 11 }} width={50} />
+              <Tooltip contentStyle={{ backgroundColor: '#111827', border: '1px solid #1f2937', color: '#e8e0d4', fontSize: 12 }} />
               <Bar dataKey="share" name="Vote %">
                 {voteData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
               </Bar>
@@ -68,9 +68,9 @@ export default function ElectionDashboard({ results, parties }: Props) {
           <h3 className="text-sm font-semibold mb-3 text-text-secondary">Seat Allocation (774 LGAs)</h3>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={seatData} layout="vertical">
-              <XAxis type="number" tick={{ fill: '#94a3b8', fontSize: 10 }} domain={[0, 'auto']} />
-              <YAxis type="category" dataKey="name" tick={{ fill: '#94a3b8', fontSize: 11 }} width={50} />
-              <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', color: '#f1f5f9', fontSize: 12 }}
+              <XAxis type="number" tick={{ fill: '#8b9bb4', fontSize: 10 }} domain={[0, 'auto']} />
+              <YAxis type="category" dataKey="name" tick={{ fill: '#8b9bb4', fontSize: 11 }} width={50} />
+              <Tooltip contentStyle={{ backgroundColor: '#111827', border: '1px solid #1f2937', color: '#e8e0d4', fontSize: 12 }}
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 formatter={((value: any, _name: any, props: any) =>
                   [`${Number(value ?? 0).toFixed(1)} (±${Number(props?.payload?.std ?? 0).toFixed(1)})`, 'Seats']) as any} />
@@ -173,9 +173,9 @@ export default function ElectionDashboard({ results, parties }: Props) {
 
 function SummaryCard({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
-    <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50 hover:border-bg-quaternary/50 transition-colors">
-      <p className="text-xs text-text-secondary mb-1.5 uppercase tracking-wider">{label}</p>
-      <p className="text-xl font-bold" style={color ? { color } : undefined}>{value}</p>
+    <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/40 card-glow">
+      <p className="text-[10px] text-text-secondary mb-1.5 uppercase tracking-[0.12em] font-medium">{label}</p>
+      <p className="text-xl font-bold" style={{ ...(color ? { color } : {}), fontFamily: "'JetBrains Mono', 'Courier New', monospace" }}>{value}</p>
     </div>
   );
 }
