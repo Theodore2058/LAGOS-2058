@@ -141,7 +141,9 @@ export default function ElectionDashboard({ results, parties }: Props) {
       {/* Swing LGAs */}
       {results.swing_lgas.length > 0 && (
         <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50">
-          <h3 className="text-sm font-semibold mb-3 text-text-secondary">Swing LGAs (margin &lt; 5%)</h3>
+          <h3 className="text-sm font-semibold mb-3 text-text-secondary">
+            Swing LGAs <span className="font-normal">({results.swing_lgas.length} with margin &lt; 5%)</span>
+          </h3>
           <div className="max-h-64 overflow-y-auto">
             <table className="w-full text-xs">
               <thead>
@@ -157,12 +159,22 @@ export default function ElectionDashboard({ results, parties }: Props) {
                   <tr key={i} className={`border-b border-bg-tertiary/30 hover:bg-bg-tertiary/20 transition-colors ${i % 2 === 1 ? 'bg-bg-tertiary/10' : ''}`}>
                     <td className="py-1 px-2 font-medium">{s.lga}</td>
                     <td className="py-1 px-2">{s.state}</td>
-                    <td className="text-right py-1 px-2">{(s.margin * 100).toFixed(2)}%</td>
-                    <td className="py-1 px-2">{s.top_parties.join(' vs ')}</td>
+                    <td className="text-right py-1 px-2 font-mono">{(s.margin * 100).toFixed(2)}%</td>
+                    <td className="py-1 px-2">
+                      {s.top_parties.map((p, j) => (
+                        <span key={p}>
+                          {j > 0 && <span className="text-text-secondary mx-1">vs</span>}
+                          <span style={{ color: getPartyColor(parties, p) }}>{p}</span>
+                        </span>
+                      ))}
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+            {results.swing_lgas.length > 50 && (
+              <p className="text-[10px] text-text-secondary text-center mt-2">Showing 50 of {results.swing_lgas.length} swing LGAs</p>
+            )}
           </div>
         </div>
       )}
