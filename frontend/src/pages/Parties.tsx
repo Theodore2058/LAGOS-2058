@@ -32,15 +32,39 @@ export default function Parties() {
   const [error, setError] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [sortBy, setSortBy] = useState<'name' | 'valence' | 'ethnicity' | 'color'>('name');
   const { toast } = useToast();
 
   const filteredParties = useMemo(() => {
-    if (!search.trim()) return parties;
-    const q = search.toLowerCase();
-    return parties.filter(p =>
-      p.name.toLowerCase().includes(q) || p.full_name.toLowerCase().includes(q) || p.leader_ethnicity.toLowerCase().includes(q)
-    );
-  }, [parties, search]);
+    let list = parties;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter(p =>
+        p.name.toLowerCase().includes(q) || p.full_name.toLowerCase().includes(q) || p.leader_ethnicity.toLowerCase().includes(q)
+      );
+    }
+    const sorted = [...list];
+    switch (sortBy) {
+      case 'valence': sorted.sort((a, b) => b.valence - a.valence); break;
+      case 'ethnicity': sorted.sort((a, b) => a.leader_ethnicity.localeCompare(b.leader_ethnicity)); break;
+      case 'color': sorted.sort((a, b) => a.color.localeCompare(b.color)); break;
+      default: sorted.sort((a, b) => a.name.localeCompare(b.name));
+    }
+    return sorted;
+  }, [parties, search, sortBy]);
+
+  // Summary stats
+  const partyStats = useMemo(() => {
+    if (parties.length === 0) return null;
+    const avgValence = parties.reduce((s, p) => s + p.valence, 0) / parties.length;
+    const ethnicities = new Map<string, number>();
+    for (const p of parties) {
+      const e = p.leader_ethnicity || 'Unknown';
+      ethnicities.set(e, (ethnicities.get(e) ?? 0) + 1);
+    }
+    const topEthnicities = [...ethnicities.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3);
+    return { avgValence, topEthnicities, total: parties.length };
+  }, [parties]);
 
   const loadParties = useCallback(async () => {
     try {
@@ -181,6 +205,17 @@ export default function Parties() {
               )}
             </div>
           )}
+          {parties.length > 1 && (
+            <div className="flex items-center gap-1">
+              <span className="text-[10px] text-text-secondary/40">Sort:</span>
+              {(['name', 'valence', 'ethnicity'] as const).map(s => (
+                <button key={s} onClick={() => setSortBy(s)}
+                  className={`text-[10px] px-1.5 py-0.5 rounded transition-colors ${sortBy === s ? 'bg-accent/15 text-accent' : 'text-text-secondary/40 hover:text-text-secondary'}`}>
+                  {s === 'name' ? 'A-Z' : s === 'valence' ? 'Val' : 'Eth'}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         <div className="flex-1 overflow-y-auto">
           {filteredParties.map(p => (
@@ -223,8 +258,25 @@ export default function Parties() {
             <p className="p-3 text-xs text-text-secondary/50 text-center">No parties match &ldquo;{search}&rdquo;</p>
           )}
         </div>
-        <div className="p-2 border-t border-bg-tertiary text-xs text-text-secondary text-center">
-          {search ? `${filteredParties.length} / ${parties.length} parties` : `${parties.length} parties`}
+        <div className="p-2 border-t border-bg-tertiary text-xs text-text-secondary space-y-1">
+          <div className="text-center">
+            {search ? `${filteredParties.length} / ${parties.length} parties` : `${parties.length} parties`}
+          </div>
+          {partyStats && (
+            <div className="text-[10px] text-text-secondary/50 space-y-0.5">
+              <div className="flex justify-between">
+                <span>Avg valence</span>
+                <span className={partyStats.avgValence >= 0 ? 'text-success/60' : 'text-danger/60'}>
+                  {partyStats.avgValence > 0 ? '+' : ''}{partyStats.avgValence.toFixed(2)}
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {partyStats.topEthnicities.map(([e, n]) => (
+                  <span key={e} className="px-1 py-0 rounded bg-bg-tertiary/50">{e} ({n})</span>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
