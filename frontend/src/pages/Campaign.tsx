@@ -138,36 +138,66 @@ export default function Campaign() {
     );
   }
 
+  const isComplete = campaignState.turn > campaignState.n_turns;
+  const pollResults = campaignState.poll_results as { commissioned_by: string; poll_tier: number; scope: string; margin_of_error: number; turn_delivered: number; dimensions_polled?: string[] }[];
+
   return (
     <div className="p-6 space-y-4">
+      {/* Campaign Complete Banner */}
+      {isComplete && (
+        <div className="bg-accent/10 border border-accent/30 rounded-lg p-4">
+          <h2 className="text-xl font-bold text-accent mb-2">Campaign Complete</h2>
+          <p className="text-sm text-text-secondary mb-3">All {campaignState.n_turns} turns have been played. Final results below.</p>
+          <div className="flex flex-wrap gap-3">
+            {[...campaignState.party_statuses].sort((a, b) => b.seats - a.seats).slice(0, 5).map((ps, i) => {
+              const color = parties.find(p => p.name === ps.name)?.color ?? '#888';
+              return (
+                <div key={ps.name} className="flex items-center gap-2 text-sm">
+                  <span className="font-mono text-text-secondary w-4">{i + 1}.</span>
+                  <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: color }} />
+                  <span className="font-semibold" style={{ color }}>{ps.name}</span>
+                  <span className="text-text-secondary">{ps.seats.toFixed(0)} seats ({(ps.vote_share * 100).toFixed(1)}%)</span>
+                </div>
+              );
+            })}
+          </div>
+          <button onClick={() => { setCampaignState(null); setHistory([]); setActions([]); }}
+            className="mt-3 px-4 py-1.5 text-sm bg-bg-tertiary rounded hover:bg-bg-tertiary/80">
+            New Campaign
+          </button>
+        </div>
+      )}
+
       {/* Turn Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-wide" style={{ fontFamily: "'JetBrains Mono', 'Courier New', monospace" }}>
-            Turn {campaignState.turn} <span className="text-text-secondary font-normal">of {campaignState.n_turns}</span>
-          </h2>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-accent uppercase tracking-[0.1em] font-medium">{campaignState.phase}</span>
-            {PHASE_DESCRIPTIONS[campaignState.phase.toLowerCase()] && (
-              <span className="text-[10px] text-text-secondary">{PHASE_DESCRIPTIONS[campaignState.phase.toLowerCase()]}</span>
-            )}
+      {!isComplete && (
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold tracking-wide" style={{ fontFamily: "'JetBrains Mono', 'Courier New', monospace" }}>
+              Turn {campaignState.turn} <span className="text-text-secondary font-normal">of {campaignState.n_turns}</span>
+            </h2>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-accent uppercase tracking-[0.1em] font-medium">{campaignState.phase}</span>
+              {PHASE_DESCRIPTIONS[campaignState.phase.toLowerCase()] && (
+                <span className="text-[10px] text-text-secondary">{PHASE_DESCRIPTIONS[campaignState.phase.toLowerCase()]}</span>
+              )}
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => {
+                const next = !showBuilder;
+                setShowBuilder(next);
+                if (next) setTimeout(() => document.getElementById('action-builder')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+              }}
+              className="px-3 py-1.5 text-sm bg-bg-tertiary rounded hover:bg-bg-tertiary/80">
+              {showBuilder ? 'Hide' : 'Add Actions'}
+            </button>
+            <button onClick={handleAdvance} disabled={loading}
+              className="px-4 py-1.5 text-sm bg-accent rounded hover:bg-accent-hover text-bg-primary font-medium disabled:opacity-50 btn-accent">
+              {loading ? 'Processing...' : `Submit Turn ${campaignState.turn}`}
+            </button>
           </div>
         </div>
-        <div className="flex gap-2">
-          <button onClick={() => {
-              const next = !showBuilder;
-              setShowBuilder(next);
-              if (next) setTimeout(() => document.getElementById('action-builder')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
-            }}
-            className="px-3 py-1.5 text-sm bg-bg-tertiary rounded hover:bg-bg-tertiary/80">
-            {showBuilder ? 'Hide' : 'Add Actions'}
-          </button>
-          <button onClick={handleAdvance} disabled={loading}
-            className="px-4 py-1.5 text-sm bg-accent rounded hover:bg-accent-hover text-bg-primary font-medium disabled:opacity-50 btn-accent">
-            {loading ? 'Processing...' : `Submit Turn ${campaignState.turn}`}
-          </button>
-        </div>
-      </div>
+      )}
 
       {error && (
         <div className="p-3 bg-danger/20 text-danger rounded text-sm flex items-center justify-between border border-danger/30">
@@ -249,6 +279,31 @@ export default function Campaign() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Poll Results */}
+      {pollResults.length > 0 && (
+        <div className="bg-bg-secondary rounded-lg p-4 border border-accent/20">
+          <h3 className="text-sm font-semibold mb-2 text-accent">Poll Results ({pollResults.length})</h3>
+          <div className="space-y-2">
+            {pollResults.map((poll, i) => {
+              const color = parties.find(p => p.name === poll.commissioned_by)?.color ?? '#888';
+              return (
+                <div key={i} className="flex items-center gap-3 text-xs py-1.5 px-2 border border-bg-tertiary/30 rounded bg-bg-tertiary/10">
+                  <div className="w-2 h-2 rounded-sm" style={{ backgroundColor: color }} />
+                  <span className="font-medium" style={{ color }}>{poll.commissioned_by}</span>
+                  <span className="text-text-secondary">Tier {poll.poll_tier}</span>
+                  <span className="text-text-secondary">{poll.scope}</span>
+                  <span className="text-text-secondary">MOE: {'\u00B1'}{poll.margin_of_error.toFixed(1)}</span>
+                  {poll.dimensions_polled && (
+                    <span className="text-text-secondary truncate flex-1">{poll.dimensions_polled.length} dims</span>
+                  )}
+                  <span className="text-text-secondary font-mono">T{poll.turn_delivered}</span>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
