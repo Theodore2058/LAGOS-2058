@@ -23,6 +23,13 @@ const SHORTCUTS = [
   { key: 'Ctrl+S', desc: 'Save campaign' },
 ];
 
+interface ReadinessItem {
+  label: string;
+  done: boolean;
+  link: string;
+  detail: string;
+}
+
 const MODEL_STATS = [
   { label: 'Voter Types', value: '174,960', sub: 'ethnic × religious × demographic' },
   { label: 'Issue Dimensions', value: '28', sub: 'spatial voting model' },
@@ -133,7 +140,7 @@ export default function Dashboard() {
             <h3 className="text-[10px] font-semibold uppercase tracking-[0.12em] text-text-secondary">{parties.length} Parties Loaded</h3>
             <Link to="/parties" className="text-[10px] text-accent hover:underline font-medium">Edit &rarr;</Link>
           </div>
-          <div className="flex gap-1">
+          <div className="flex gap-1 mb-4">
             {parties.map(p => (
               <div key={p.name} className="flex-1 group/strip relative" title={`${p.name}${p.full_name ? ` — ${p.full_name}` : ''}`}>
                 <div className="h-2 rounded-sm transition-all group-hover/strip:h-4" style={{ backgroundColor: p.color }} />
@@ -143,8 +150,73 @@ export default function Dashboard() {
               </div>
             ))}
           </div>
+          {/* Ethnic & Religious distribution */}
+          <div className="grid grid-cols-2 gap-4 mt-4 pt-3 border-t border-bg-tertiary/30">
+            <div>
+              <p className="text-[9px] text-text-secondary/40 uppercase tracking-wider mb-1.5">Leader Ethnicities</p>
+              <div className="flex flex-wrap gap-1">
+                {Object.entries(parties.reduce<Record<string, number>>((acc, p) => {
+                  if (p.leader_ethnicity) acc[p.leader_ethnicity] = (acc[p.leader_ethnicity] || 0) + 1;
+                  return acc;
+                }, {})).sort((a, b) => b[1] - a[1]).map(([eth, count]) => (
+                  <span key={eth} className="text-[10px] px-1.5 py-0.5 rounded bg-bg-tertiary/50 text-text-secondary">
+                    {eth} <span className="text-text-secondary/40">{count}</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="text-[9px] text-text-secondary/40 uppercase tracking-wider mb-1.5">Religious Alignments</p>
+              <div className="flex flex-wrap gap-1">
+                {Object.entries(parties.reduce<Record<string, number>>((acc, p) => {
+                  if (p.religious_alignment) acc[p.religious_alignment] = (acc[p.religious_alignment] || 0) + 1;
+                  return acc;
+                }, {})).sort((a, b) => b[1] - a[1]).map(([rel, count]) => (
+                  <span key={rel} className="text-[10px] px-1.5 py-0.5 rounded bg-bg-tertiary/50 text-text-secondary">
+                    {rel} <span className="text-text-secondary/40">{count}</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
       )}
+
+      {/* Readiness Checklist */}
+      {(() => {
+        const checks: ReadinessItem[] = [
+          { label: 'Parties loaded', done: partyCount > 0, link: '/parties', detail: partyCount > 0 ? `${partyCount} parties ready` : 'Load or create parties' },
+          { label: 'Parameters set', done: true, link: '/params', detail: 'Using defaults' },
+          { label: 'Campaign active', done: !!(campaign && campaign.turn >= 1), link: '/campaign', detail: campaign && campaign.turn >= 1 ? `Turn ${campaign.turn}/${campaign.n_turns}` : 'Not started' },
+        ];
+        const doneCount = checks.filter(c => c.done).length;
+        return (
+          <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/40 mb-8">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-[10px] font-semibold uppercase tracking-[0.12em] text-text-secondary">Readiness</h3>
+              <span className="text-[10px] text-text-secondary/40 font-mono">{doneCount}/{checks.length}</span>
+            </div>
+            <div className="flex gap-3">
+              {checks.map(c => (
+                <Link key={c.label} to={c.link}
+                  className={`flex-1 flex items-center gap-2.5 px-3 py-2.5 rounded-md border transition-colors ${c.done ? 'border-success/20 bg-success/5 hover:bg-success/10' : 'border-bg-tertiary/30 hover:border-accent/30 hover:bg-bg-tertiary/20'}`}>
+                  <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${c.done ? 'bg-success/20' : 'bg-bg-tertiary'}`}>
+                    {c.done ? (
+                      <svg className="w-3 h-3 text-success" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}><polyline points="20 6 9 17 4 12" /></svg>
+                    ) : (
+                      <div className="w-1.5 h-1.5 rounded-full bg-text-secondary/30" />
+                    )}
+                  </div>
+                  <div>
+                    <p className={`text-xs font-medium ${c.done ? 'text-success' : ''}`}>{c.label}</p>
+                    <p className="text-[10px] text-text-secondary/50">{c.detail}</p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Quick Start */}
       <div className="bg-bg-secondary rounded-lg p-6 border border-bg-tertiary/40 mb-8">
