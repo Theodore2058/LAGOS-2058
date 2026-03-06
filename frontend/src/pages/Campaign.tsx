@@ -3,11 +3,11 @@ import type { Party, ActionInput, ActionType, CrisisInput } from '../types';
 import { fetchParties } from '../api/parties';
 import { fetchActionTypes, fetchIssueNames, fetchLGAs } from '../api/config';
 import type { LGAInfo } from '../api/config';
-import { newCampaign, advanceTurn } from '../api/campaign';
+import { newCampaign, advanceTurn, getCampaignState, getCampaignHistory } from '../api/campaign';
 import type { CampaignStateResponse, TurnResult, PartyStatus } from '../api/campaign';
 import { fetchTemplates } from '../api/crises';
 import type { CrisisTemplate } from '../api/crises';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, BarChart, Bar, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import ActionBuilder from '../components/ActionBuilder';
 
 function computeQueuedActionCost(a: ActionInput, actionTypes: ActionType[]): number {
@@ -70,6 +70,13 @@ export default function Campaign() {
     fetchIssueNames().then(setIssueNames).catch(e => console.error('Failed to fetch issue names:', e));
     fetchLGAs().then(setLgas).catch(e => console.error('Failed to fetch LGAs:', e));
     fetchTemplates().then(setCrisisTemplates).catch(e => console.error('Failed to fetch crisis templates:', e));
+    // Try to resume an active campaign from the backend
+    getCampaignState().then(state => {
+      if (state && state.turn >= 1) {
+        setCampaignState(state);
+        getCampaignHistory().then(setHistory).catch(() => {});
+      }
+    }).catch(() => {}); // No active campaign — ignore
   }, []);
 
   const handleNewCampaign = async () => {
@@ -164,6 +171,11 @@ export default function Campaign() {
     ? Object.entries(history[history.length - 1].national_vote_shares)
         .sort((a, b) => b[1] - a[1]).slice(0, 6).map(([name]) => name)
     : [];
+
+  // Seat distribution data (all parties with seats > 0)
+  const seatData = sortedStatuses
+    .filter(ps => ps.seats > 0)
+    .map(ps => ({ name: ps.name, seats: Math.round(ps.seats), color: parties.find(p => p.name === ps.name)?.color ?? '#888' }));
 
   return (
     <div className="p-6 space-y-4 relative">
@@ -409,25 +421,50 @@ export default function Campaign() {
         </div>
       )}
 
-      {/* Vote Share Trend Chart */}
-      {trendData.length >= 2 && (
-        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50">
-          <h3 className="text-sm font-semibold mb-3">Vote Share Trend</h3>
-          <ResponsiveContainer width="100%" height={200}>
-            <LineChart data={trendData} margin={{ top: 4, right: 8, bottom: 0, left: -16 }}>
-              <XAxis dataKey="turn" tick={{ fill: '#64748b', fontSize: 10 }} />
-              <YAxis tick={{ fill: '#64748b', fontSize: 10 }} unit="%" />
-              <Tooltip
-                contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 6, fontSize: 11 }}
-                labelStyle={{ color: '#94a3b8' }}
-              />
-              {topParties.map(name => (
-                <Line key={name} type="monotone" dataKey={name} dot={false}
-                  stroke={parties.find(p => p.name === name)?.color ?? '#888'}
-                  strokeWidth={2} />
-              ))}
-            </LineChart>
-          </ResponsiveContainer>
+      {/* Charts Row: Vote Share Trend + Seat Distribution */}
+      {history.length >= 1 && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          {/* Vote Share Trend */}
+          {trendData.length >= 2 && (
+            <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50">
+              <h3 className="text-sm font-semibold mb-3">Vote Share Trend</h3>
+              <ResponsiveContainer width="100%" height={200}>
+                <LineChart data={trendData} margin={{ top: 4, right: 8, bottom: 0, left: -16 }}>
+                  <XAxis dataKey="turn" tick={{ fill: '#64748b', fontSize: 10 }} />
+                  <YAxis tick={{ fill: '#64748b', fontSize: 10 }} unit="%" />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 6, fontSize: 11 }}
+                    labelStyle={{ color: '#94a3b8' }}
+                  />
+                  {topParties.map(name => (
+                    <Line key={name} type="monotone" dataKey={name} dot={false}
+                      stroke={parties.find(p => p.name === name)?.color ?? '#888'}
+                      strokeWidth={2} />
+                  ))}
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+          {/* Seat Distribution */}
+          {seatData.length > 0 && (
+            <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50">
+              <h3 className="text-sm font-semibold mb-3">Seat Distribution <span className="text-text-secondary font-normal">({seatData.reduce((s, d) => s + d.seats, 0)} total)</span></h3>
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={seatData} layout="vertical" margin={{ top: 0, right: 8, bottom: 0, left: 40 }}>
+                  <XAxis type="number" tick={{ fill: '#64748b', fontSize: 10 }} />
+                  <YAxis type="category" dataKey="name" tick={{ fill: '#94a3b8', fontSize: 10 }} width={36} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 6, fontSize: 11 }}
+                    labelStyle={{ color: '#94a3b8' }}
+                    formatter={(value: number) => [`${value} seats`, '']}
+                  />
+                  <Bar dataKey="seats" radius={[0, 4, 4, 0]}>
+                    {seatData.map((d, i) => <Cell key={i} fill={d.color} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </div>
       )}
 
