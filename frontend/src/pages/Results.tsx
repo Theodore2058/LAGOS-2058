@@ -1,0 +1,195 @@
+import { useState, useEffect } from 'react';
+import { LineChart, Line, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, Cell } from 'recharts';
+import type { Party } from '../types';
+import { fetchParties } from '../api/parties';
+import { getCampaignHistory } from '../api/campaign';
+import type { TurnResult } from '../api/campaign';
+
+export default function Results() {
+  const [parties, setParties] = useState<Party[]>([]);
+  const [history, setHistory] = useState<TurnResult[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    fetchParties().then(setParties);
+    setLoading(true);
+    getCampaignHistory()
+      .then(setHistory)
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const getColor = (name: string) => parties.find(p => p.name === name)?.color ?? '#888';
+
+  if (history.length === 0) {
+    return (
+      <div className="p-8">
+        <h2 className="text-2xl font-bold mb-4">Campaign Results</h2>
+        <p className="text-text-secondary">
+          {loading ? 'Loading...' : 'No campaign data. Run a campaign first.'}
+        </p>
+      </div>
+    );
+  }
+
+  const partyNames = Object.keys(history[0].national_vote_shares);
+
+  // Vote share evolution data
+  const voteData = history.map(h => {
+    const entry: Record<string, unknown> = { turn: h.turn };
+    for (const [name, share] of Object.entries(h.national_vote_shares)) {
+      entry[name] = Math.round(share * 10000) / 100;
+    }
+    return entry;
+  });
+
+  // Seat evolution data
+  const seatData = history.map(h => {
+    const entry: Record<string, unknown> = { turn: h.turn };
+    for (const [name, seats] of Object.entries(h.seat_counts)) {
+      entry[name] = Math.round(seats * 10) / 10;
+    }
+    return entry;
+  });
+
+  // Turnout evolution
+  const turnoutData = history.map(h => ({
+    turn: h.turn,
+    turnout: Math.round(h.national_turnout * 10000) / 100,
+  }));
+
+  // Party state evolution (from last turn result's state)
+  const stateData = history.map(h => {
+    const entry: Record<string, unknown> = { turn: h.turn };
+    for (const ps of h.state.party_statuses) {
+      entry[`${ps.name}_pc`] = ps.pc;
+      entry[`${ps.name}_coh`] = ps.cohesion;
+      entry[`${ps.name}_exp`] = ps.exposure;
+    }
+    return entry;
+  });
+
+  // Final results for summary
+  const final = history[history.length - 1];
+  const sortedFinal = Object.entries(final.national_vote_shares).sort((a, b) => b[1] - a[1]);
+
+  return (
+    <div className="p-6 space-y-6">
+      <h2 className="text-2xl font-bold">Campaign Results ({history.length} turns)</h2>
+
+      {/* Final Summary */}
+      <div className="grid grid-cols-4 gap-4">
+        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary">
+          <p className="text-xs text-text-secondary mb-1">Winner</p>
+          <p className="text-xl font-bold" style={{ color: getColor(sortedFinal[0][0]) }}>{sortedFinal[0][0]}</p>
+          <p className="text-sm text-text-secondary">{(sortedFinal[0][1] * 100).toFixed(1)}%</p>
+        </div>
+        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary">
+          <p className="text-xs text-text-secondary mb-1">Runner-up</p>
+          <p className="text-xl font-bold" style={{ color: getColor(sortedFinal[1]?.[0] ?? '') }}>{sortedFinal[1]?.[0]}</p>
+          <p className="text-sm text-text-secondary">{((sortedFinal[1]?.[1] ?? 0) * 100).toFixed(1)}%</p>
+        </div>
+        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary">
+          <p className="text-xs text-text-secondary mb-1">Final Turnout</p>
+          <p className="text-xl font-bold">{(final.national_turnout * 100).toFixed(1)}%</p>
+        </div>
+        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary">
+          <p className="text-xs text-text-secondary mb-1">Winner Seats</p>
+          <p className="text-xl font-bold">{Math.round(final.seat_counts[sortedFinal[0][0]] ?? 0)} / 774</p>
+        </div>
+      </div>
+
+      {/* Vote Share Evolution */}
+      <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary">
+        <h3 className="text-sm font-semibold mb-3 text-text-secondary">Vote Share Evolution (%)</h3>
+        <ResponsiveContainer width="100%" height={350}>
+          <LineChart data={voteData}>
+            <XAxis dataKey="turn" tick={{ fill: '#94a3b8', fontSize: 11 }} />
+            <YAxis tick={{ fill: '#94a3b8', fontSize: 10 }} />
+            <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', color: '#f1f5f9', fontSize: 11 }} />
+            <Legend wrapperStyle={{ fontSize: 10 }} />
+            {partyNames.map(name => (
+              <Line key={name} type="monotone" dataKey={name} stroke={getColor(name)}
+                strokeWidth={2} dot={{ r: 3 }} />
+            ))}
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* Seat Evolution */}
+      <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary">
+        <h3 className="text-sm font-semibold mb-3 text-text-secondary">Seat Count Evolution</h3>
+        <ResponsiveContainer width="100%" height={300}>
+          <LineChart data={seatData}>
+            <XAxis dataKey="turn" tick={{ fill: '#94a3b8', fontSize: 11 }} />
+            <YAxis tick={{ fill: '#94a3b8', fontSize: 10 }} />
+            <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', color: '#f1f5f9', fontSize: 11 }} />
+            <Legend wrapperStyle={{ fontSize: 10 }} />
+            {partyNames.map(name => (
+              <Line key={name} type="monotone" dataKey={name} stroke={getColor(name)}
+                strokeWidth={2} dot={{ r: 3 }} />
+            ))}
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+
+      <div className="grid grid-cols-2 gap-6">
+        {/* Turnout Evolution */}
+        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary">
+          <h3 className="text-sm font-semibold mb-3 text-text-secondary">National Turnout (%)</h3>
+          <ResponsiveContainer width="100%" height={200}>
+            <LineChart data={turnoutData}>
+              <XAxis dataKey="turn" tick={{ fill: '#94a3b8', fontSize: 11 }} />
+              <YAxis tick={{ fill: '#94a3b8', fontSize: 10 }} domain={['auto', 'auto']} />
+              <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', color: '#f1f5f9', fontSize: 11 }} />
+              <Line type="monotone" dataKey="turnout" stroke="#3b82f6" strokeWidth={2} dot={{ r: 3 }} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Final Vote Share Bar */}
+        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary">
+          <h3 className="text-sm font-semibold mb-3 text-text-secondary">Final Vote Shares</h3>
+          <ResponsiveContainer width="100%" height={200}>
+            <BarChart data={sortedFinal.map(([name, share]) => ({ name, share: Math.round(share * 10000) / 100 }))} layout="vertical">
+              <XAxis type="number" tick={{ fill: '#94a3b8', fontSize: 10 }} />
+              <YAxis type="category" dataKey="name" tick={{ fill: '#94a3b8', fontSize: 10 }} width={40} />
+              <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', color: '#f1f5f9', fontSize: 11 }} />
+              <Bar dataKey="share">
+                {sortedFinal.map(([name], i) => <Cell key={i} fill={getColor(name)} />)}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Action Log */}
+      <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary">
+        <h3 className="text-sm font-semibold mb-3 text-text-secondary">Action Log</h3>
+        <div className="max-h-64 overflow-y-auto space-y-2">
+          {history.map(h => (
+            <div key={h.turn} className="border-b border-bg-tertiary/30 pb-2">
+              <div className="text-xs font-semibold mb-1">Turn {h.turn}</div>
+              {h.actions_resolved.map((a, i) => (
+                <div key={i} className="text-xs text-text-secondary ml-2">
+                  <span style={{ color: getColor(String(a.party)) }}>{String(a.party)}</span>
+                  {' '}{String(a.action_type)} ({a.cost} PC)
+                </div>
+              ))}
+              {h.synergies.map((s, i) => (
+                <div key={`syn-${i}`} className="text-xs text-success ml-2">
+                  SYNERGY: {String(s.party)} +{Number(s.magnitude).toFixed(2)}
+                </div>
+              ))}
+              {h.scandals.map((s, i) => (
+                <div key={`sc-${i}`} className="text-xs text-danger ml-2">
+                  SCANDAL: {String(s.party)}
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
