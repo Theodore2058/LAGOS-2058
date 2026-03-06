@@ -83,6 +83,29 @@ export default function StrategyAdvisor({ phase, turn, nTurns, partyStatuses, qu
     return hints;
   }, [queuedActions, parties]);
 
+  // Awareness warnings
+  const awarenessAlerts = useMemo(() => {
+    const items: { party: string; color: string; awareness: number; msg: string }[] = [];
+    for (const ps of partyStatuses) {
+      const color = parties.find(p => p.name === ps.name)?.color ?? '#888';
+      if (ps.awareness < 0.65) {
+        items.push({ party: ps.name, color, awareness: ps.awareness, msg: `Awareness ${(ps.awareness * 100).toFixed(0)}% — below floor, prioritize rally/advertising` });
+      } else if (ps.awareness < 0.75 && turn >= 4) {
+        items.push({ party: ps.name, color, awareness: ps.awareness, msg: `Awareness ${(ps.awareness * 100).toFixed(0)}% — still low for ${phaseKey} phase` });
+      }
+    }
+    return items.sort((a, b) => a.awareness - b.awareness).slice(0, 4);
+  }, [partyStatuses, parties, turn, phaseKey]);
+
+  // Turn urgency
+  const urgencyMsg = useMemo(() => {
+    const turnsLeft = nTurns - turn + 1;
+    if (turnsLeft <= 1) return 'FINAL TURN — all remaining PC should be spent. Maximum turnout actions.';
+    if (turnsLeft <= 2) return `${turnsLeft} turns left — deploy all resources. Rally + ground_game for turnout.`;
+    if (turnsLeft <= 3) return `${turnsLeft} turns left — entering final push. Prioritize high-impact actions.`;
+    return null;
+  }, [turn, nTurns]);
+
   // PC efficiency: only warn about specific cases, not every party
   const pcTips = useMemo(() => {
     const tips: { party: string; color: string; msg: string }[] = [];
@@ -109,7 +132,7 @@ export default function StrategyAdvisor({ phase, turn, nTurns, partyStatuses, qu
     return tips;
   }, [partyStatuses, parties, turn, nTurns]);
 
-  const totalAlerts = alerts.length + synergyHints.length + pcTips.length;
+  const totalAlerts = alerts.length + awarenessAlerts.length + synergyHints.length + pcTips.length;
 
   return (
     <div className="bg-bg-secondary rounded-lg border border-accent/20 overflow-hidden">
@@ -143,6 +166,30 @@ export default function StrategyAdvisor({ phase, turn, nTurns, partyStatuses, qu
                   <span key={a} className="text-[10px] px-2 py-0.5 rounded bg-accent/10 text-accent border border-accent/20 font-mono">
                     {a}
                   </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Urgency Banner */}
+          {urgencyMsg && (
+            <div className="text-xs py-2 px-3 rounded bg-danger/10 border border-danger/30 text-danger font-medium flex items-center gap-2">
+              <svg className="w-3.5 h-3.5 shrink-0 animate-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              {urgencyMsg}
+            </div>
+          )}
+
+          {/* Awareness Warnings */}
+          {awarenessAlerts.length > 0 && (
+            <div>
+              <div className="text-[10px] text-text-secondary uppercase tracking-wider mb-1.5 font-medium">Awareness Gaps</div>
+              <div className="space-y-1">
+                {awarenessAlerts.map((a, i) => (
+                  <div key={i} className="flex items-center gap-2 text-xs py-1 px-2 rounded bg-blue-500/10 border border-blue-500/20">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0" />
+                    <span className="font-medium shrink-0" style={{ color: a.color }}>{a.party}</span>
+                    <span className="text-blue-300/80">{a.msg}</span>
+                  </div>
                 ))}
               </div>
             </div>
@@ -198,7 +245,7 @@ export default function StrategyAdvisor({ phase, turn, nTurns, partyStatuses, qu
           )}
 
           {/* No issues */}
-          {alerts.length === 0 && synergyHints.length === 0 && pcTips.length === 0 && (
+          {alerts.length === 0 && awarenessAlerts.length === 0 && synergyHints.length === 0 && pcTips.length === 0 && !urgencyMsg && (
             <div className="text-xs text-text-secondary/50 text-center py-1">No risk alerts or synergies detected</div>
           )}
         </div>

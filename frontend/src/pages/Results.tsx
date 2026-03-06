@@ -70,6 +70,59 @@ export default function Results() {
     })).sort((a, b) => b.swing - a.swing);
   }, [history]);
 
+  // ENP (Effective Number of Parties) per turn — Laakso-Taagepera index
+  const enpData = useMemo(() => history.map(h => {
+    const shares = Object.values(h.national_vote_shares);
+    const hhi = shares.reduce((s, v) => s + v * v, 0);
+    return { turn: h.turn, enp: hhi > 0 ? Math.round(1 / hhi * 100) / 100 : 0 };
+  }), [history]);
+
+  // Momentum: vote share change over last 3 turns
+  const momentumData = useMemo(() => {
+    if (history.length < 2) return [];
+    const window = Math.min(3, history.length - 1);
+    const recent = history[history.length - 1].national_vote_shares;
+    const earlier = history[history.length - 1 - window].national_vote_shares;
+    return Object.keys(recent).map(name => ({
+      name,
+      delta: ((recent[name] ?? 0) - (earlier[name] ?? 0)) * 100,
+      current: (recent[name] ?? 0) * 100,
+    })).sort((a, b) => b.delta - a.delta);
+  }, [history]);
+
+  // Coalition math: find minimal winning coalitions (seats > 387)
+  const coalitions = useMemo(() => {
+    if (history.length === 0) return [];
+    const final = history[history.length - 1];
+    const sorted = Object.entries(final.seat_counts).sort((a, b) => b[1] - a[1]);
+    const majority = 387;
+    const results: { parties: string[]; seats: number; count: number }[] = [];
+
+    // Try 2-party coalitions
+    for (let i = 0; i < sorted.length && results.length < 5; i++) {
+      for (let j = i + 1; j < sorted.length; j++) {
+        const seats = Math.round(sorted[i][1] + sorted[j][1]);
+        if (seats > majority) {
+          results.push({ parties: [sorted[i][0], sorted[j][0]], seats, count: 2 });
+        }
+      }
+    }
+    // Try 3-party coalitions only if no 2-party ones found
+    if (results.length === 0) {
+      for (let i = 0; i < Math.min(sorted.length, 5); i++) {
+        for (let j = i + 1; j < Math.min(sorted.length, 7); j++) {
+          for (let k = j + 1; k < Math.min(sorted.length, 9) && results.length < 5; k++) {
+            const seats = Math.round(sorted[i][1] + sorted[j][1] + sorted[k][1]);
+            if (seats > majority) {
+              results.push({ parties: [sorted[i][0], sorted[j][0], sorted[k][0]], seats, count: 3 });
+            }
+          }
+        }
+      }
+    }
+    return results.sort((a, b) => a.count - b.count || b.seats - a.seats).slice(0, 5);
+  }, [history]);
+
   // Campaign stats (must be before early return - hooks rule)
   const totalActions = useMemo(() => history.reduce((sum, h) => sum + h.actions_resolved.length, 0), [history]);
   const totalSynergies = useMemo(() => history.reduce((sum, h) => sum + h.synergies.length, 0), [history]);
@@ -129,7 +182,7 @@ export default function Results() {
       </div>
 
       {/* Final Summary */}
-      <div className="grid grid-cols-5 gap-3">
+      <div className="grid grid-cols-6 gap-3">
         <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/40 card-glow">
           <p className="text-xs text-text-secondary mb-1">Winner</p>
           <p className="text-xl font-bold" style={{ color: getColor(sortedFinal[0][0]) }}>{sortedFinal[0][0]}</p>
@@ -148,6 +201,11 @@ export default function Results() {
         <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/40 card-glow">
           <p className="text-xs text-text-secondary mb-1">Final Turnout</p>
           <p className="text-xl font-bold">{(final.national_turnout * 100).toFixed(1)}%</p>
+        </div>
+        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/40 card-glow">
+          <p className="text-xs text-text-secondary mb-1">ENP</p>
+          <p className="text-xl font-bold">{enpData.length > 0 ? enpData[enpData.length - 1].enp.toFixed(2) : '—'}</p>
+          <p className="text-xs text-text-secondary">Effective parties</p>
         </div>
         <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/40 card-glow">
           <p className="text-xs text-text-secondary mb-1">Campaign Stats</p>
@@ -242,6 +300,80 @@ export default function Results() {
                 <span className={`text-xs font-mono w-16 text-right ${d.swing > 0 ? 'text-success' : d.swing < 0 ? 'text-danger' : 'text-text-secondary'}`}>
                   {d.swing > 0 ? '+' : ''}{d.swing.toFixed(1)}pp
                 </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Momentum & ENP row */}
+      <div className="grid grid-cols-2 gap-6">
+        {/* Momentum Tracker */}
+        {momentumData.length > 0 && (
+          <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50">
+            <h3 className="text-sm font-semibold mb-3 text-text-secondary">Momentum <span className="font-normal">— last {Math.min(3, history.length - 1)} turns</span></h3>
+            <div className="space-y-1.5">
+              {momentumData.slice(0, 8).map(d => (
+                <div key={d.name} className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: getColor(d.name) }} />
+                  <span className="text-xs w-12 truncate">{d.name}</span>
+                  <div className="flex-1 h-2 bg-bg-tertiary rounded-full relative overflow-hidden">
+                    <div className="absolute inset-y-0 left-0 rounded-full" style={{
+                      width: `${Math.min(100, d.current * 3)}%`,
+                      backgroundColor: getColor(d.name),
+                      opacity: 0.5,
+                    }} />
+                  </div>
+                  <span className={`text-xs font-mono w-10 text-right ${d.delta > 0.1 ? 'text-success' : d.delta < -0.1 ? 'text-danger' : 'text-text-secondary'}`}>
+                    {d.delta > 0 ? '\u25B2' : d.delta < 0 ? '\u25BC' : '\u25CF'}{' '}
+                    {Math.abs(d.delta).toFixed(1)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ENP Trend */}
+        {enpData.length > 1 && (
+          <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50">
+            <h3 className="text-sm font-semibold mb-3 text-text-secondary">
+              Party Fragmentation (ENP)
+              <span className="font-normal ml-2">— Laakso-Taagepera index</span>
+            </h3>
+            <ResponsiveContainer width="100%" height={200}>
+              <LineChart data={enpData}>
+                <XAxis dataKey="turn" tick={{ fill: '#8b9bb4', fontSize: 11 }} />
+                <YAxis tick={{ fill: '#8b9bb4', fontSize: 10 }} domain={['auto', 'auto']} />
+                <Tooltip contentStyle={{ backgroundColor: '#111827', border: '1px solid #1f2937', color: '#e8e0d4', fontSize: 11 }} />
+                <Line type="monotone" dataKey="enp" stroke="#a78bfa" strokeWidth={2} dot={{ r: 3, fill: '#a78bfa' }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </div>
+
+      {/* Coalition Math */}
+      {!hasMajority && coalitions.length > 0 && (
+        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50">
+          <h3 className="text-sm font-semibold mb-3 text-text-secondary">Coalition Possibilities <span className="font-normal">— viable majority coalitions (&gt;387 seats)</span></h3>
+          <div className="space-y-2">
+            {coalitions.map((c, i) => (
+              <div key={i} className="flex items-center gap-3 py-1.5 px-3 rounded bg-bg-tertiary/20 border border-bg-tertiary/30">
+                <span className="text-[10px] text-text-secondary/40 font-mono w-4">{i + 1}.</span>
+                <div className="flex items-center gap-1.5 flex-1">
+                  {c.parties.map(name => (
+                    <span key={name} className="text-xs font-medium px-2 py-0.5 rounded" style={{
+                      backgroundColor: getColor(name) + '20',
+                      color: getColor(name),
+                      border: `1px solid ${getColor(name)}40`,
+                    }}>{name}</span>
+                  ))}
+                </div>
+                <span className="text-xs font-mono text-text-secondary">{c.seats} seats</span>
+                <div className="w-20 h-1.5 bg-bg-tertiary rounded-full overflow-hidden">
+                  <div className="h-full bg-success/60 rounded-full" style={{ width: `${Math.min(100, (c.seats / 774) * 100)}%` }} />
+                </div>
               </div>
             ))}
           </div>
