@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import type { Party, ActionInput, ActionType } from '../types';
 import { fetchParties } from '../api/parties';
-import { fetchActionTypes, fetchIssueNames } from '../api/config';
+import { fetchActionTypes, fetchIssueNames, fetchLGAs } from '../api/config';
+import type { LGAInfo } from '../api/config';
 import { newCampaign, advanceTurn } from '../api/campaign';
 import type { CampaignStateResponse, TurnResult, PartyStatus } from '../api/campaign';
 import ActionBuilder from '../components/ActionBuilder';
@@ -10,6 +11,7 @@ export default function Campaign() {
   const [parties, setParties] = useState<Party[]>([]);
   const [actionTypes, setActionTypes] = useState<ActionType[]>([]);
   const [issueNames, setIssueNames] = useState<string[]>([]);
+  const [lgas, setLgas] = useState<LGAInfo[]>([]);
   const [campaignState, setCampaignState] = useState<CampaignStateResponse | null>(null);
   const [history, setHistory] = useState<TurnResult[]>([]);
   const [actions, setActions] = useState<ActionInput[]>([]);
@@ -21,6 +23,7 @@ export default function Campaign() {
     fetchParties().then(setParties).catch(e => console.error('Failed to fetch parties:', e));
     fetchActionTypes().then(setActionTypes).catch(e => console.error('Failed to fetch action types:', e));
     fetchIssueNames().then(setIssueNames).catch(e => console.error('Failed to fetch issue names:', e));
+    fetchLGAs().then(setLgas).catch(e => console.error('Failed to fetch LGAs:', e));
   }, []);
 
   const handleNewCampaign = async () => {
@@ -140,6 +143,7 @@ export default function Campaign() {
           parties={parties}
           actionTypes={actionTypes}
           issueNames={issueNames}
+          lgas={lgas}
           onAdd={(a) => setActions(prev => [...prev, a])}
           onClose={() => setShowBuilder(false)}
         />
@@ -177,6 +181,9 @@ export default function Campaign() {
                 {group.actions.map(({ action: a, idx }) => (
                   <div key={idx} className="flex items-center gap-3 text-xs py-1 pl-4 border-b border-bg-tertiary/20 hover:bg-bg-tertiary/20 transition-colors rounded">
                     <span className="flex-1">{a.action_type}</span>
+                    {a.target_lgas && a.target_lgas.length > 0 && (
+                      <span className="text-text-secondary text-[10px]">{a.target_lgas.length} LGA{a.target_lgas.length > 1 ? 's' : ''}</span>
+                    )}
                     {a.target_azs && a.target_azs.length > 0 && (
                       <span className="text-text-secondary text-[10px]">AZ: {a.target_azs.join(',')}</span>
                     )}

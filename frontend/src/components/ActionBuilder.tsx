@@ -1,20 +1,21 @@
 import { useState } from 'react';
 import type { ActionInput, ActionType, Party } from '../types';
-import { ADMIN_ZONES } from '../types';
+import type { LGAInfo } from '../api/config';
+import TargetSelector, { ACTION_TARGET_SCOPE } from './TargetSelector';
 
 interface Props {
   parties: Party[];
   actionTypes: ActionType[];
   issueNames: string[];
+  lgas: LGAInfo[];
   onAdd: (action: ActionInput) => void;
   onClose: () => void;
 }
 
-const AZ_IDS = [1, 2, 3, 4, 5, 6, 7, 8];
-
-export default function ActionBuilder({ parties, actionTypes, issueNames, onAdd, onClose }: Props) {
+export default function ActionBuilder({ parties, actionTypes, issueNames, lgas, onAdd, onClose }: Props) {
   const [party, setParty] = useState(parties[0]?.name ?? '');
   const [actionType, setActionType] = useState('');
+  const [targetLGAs, setTargetLGAs] = useState<number[]>([]);
   const [targetAzs, setTargetAzs] = useState<number[]>([]);
   const [targetParty, setTargetParty] = useState('');
   const [language, setLanguage] = useState('english');
@@ -22,9 +23,11 @@ export default function ActionBuilder({ parties, actionTypes, issueNames, onAdd,
 
   const selectedAction = actionTypes.find(a => a.name === actionType);
   const cost = selectedAction?.base_cost ?? 0;
+  const scope = ACTION_TARGET_SCOPE[actionType] ?? 'none';
 
-  const toggleAz = (az: number) => {
-    setTargetAzs(prev => prev.includes(az) ? prev.filter(a => a !== az) : [...prev, az]);
+  const handleTargetChange = (lgas: number[], azs: number[]) => {
+    setTargetLGAs(lgas);
+    setTargetAzs(azs);
   };
 
   const handleSubmit = () => {
@@ -32,7 +35,7 @@ export default function ActionBuilder({ parties, actionTypes, issueNames, onAdd,
     onAdd({
       party,
       action_type: actionType,
-      target_lgas: null,
+      target_lgas: targetLGAs.length > 0 ? targetLGAs : null,
       target_azs: targetAzs.length > 0 ? targetAzs : null,
       target_party: targetParty || null,
       parameters: {
@@ -40,8 +43,9 @@ export default function ActionBuilder({ parties, actionTypes, issueNames, onAdd,
         ...((['rally', 'advertising', 'ground_game'].includes(actionType)) ? { language } : {}),
       },
     });
-    // Reset for next action
+    // Reset for next action (keep party selected)
     setActionType('');
+    setTargetLGAs([]);
     setTargetAzs([]);
     setTargetParty('');
     setParams({});
@@ -64,7 +68,7 @@ export default function ActionBuilder({ parties, actionTypes, issueNames, onAdd,
         </div>
         <div>
           <label className="text-xs text-text-secondary block mb-1">Action Type</label>
-          <select value={actionType} onChange={e => { setActionType(e.target.value); setParams({}); }}
+          <select value={actionType} onChange={e => { setActionType(e.target.value); setParams({}); setTargetLGAs([]); setTargetAzs([]); }}
             className="w-full bg-bg-tertiary border border-bg-quaternary/50 rounded-md px-2 py-1.5 text-sm focus:border-accent focus:ring-1 focus:ring-accent/30 transition-colors">
             <option value="">-- Select --</option>
             {actionTypes.map(a => (
@@ -82,19 +86,15 @@ export default function ActionBuilder({ parties, actionTypes, issueNames, onAdd,
         <p className="text-xs text-text-secondary">{selectedAction.description}</p>
       )}
 
-      {/* Target AZs */}
-      {actionType && !['manifesto', 'fundraising', 'opposition_research'].includes(actionType) && (
-        <div>
-          <label className="text-xs text-text-secondary block mb-1">Target Zones (empty = national)</label>
-          <div className="flex flex-wrap gap-2">
-            {AZ_IDS.map(az => (
-              <button key={az} onClick={() => toggleAz(az)}
-                className={`px-2 py-1 text-xs rounded transition-colors duration-150 ${targetAzs.includes(az) ? 'bg-accent text-bg-primary' : 'bg-bg-tertiary hover:bg-bg-tertiary/70'}`}>
-                {ADMIN_ZONES[az]?.split(' ')[0] ?? `AZ ${az}`}
-              </button>
-            ))}
-          </div>
-        </div>
+      {/* Target selector */}
+      {actionType && (
+        <TargetSelector
+          lgas={lgas}
+          selectedLGAs={targetLGAs}
+          selectedAZs={targetAzs}
+          scope={scope}
+          onChange={handleTargetChange}
+        />
       )}
 
       {/* Language selector */}

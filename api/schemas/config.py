@@ -66,3 +66,15 @@ class PCConstantsResponse(BaseModel):
     pc_eto_dividend_threshold: int
     pc_eto_dividend_amount: int
     pc_eto_dividend_cap: int
+
+
+class LGAInfo(BaseModel):
+    index: int
+    name: str
+    state: str
+    az: int
+
+
+class LGAListResponse(BaseModel):
+    lgas: list[LGAInfo]
+    count: int

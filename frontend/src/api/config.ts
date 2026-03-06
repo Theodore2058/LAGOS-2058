@@ -34,3 +34,15 @@ export async function fetchPCConstants() {
   const res = await api.get('/pc-constants');
   return res.data;
 }
+
+export interface LGAInfo {
+  index: number;
+  name: string;
+  state: string;
+  az: number;
+}
+
+export async function fetchLGAs(): Promise<LGAInfo[]> {
+  const res = await api.get('/lgas');
+  return res.data.lgas;
+}

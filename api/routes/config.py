@@ -13,11 +13,17 @@ from election_engine.campaign_actions import (
     PC_FUNDRAISING_YIELD, PC_ETO_DIVIDEND_THRESHOLD,
     PC_ETO_DIVIDEND_AMOUNT, PC_ETO_DIVIDEND_CAP,
 )
+from pathlib import Path
+from election_engine.data_loader import load_lga_data
+
 from api.schemas.config import (
     IssueNamesResponse, EngineParamsDefaults, EthnicGroupsResponse,
     ReligiousGroupsResponse, AdminZonesResponse, AdminZone,
     ActionTypesResponse, ActionTypeInfo, PCConstantsResponse,
+    LGAInfo, LGAListResponse,
 )
+
+DATA_PATH = Path(__file__).parent.parent.parent / "data" / "nigeria_lga_polsim_2058.xlsx"
 
 router = APIRouter(prefix="/api", tags=["config"])
 
@@ -104,6 +110,27 @@ def get_action_types():
         for name, cost in PC_COSTS.items()
     ]
     return ActionTypesResponse(action_types=actions)
+
+
+_lga_cache: list[LGAInfo] | None = None
+
+
+@router.get("/lgas", response_model=LGAListResponse)
+def get_lgas():
+    global _lga_cache
+    if _lga_cache is None:
+        lga_data = load_lga_data(str(DATA_PATH))
+        df = lga_data.df
+        _lga_cache = [
+            LGAInfo(
+                index=int(idx),
+                name=str(row["LGA Name"]),
+                state=str(row["State"]),
+                az=int(row["Administrative Zone"]),
+            )
+            for idx, row in df[["LGA Name", "State", "Administrative Zone"]].iterrows()
+        ]
+    return LGAListResponse(lgas=_lga_cache, count=len(_lga_cache))
 
 
 @router.get("/pc-constants", response_model=PCConstantsResponse)
