@@ -97,6 +97,7 @@ export default function Campaign() {
       setCampaignState(result.state);
       setHistory(prev => [...prev, result]);
       setActions([]);
+      setShowBuilder(false);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Turn failed');
     }
@@ -245,38 +246,9 @@ export default function Campaign() {
         <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50">
           <h3 className="text-sm font-semibold mb-2">Turn History</h3>
           <div className="space-y-0">
-            {history.map((h, i) => {
-              const sorted = Object.entries(h.national_vote_shares).sort((a, b) => b[1] - a[1]);
-              return (
-                <div key={i} className={`border-b border-bg-tertiary/30 py-2 px-2 -mx-2 rounded hover:bg-bg-tertiary/20 transition-colors ${i % 2 === 1 ? 'bg-bg-tertiary/10' : ''}`}>
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs font-mono w-16 text-accent font-semibold">Turn {h.turn}</span>
-                    <span className="text-xs text-text-secondary">Turnout: {(h.national_turnout * 100).toFixed(1)}%</span>
-                    <span className="text-xs flex-1">
-                      {sorted.slice(0, 3).map(([name, share]) => (
-                        <span key={name} className="mr-3" style={{ color: parties.find(p => p.name === name)?.color }}>
-                          {name}: {(share * 100).toFixed(1)}%
-                        </span>
-                      ))}
-                    </span>
-                  </div>
-                  {h.scandals.length > 0 && (
-                    <div className="text-xs text-danger mt-1">
-                      {h.scandals.map((s, j) => (
-                        <span key={j}>SCANDAL: {String((s as Record<string, unknown>).party)} (valence -{String((s as Record<string, unknown>).valence_penalty)}) </span>
-                      ))}
-                    </div>
-                  )}
-                  {h.synergies.length > 0 && (
-                    <div className="text-xs text-success mt-1">
-                      {h.synergies.map((s, j) => (
-                        <span key={j}>SYNERGY: {String((s as Record<string, unknown>).party)} {String((s as Record<string, unknown>).channel)} +{Number((s as Record<string, unknown>).magnitude).toFixed(2)} </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+            {history.map((h, i) => (
+              <TurnHistoryRow key={i} result={h} parties={parties} defaultExpanded={i === history.length - 1} />
+            ))}
           </div>
         </div>
       )}
@@ -286,6 +258,121 @@ export default function Campaign() {
           <div className="text-center">
             <div className="animate-spin w-6 h-6 border-2 border-accent border-t-transparent rounded-full mx-auto mb-2" />
             <p className="text-sm text-text-secondary">Processing turn...</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TurnHistoryRow({ result: h, parties, defaultExpanded }: { result: TurnResult; parties: Party[]; defaultExpanded: boolean }) {
+  const [expanded, setExpanded] = useState(defaultExpanded);
+  const sorted = Object.entries(h.national_vote_shares).sort((a, b) => b[1] - a[1]);
+  const actionsByParty = (h.actions_resolved as { party: string; action_type: string; cost: number }[]).reduce<
+    Record<string, { actions: string[]; totalCost: number }>
+  >((acc, a) => {
+    if (!acc[a.party]) acc[a.party] = { actions: [], totalCost: 0 };
+    acc[a.party].actions.push(a.action_type);
+    acc[a.party].totalCost += (a.cost ?? 0);
+    return acc;
+  }, {});
+  const totalActions = h.actions_resolved.length;
+  const hasEvents = h.scandals.length > 0 || h.synergies.length > 0;
+
+  return (
+    <div className="border-b border-bg-tertiary/30">
+      <button onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center gap-3 py-2 px-2 -mx-0 rounded hover:bg-bg-tertiary/20 transition-colors text-left">
+        <svg className={`w-3 h-3 text-text-secondary shrink-0 transition-transform ${expanded ? 'rotate-90' : ''}`}
+          viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M9 18l6-6-6-6" /></svg>
+        <span className="text-xs font-mono w-14 text-accent font-semibold shrink-0">Turn {h.turn}</span>
+        <span className="text-xs text-text-secondary shrink-0">{(h.national_turnout * 100).toFixed(1)}%</span>
+        <span className="text-xs flex-1 truncate">
+          {sorted.slice(0, 4).map(([name, share]) => (
+            <span key={name} className="mr-2" style={{ color: parties.find(p => p.name === name)?.color }}>
+              {name} {(share * 100).toFixed(1)}%
+            </span>
+          ))}
+        </span>
+        {totalActions > 0 && (
+          <span className="text-[10px] text-text-secondary shrink-0">{totalActions} action{totalActions > 1 ? 's' : ''}</span>
+        )}
+        {hasEvents && (
+          <span className="text-[10px] shrink-0">
+            {h.scandals.length > 0 && <span className="text-danger mr-1">{h.scandals.length} scandal{h.scandals.length > 1 ? 's' : ''}</span>}
+            {h.synergies.length > 0 && <span className="text-success">{h.synergies.length} synergy</span>}
+          </span>
+        )}
+      </button>
+      {expanded && (
+        <div className="pl-8 pr-2 pb-3 space-y-2">
+          {/* Actions by party */}
+          {Object.keys(actionsByParty).length > 0 && (
+            <div>
+              <div className="text-[10px] text-text-secondary uppercase tracking-wider mb-1">Actions</div>
+              {Object.entries(actionsByParty).map(([partyName, { actions: acts, totalCost }]) => {
+                const color = parties.find(p => p.name === partyName)?.color ?? '#888';
+                const grouped = acts.reduce<Record<string, number>>((a, t) => { a[t] = (a[t] ?? 0) + 1; return a; }, {});
+                return (
+                  <div key={partyName} className="flex items-center gap-2 text-xs py-0.5">
+                    <div className="w-2 h-2 rounded-sm shrink-0" style={{ backgroundColor: color }} />
+                    <span className="font-medium w-12 shrink-0" style={{ color }}>{partyName}</span>
+                    <span className="flex-1 text-text-secondary">
+                      {Object.entries(grouped).map(([type, count]) => (
+                        <span key={type} className="mr-2">{count > 1 ? `${count}x ` : ''}{type}</span>
+                      ))}
+                    </span>
+                    <span className="text-text-secondary font-mono shrink-0">{totalCost} PC</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {/* Scandals */}
+          {h.scandals.length > 0 && (
+            <div>
+              <div className="text-[10px] text-text-secondary uppercase tracking-wider mb-1">Scandals</div>
+              {h.scandals.map((s, j) => {
+                const sc = s as Record<string, unknown>;
+                const color = parties.find(p => p.name === sc.party)?.color ?? '#888';
+                return (
+                  <div key={j} className="flex items-center gap-2 text-xs py-0.5">
+                    <div className="w-2 h-2 rounded-sm shrink-0 bg-danger" />
+                    <span className="font-medium" style={{ color }}>{String(sc.party)}</span>
+                    <span className="text-danger">valence -{Number(sc.valence_penalty).toFixed(1)}</span>
+                    {sc.reason && <span className="text-text-secondary">({String(sc.reason)})</span>}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {/* Synergies */}
+          {h.synergies.length > 0 && (
+            <div>
+              <div className="text-[10px] text-text-secondary uppercase tracking-wider mb-1">Synergies</div>
+              {h.synergies.map((s, j) => {
+                const sy = s as Record<string, unknown>;
+                const color = parties.find(p => p.name === sy.party)?.color ?? '#888';
+                return (
+                  <div key={j} className="flex items-center gap-2 text-xs py-0.5">
+                    <div className="w-2 h-2 rounded-sm shrink-0 bg-success" />
+                    <span className="font-medium" style={{ color }}>{String(sy.party)}</span>
+                    <span className="text-success">{String(sy.channel)} +{Number(sy.magnitude).toFixed(2)}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {/* Full vote shares */}
+          <div>
+            <div className="text-[10px] text-text-secondary uppercase tracking-wider mb-1">All Vote Shares</div>
+            <div className="flex flex-wrap gap-x-3 gap-y-0.5">
+              {sorted.map(([name, share]) => (
+                <span key={name} className="text-xs font-mono" style={{ color: parties.find(p => p.name === name)?.color ?? '#888' }}>
+                  {name} {(share * 100).toFixed(1)}%
+                </span>
+              ))}
+            </div>
           </div>
         </div>
       )}

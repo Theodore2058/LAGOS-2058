@@ -144,6 +144,7 @@ export default function ActionBuilder({ parties, actionTypes, issueNames, lgas, 
     setTargetLGAs([]);
     setTargetAzs([]);
     setTargetParty('');
+    setLanguage('english');
     setParams({});
   };
 
