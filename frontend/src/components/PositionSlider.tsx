@@ -1,3 +1,5 @@
+import { memo } from 'react';
+
 interface Props {
   dimension: string;
   value: number;
@@ -5,7 +7,7 @@ interface Props {
   onChange: (value: number) => void;
 }
 
-export default function PositionSlider({ dimension, value, description, onChange }: Props) {
+export default memo(function PositionSlider({ dimension, value, description, onChange }: Props) {
   const color = value > 0 ? `rgba(59,130,246,${Math.abs(value) / 5})` : value < 0 ? `rgba(239,68,68,${Math.abs(value) / 5})` : 'transparent';
 
   return (
@@ -33,4 +35,4 @@ export default function PositionSlider({ dimension, value, description, onChange
       <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: color }} />
     </div>
   );
-}
+});

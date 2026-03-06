@@ -1,8 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 export default function CheatSheet() {
   const [open, setOpen] = useState(false);
   const [visible, setVisible] = useState(false);
+
+  const handleClose = useCallback(() => {
+    setVisible(false);
+    setTimeout(() => setOpen(false), 200);
+  }, []);
 
   useEffect(() => {
     if (open) {
@@ -12,10 +17,18 @@ export default function CheatSheet() {
     }
   }, [open]);
 
-  const handleClose = () => {
-    setVisible(false);
-    setTimeout(() => setOpen(false), 200);
-  };
+  // Keyboard: Escape to close, ? to toggle
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && open) {
+        handleClose();
+      } else if (e.key === '?' && !open && !(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement)) {
+        setOpen(true);
+      }
+    };
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, [open, handleClose]);
 
   return (
     <>

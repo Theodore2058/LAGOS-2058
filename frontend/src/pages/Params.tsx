@@ -88,7 +88,7 @@ export function ParamsEditor({ params, onChange }: Props) {
         <div className="flex items-center gap-3">
           <span className="w-48 text-xs text-text-secondary">Random Seed</span>
           <input type="number" value={params.seed ?? ''} placeholder="(random)"
-            onChange={(e) => update('seed', e.target.value ? parseInt(e.target.value) : null as unknown as number)}
+            onChange={(e) => onChange({ ...params, seed: e.target.value ? parseInt(e.target.value) : null })}
             className="w-20 bg-bg-tertiary border border-bg-quaternary/50 rounded-md px-2 py-0.5 text-xs text-center focus:border-accent focus:ring-1 focus:ring-accent/30 transition-colors" />
         </div>
       </div>
