@@ -43,7 +43,7 @@ def advance_turn(req: AdvanceTurnRequest):
     if campaign_mod.active_campaign is None:
         raise HTTPException(404, "No active campaign")
     camp = campaign_mod.active_campaign
-    if camp.state.turn >= camp.n_turns:
+    if camp.state.turn > camp.n_turns:
         raise HTTPException(400, f"Campaign complete (turn {camp.state.turn}/{camp.n_turns})")
 
     try:
