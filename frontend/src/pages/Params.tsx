@@ -211,6 +211,7 @@ export const DEFAULT_PARAMS: EngineParams = {
 export default function ParamsPage() {
   const [params, setParams] = useState<EngineParams>(DEFAULT_PARAMS);
   const [defaults, setDefaults] = useState<EngineParams | null>(null);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     fetchEngineParamsDefaults().then(d => {
@@ -222,20 +223,62 @@ export default function ParamsPage() {
 
   const resetToDefaults = () => { if (defaults) setParams({ ...defaults }); };
 
+  const modifiedParams = useMemo(() => {
+    const mods: { key: string; value: number; defaultVal: number }[] = [];
+    for (const p of ALL_PARAMS) {
+      const val = params[p.key] as number;
+      if (val !== DEFAULT_PARAMS[p.key]) {
+        mods.push({ key: p.key, value: val, defaultVal: DEFAULT_PARAMS[p.key] as number });
+      }
+    }
+    return mods;
+  }, [params]);
+
+  const copyParams = () => {
+    const { n_monte_carlo, seed, ...engine } = params;
+    const text = JSON.stringify({ ...engine, n_monte_carlo, seed }, null, 2);
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   return (
     <div className="p-8 max-w-3xl">
       <div className="flex items-center justify-between mb-2">
         <h2 className="text-2xl font-bold">Engine Parameters</h2>
-        <button onClick={resetToDefaults}
-          className="px-3 py-1.5 text-sm bg-bg-tertiary border border-bg-quaternary/30 rounded-md hover:border-danger/50 hover:text-danger transition-colors flex items-center gap-1.5">
-          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M1 4v6h6" /><path d="M3.51 15a9 9 0 102.13-9.36L1 10" /></svg>
-          Reset All
-        </button>
+        <div className="flex gap-2">
+          <button onClick={copyParams}
+            className="px-3 py-1.5 text-sm bg-bg-tertiary border border-bg-quaternary/30 rounded-md hover:border-accent/50 hover:text-accent transition-colors flex items-center gap-1.5">
+            {copied ? (
+              <><svg className="w-3.5 h-3.5 text-success" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><polyline points="20 6 9 17 4 12" /></svg>Copied</>
+            ) : (
+              <><svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" /></svg>Copy JSON</>
+            )}
+          </button>
+          <button onClick={resetToDefaults}
+            className="px-3 py-1.5 text-sm bg-bg-tertiary border border-bg-quaternary/30 rounded-md hover:border-danger/50 hover:text-danger transition-colors flex items-center gap-1.5">
+            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M1 4v6h6" /><path d="M3.51 15a9 9 0 102.13-9.36L1 10" /></svg>
+            Reset All
+          </button>
+        </div>
       </div>
       <p className="text-xs text-text-secondary mb-6">
         Tune the Merrill-Grofman spatial voting model. Changes apply to the next election or campaign run.
         Hover over <span className="inline-flex items-center"><svg className="w-3 h-3 text-text-secondary/50 mx-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="12" r="10" /></svg></span> for parameter details.
       </p>
+
+      {/* Modified parameters summary bar */}
+      {modifiedParams.length > 0 && (
+        <div className="bg-accent/5 rounded-lg px-4 py-2.5 border border-accent/20 mb-4 flex items-center gap-3 flex-wrap">
+          <span className="text-[10px] text-accent uppercase tracking-wider font-medium shrink-0">{modifiedParams.length} Modified</span>
+          {modifiedParams.map(m => (
+            <span key={m.key} className="text-[10px] px-1.5 py-0.5 bg-accent/10 text-accent rounded font-mono">
+              {m.key}: {(m.defaultVal as number).toFixed?.(2) ?? m.defaultVal} → {(m.value as number).toFixed?.(2) ?? m.value}
+            </span>
+          ))}
+        </div>
+      )}
+
       <div className="bg-bg-secondary rounded-lg p-6 border border-bg-tertiary/50">
         <ParamsEditor params={params} onChange={setParams} />
       </div>
