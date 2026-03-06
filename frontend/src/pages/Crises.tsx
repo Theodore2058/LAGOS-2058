@@ -14,6 +14,34 @@ const BLANK: CrisisInput = {
   tau_modifier: 0, description: '',
 };
 
+const TEMPLATE_CATEGORIES: Record<string, string> = {
+  'Economic Shock': 'Economic',
+  'WAFTA Trade Disruption': 'Economic',
+  'Infrastructure Failure': 'Economic',
+  'Ethnic Violence': 'Security',
+  'Security Crisis': 'Security',
+  'Natural Disaster': 'Security',
+  'Corruption Scandal': 'Political',
+  'Pada Controversy': 'Political',
+  'Religious Tension': 'Social',
+};
+
+const SEVERITY_COLORS = {
+  low: { bg: 'bg-success/10', text: 'text-success', label: 'Low' },
+  medium: { bg: 'bg-warning/10', text: 'text-warning', label: 'Medium' },
+  high: { bg: 'bg-danger/10', text: 'text-danger', label: 'High' },
+};
+
+function getSeverity(t: CrisisTemplate): keyof typeof SEVERITY_COLORS {
+  const salienceMag = Object.values(t.salience_shifts).reduce((s, v) => s + Math.abs(v), 0);
+  const valenceMag = t.valence_effects ? Object.values(t.valence_effects).reduce((s, v) => s + Math.abs(v), 0) : 0;
+  const tauMag = Math.abs(t.tau_modifier);
+  const total = salienceMag + valenceMag * 2 + tauMag * 3;
+  if (total >= 5) return 'high';
+  if (total >= 2) return 'medium';
+  return 'low';
+}
+
 export default function Crises() {
   const [templates, setTemplates] = useState<CrisisTemplate[]>([]);
   const [crises, setCrises] = useState<StoredCrisis[]>([]);
@@ -120,6 +148,18 @@ export default function Crises() {
             <svg className="w-4 h-4 text-danger" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
             Crisis Timeline
           </h3>
+          {/* Mini turn heatmap */}
+          <div className="flex gap-0.5 mt-2">
+            {Array.from({ length: 12 }, (_, i) => {
+              const count = crises.filter(c => c.turn === i + 1).length;
+              return (
+                <div key={i} className="flex-1 flex flex-col items-center gap-0.5" title={`T${i + 1}: ${count} crisis${count !== 1 ? 'es' : ''}`}>
+                  <div className={`w-full h-1.5 rounded-sm ${count > 1 ? 'bg-danger' : count === 1 ? 'bg-danger/50' : 'bg-bg-tertiary/50'}`} />
+                  <span className="text-[7px] text-text-secondary/30">{i + 1}</span>
+                </div>
+              );
+            })}
+          </div>
         </div>
         <div className="flex-1 overflow-y-auto">
           {Array.from({ length: 12 }, (_, i) => i + 1).map(turn => {
@@ -163,28 +203,49 @@ export default function Crises() {
         {/* Template selector */}
         <div>
           <label className="text-[10px] text-text-secondary block mb-2 uppercase tracking-[0.1em] font-medium">Load from Template</label>
-          <div className="grid grid-cols-3 gap-2">
-            {templates.map(t => {
-              const activeShifts = Object.keys(t.salience_shifts).length;
-              const hasValence = t.valence_effects && Object.keys(t.valence_effects).length > 0;
-              const hasAwareness = t.awareness_boost && Object.keys(t.awareness_boost).length > 0;
-              return (
-                <button key={t.name} onClick={() => loadTemplate(t)}
-                  className="text-left px-3 py-2 bg-bg-tertiary border border-bg-quaternary/30 rounded-md hover:border-danger/40 hover:bg-bg-tertiary/70 transition-colors group">
-                  <div className="text-xs font-medium group-hover:text-danger transition-colors">{t.name}</div>
-                  <div className="text-[10px] text-text-secondary leading-tight mt-0.5 line-clamp-2">{t.description}</div>
-                  <div className="flex flex-wrap gap-1 mt-1.5">
-                    {t.tau_modifier !== 0 && <span className="text-[9px] px-1 py-0.5 rounded bg-bg-quaternary/30 text-text-secondary">tau {t.tau_modifier > 0 ? '+' : ''}{t.tau_modifier}</span>}
-                    {activeShifts > 0 && <span className="text-[9px] px-1 py-0.5 rounded bg-bg-quaternary/30 text-text-secondary">{activeShifts} issue{activeShifts > 1 ? 's' : ''}</span>}
-                    {hasValence && <span className="text-[9px] px-1 py-0.5 rounded bg-danger/10 text-danger/80">valence</span>}
-                    {hasAwareness && <span className="text-[9px] px-1 py-0.5 rounded bg-teal/10 text-teal">awareness</span>}
-                    {t.affected_azs && <span className="text-[9px] px-1 py-0.5 rounded bg-bg-quaternary/30 text-text-secondary">{t.affected_azs.length} AZ{t.affected_azs.length > 1 ? 's' : ''}</span>}
-                    {!t.affected_azs && <span className="text-[9px] px-1 py-0.5 rounded bg-warning/10 text-warning">national</span>}
+          {(() => {
+            const grouped = templates.reduce<Record<string, CrisisTemplate[]>>((acc, t) => {
+              const cat = TEMPLATE_CATEGORIES[t.name] ?? 'Other';
+              (acc[cat] ??= []).push(t);
+              return acc;
+            }, {});
+            return (
+              <div className="space-y-3">
+                {Object.entries(grouped).map(([cat, tpls]) => (
+                  <div key={cat}>
+                    <div className="text-[9px] text-text-secondary/40 uppercase tracking-wider mb-1.5 font-medium">{cat}</div>
+                    <div className="grid grid-cols-3 gap-2">
+                      {tpls.map(t => {
+                        const activeShifts = Object.keys(t.salience_shifts).length;
+                        const hasValence = t.valence_effects && Object.keys(t.valence_effects).length > 0;
+                        const hasAwareness = t.awareness_boost && Object.keys(t.awareness_boost).length > 0;
+                        const sev = getSeverity(t);
+                        const sevStyle = SEVERITY_COLORS[sev];
+                        return (
+                          <button key={t.name} onClick={() => loadTemplate(t)}
+                            className="text-left px-3 py-2 bg-bg-tertiary border border-bg-quaternary/30 rounded-md hover:border-danger/40 hover:bg-bg-tertiary/70 transition-colors group">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-xs font-medium group-hover:text-danger transition-colors flex-1 truncate">{t.name}</span>
+                              <span className={`text-[8px] px-1 py-px rounded ${sevStyle.bg} ${sevStyle.text} shrink-0`}>{sevStyle.label}</span>
+                            </div>
+                            <div className="text-[10px] text-text-secondary leading-tight mt-0.5 line-clamp-2">{t.description}</div>
+                            <div className="flex flex-wrap gap-1 mt-1.5">
+                              {t.tau_modifier !== 0 && <span className="text-[9px] px-1 py-0.5 rounded bg-bg-quaternary/30 text-text-secondary">tau {t.tau_modifier > 0 ? '+' : ''}{t.tau_modifier}</span>}
+                              {activeShifts > 0 && <span className="text-[9px] px-1 py-0.5 rounded bg-bg-quaternary/30 text-text-secondary">{activeShifts} issue{activeShifts > 1 ? 's' : ''}</span>}
+                              {hasValence && <span className="text-[9px] px-1 py-0.5 rounded bg-danger/10 text-danger/80">valence</span>}
+                              {hasAwareness && <span className="text-[9px] px-1 py-0.5 rounded bg-teal/10 text-teal">awareness</span>}
+                              {t.affected_azs && <span className="text-[9px] px-1 py-0.5 rounded bg-bg-quaternary/30 text-text-secondary">{t.affected_azs.length} AZ{t.affected_azs.length > 1 ? 's' : ''}</span>}
+                              {!t.affected_azs && <span className="text-[9px] px-1 py-0.5 rounded bg-warning/10 text-warning">national</span>}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                </button>
-              );
-            })}
-          </div>
+                ))}
+              </div>
+            );
+          })()}
         </div>
 
         {/* Crisis form */}
