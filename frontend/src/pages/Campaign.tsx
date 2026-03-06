@@ -7,6 +7,7 @@ import { newCampaign, advanceTurn } from '../api/campaign';
 import type { CampaignStateResponse, TurnResult, PartyStatus } from '../api/campaign';
 import { fetchTemplates } from '../api/crises';
 import type { CrisisTemplate } from '../api/crises';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import ActionBuilder from '../components/ActionBuilder';
 
 function computeQueuedActionCost(a: ActionInput, actionTypes: ActionType[]): number {
@@ -147,8 +148,45 @@ export default function Campaign() {
   const isComplete = campaignState.turn > campaignState.n_turns;
   const pollResults = campaignState.poll_results as { commissioned_by: string; poll_tier: number; scope: string; margin_of_error: number; turn_delivered: number; dimensions_polled?: string[] }[];
 
+  const turnProgress = Math.min(((campaignState.turn - 1) / campaignState.n_turns) * 100, 100);
+  const sortedStatuses = [...campaignState.party_statuses].sort((a, b) => b.seats - a.seats || b.vote_share - a.vote_share);
+
+  // Build trend data for chart
+  const trendData = history.map(h => {
+    const row: Record<string, number | string> = { turn: `T${h.turn}` };
+    for (const [name, share] of Object.entries(h.national_vote_shares)) {
+      row[name] = Math.round(share * 1000) / 10; // percentage with 1 decimal
+    }
+    return row;
+  });
+  // Top 6 parties for charting (by latest vote share)
+  const topParties = history.length > 0
+    ? Object.entries(history[history.length - 1].national_vote_shares)
+        .sort((a, b) => b[1] - a[1]).slice(0, 6).map(([name]) => name)
+    : [];
+
   return (
-    <div className="p-6 space-y-4">
+    <div className="p-6 space-y-4 relative">
+      {/* Loading Overlay */}
+      {loading && (
+        <div className="absolute inset-0 bg-bg-primary/60 backdrop-blur-sm z-20 flex items-center justify-center rounded-lg">
+          <div className="text-center">
+            <div className="animate-spin w-8 h-8 border-2 border-accent border-t-transparent rounded-full mx-auto mb-3" />
+            <p className="text-sm text-text-secondary font-medium">Processing turn...</p>
+          </div>
+        </div>
+      )}
+
+      {/* Turn Progress Bar */}
+      {!isComplete && (
+        <div className="flex items-center gap-3">
+          <div className="flex-1 bg-bg-tertiary rounded-full h-1.5">
+            <div className="h-1.5 rounded-full bg-accent transition-all duration-500" style={{ width: `${turnProgress}%` }} />
+          </div>
+          <span className="text-[10px] text-text-secondary font-mono shrink-0">{campaignState.turn}/{campaignState.n_turns}</span>
+        </div>
+      )}
+
       {/* Campaign Complete Banner */}
       {isComplete && (
         <div className="bg-accent/10 border border-accent/30 rounded-lg p-4">
@@ -216,7 +254,7 @@ export default function Campaign() {
 
       {/* Party Status Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-        {campaignState.party_statuses.map(ps => (
+        {sortedStatuses.map(ps => (
           <PartyCard key={ps.name} status={ps} color={parties.find(p => p.name === ps.name)?.color ?? '#888'}
             pcUsed={totalPCByParty[ps.name] ?? 0} />
         ))}
@@ -371,6 +409,28 @@ export default function Campaign() {
         </div>
       )}
 
+      {/* Vote Share Trend Chart */}
+      {trendData.length >= 2 && (
+        <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50">
+          <h3 className="text-sm font-semibold mb-3">Vote Share Trend</h3>
+          <ResponsiveContainer width="100%" height={200}>
+            <LineChart data={trendData} margin={{ top: 4, right: 8, bottom: 0, left: -16 }}>
+              <XAxis dataKey="turn" tick={{ fill: '#64748b', fontSize: 10 }} />
+              <YAxis tick={{ fill: '#64748b', fontSize: 10 }} unit="%" />
+              <Tooltip
+                contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 6, fontSize: 11 }}
+                labelStyle={{ color: '#94a3b8' }}
+              />
+              {topParties.map(name => (
+                <Line key={name} type="monotone" dataKey={name} dot={false}
+                  stroke={parties.find(p => p.name === name)?.color ?? '#888'}
+                  strokeWidth={2} />
+              ))}
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
       {/* Turn History */}
       {history.length > 0 && (
         <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50">
@@ -379,15 +439,6 @@ export default function Campaign() {
             {history.map((h, i) => (
               <TurnHistoryRow key={i} result={h} parties={parties} defaultExpanded={i === history.length - 1} />
             ))}
-          </div>
-        </div>
-      )}
-
-      {loading && (
-        <div className="flex items-center justify-center py-8">
-          <div className="text-center">
-            <div className="animate-spin w-6 h-6 border-2 border-accent border-t-transparent rounded-full mx-auto mb-2" />
-            <p className="text-sm text-text-secondary">Processing turn...</p>
           </div>
         </div>
       )}
@@ -513,8 +564,8 @@ function TurnHistoryRow({ result: h, parties, defaultExpanded }: { result: TurnR
 const PHASE_DESCRIPTIONS: Record<string, string> = {
   foundation: 'Early groundwork. Build awareness and establish presence.',
   expansion: 'Mid-campaign. Expand reach, secure endorsements, run advertising.',
-  consolidation: 'Late-campaign. Lock in support, counter rivals, manage crises.',
-  final_push: 'Final stretch. Maximum intensity. Every action counts.',
+  intensification: 'Late-campaign. Lock in support, counter rivals, manage crises.',
+  'final push': 'Final stretch. Maximum intensity. Every action counts.',
 };
 
 function PartyCard({ status, color, pcUsed }: { status: PartyStatus; color: string; pcUsed: number }) {
