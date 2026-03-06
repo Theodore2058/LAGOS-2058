@@ -280,6 +280,8 @@ export default function Campaign() {
           actionTypes={actionTypes}
           issueNames={issueNames}
           lgas={lgas}
+          partyPC={Object.fromEntries(campaignState.party_statuses.map(ps => [ps.name, ps.pc]))}
+          pcUsedByParty={totalPCByParty}
           onAdd={(a) => setActions(prev => [...prev, a])}
           onClose={() => setShowBuilder(false)}
         />

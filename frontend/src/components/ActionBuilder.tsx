@@ -8,6 +8,8 @@ interface Props {
   actionTypes: ActionType[];
   issueNames: string[];
   lgas: LGAInfo[];
+  partyPC?: Record<string, number>;
+  pcUsedByParty?: Record<string, number>;
   onAdd: (action: ActionInput) => void;
   onClose: () => void;
 }
@@ -96,7 +98,7 @@ const FUNDRAISING_SOURCES = [
 const selectClass = 'bg-bg-tertiary border border-bg-quaternary/50 rounded-md px-2 py-1.5 text-sm focus:border-accent focus:ring-1 focus:ring-accent/30 transition-colors';
 const inputClass = 'w-full bg-bg-tertiary border border-bg-quaternary/50 rounded-md px-2 py-1.5 text-sm focus:border-accent focus:ring-1 focus:ring-accent/30 transition-colors';
 
-export default function ActionBuilder({ parties, actionTypes, issueNames, lgas, onAdd, onClose }: Props) {
+export default function ActionBuilder({ parties, actionTypes, issueNames, lgas, partyPC, pcUsedByParty, onAdd, onClose }: Props) {
   const [party, setParty] = useState(parties[0]?.name ?? '');
   const [actionType, setActionType] = useState('');
   const [targetLGAs, setTargetLGAs] = useState<number[]>([]);
@@ -162,6 +164,17 @@ export default function ActionBuilder({ parties, actionTypes, issueNames, lgas, 
             className={`w-full ${selectClass}`}>
             {parties.map(p => <option key={p.name} value={p.name}>{p.name}</option>)}
           </select>
+          {partyPC && party && (
+            <div className="text-[10px] mt-0.5">
+              <span className="text-text-secondary">Budget: </span>
+              <span className={`font-mono font-medium ${((partyPC[party] ?? 0) - (pcUsedByParty?.[party] ?? 0) - cost) < 0 ? 'text-danger' : 'text-success'}`}>
+                {(partyPC[party] ?? 0).toFixed(0)} PC
+              </span>
+              {(pcUsedByParty?.[party] ?? 0) > 0 && (
+                <span className="text-warning"> (-{pcUsedByParty![party]} queued)</span>
+              )}
+            </div>
+          )}
         </div>
         <div>
           <label className="text-xs text-text-secondary block mb-1">Action Type</label>
@@ -390,6 +403,12 @@ export default function ActionBuilder({ parties, actionTypes, issueNames, lgas, 
 
       {actionType === 'crisis_response' && (
         <p className="text-[10px] text-text-secondary">Responds to active crises. Boosts valence and cohesion in affected areas.</p>
+      )}
+
+      {partyPC && party && actionType && ((partyPC[party] ?? 0) - (pcUsedByParty?.[party] ?? 0) - cost) < 0 && (
+        <div className="text-xs text-danger bg-danger/10 rounded px-2 py-1.5 border border-danger/20">
+          Exceeds {party}'s budget by {Math.abs((partyPC[party] ?? 0) - (pcUsedByParty?.[party] ?? 0) - cost).toFixed(0)} PC — action will be rejected by the engine
+        </div>
       )}
 
       <button onClick={handleSubmit} disabled={!party || !actionType}
