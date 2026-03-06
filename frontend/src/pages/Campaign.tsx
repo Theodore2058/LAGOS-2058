@@ -191,6 +191,27 @@ export default function Campaign() {
     return acc;
   }, {});
 
+  const actionCountByParty = actions.reduce<Record<string, number>>((acc, a) => {
+    acc[a.party] = (acc[a.party] ?? 0) + 1;
+    return acc;
+  }, {});
+
+  const handleRepeatLast = () => {
+    if (history.length === 0) return;
+    const lastTurn = history[history.length - 1];
+    const lastActions = lastTurn.actions_resolved as { party: string; action_type: string; target_lgas?: number[]; target_azs?: number[]; parameters?: Record<string, unknown> }[];
+    const newActions: ActionInput[] = lastActions.map(a => ({
+      party: a.party,
+      action_type: a.action_type,
+      target_lgas: a.target_lgas ?? null,
+      target_azs: a.target_azs ?? null,
+      target_party: null,
+      parameters: a.parameters ?? {},
+    }));
+    setActions(newActions);
+    toast(`Loaded ${newActions.length} actions from Turn ${lastTurn.turn}`, 'success');
+  };
+
   if (!campaignState) {
     return (
       <div className="p-8 max-w-2xl">
@@ -351,6 +372,13 @@ export default function Campaign() {
               className="px-2 py-1.5 text-sm bg-bg-tertiary rounded hover:bg-bg-tertiary/80" aria-label="Save campaign">
               <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" /></svg>
             </button>
+            {history.length > 0 && actions.length === 0 && (
+              <button onClick={handleRepeatLast} title="Re-queue actions from previous turn"
+                className="px-3 py-1.5 text-sm bg-bg-tertiary rounded hover:bg-bg-tertiary/80 flex items-center gap-1.5">
+                <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                Repeat Last
+              </button>
+            )}
             <button onClick={() => {
                 const next = !showBuilder;
                 setShowBuilder(next);
@@ -359,6 +387,14 @@ export default function Campaign() {
               className="px-3 py-1.5 text-sm bg-bg-tertiary rounded hover:bg-bg-tertiary/80">
               {showBuilder ? 'Hide' : 'Add Actions'}
             </button>
+            {actions.length > 0 && (
+              <span className="text-[10px] text-text-secondary font-mono">
+                {actions.length} action{actions.length > 1 ? 's' : ''}
+                {Object.values(actionCountByParty).some(c => c > 3) && (
+                  <span className="text-danger ml-1">(over limit!)</span>
+                )}
+              </span>
+            )}
             <button onClick={handleAdvance} disabled={loading} title="Submit turn (Ctrl+Enter)"
               className="px-4 py-1.5 text-sm bg-accent rounded hover:bg-accent-hover text-bg-primary font-medium disabled:opacity-50 btn-accent">
               {loading ? 'Processing...' : `Submit Turn ${campaignState.turn}`}
@@ -521,6 +557,9 @@ export default function Campaign() {
                   <div className="w-2 h-2 rounded-sm" style={{ backgroundColor: partyColor }} />
                   <span className="text-xs font-semibold" style={{ color: partyColor }}>{partyName}</span>
                   <span className="text-[10px] text-text-secondary">{group.actions.length} action{group.actions.length > 1 ? 's' : ''}</span>
+                  {group.actions.length > 3 && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-danger/10 text-danger border border-danger/20">max 3!</span>
+                  )}
                   <span className={`text-xs font-mono ml-auto ${overBudget ? 'text-danger font-bold' : 'text-text-secondary'}`}>
                     {group.totalCost} PC{overBudget ? ` (exceeds ${partyStatus!.pc.toFixed(0)}!)` : ` / ${partyStatus?.pc.toFixed(0) ?? '?'} (${remaining.toFixed(0)} left)`}
                   </span>
