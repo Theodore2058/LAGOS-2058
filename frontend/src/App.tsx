@@ -2,6 +2,8 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import Dashboard from './pages/Dashboard';
 import Parties from './pages/Parties';
+import ParamsPage from './pages/Params';
+import Election from './pages/Election';
 
 function Placeholder({ title }: { title: string }) {
   return (
@@ -21,8 +23,8 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/parties" element={<Parties />} />
-            <Route path="/params" element={<Placeholder title="Engine Parameters" />} />
-            <Route path="/election" element={<Placeholder title="Static Election" />} />
+            <Route path="/params" element={<ParamsPage />} />
+            <Route path="/election" element={<Election />} />
             <Route path="/campaign" element={<Placeholder title="Campaign" />} />
             <Route path="/crises" element={<Placeholder title="Crises" />} />
             <Route path="/results" element={<Placeholder title="Results" />} />
