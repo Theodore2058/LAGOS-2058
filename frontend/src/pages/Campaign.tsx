@@ -164,13 +164,13 @@ export default function Campaign() {
       {history.length > 0 && (
         <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50">
           <h3 className="text-sm font-semibold mb-2">Turn History</h3>
-          <div className="space-y-2">
+          <div className="space-y-0">
             {history.map((h, i) => {
               const sorted = Object.entries(h.national_vote_shares).sort((a, b) => b[1] - a[1]);
               return (
-                <div key={i} className="border-b border-bg-tertiary/30 pb-2">
+                <div key={i} className={`border-b border-bg-tertiary/30 py-2 px-2 -mx-2 rounded hover:bg-bg-tertiary/20 transition-colors ${i % 2 === 1 ? 'bg-bg-tertiary/10' : ''}`}>
                   <div className="flex items-center gap-3">
-                    <span className="text-xs font-mono w-16">Turn {h.turn}</span>
+                    <span className="text-xs font-mono w-16 text-accent font-semibold">Turn {h.turn}</span>
                     <span className="text-xs text-text-secondary">Turnout: {(h.national_turnout * 100).toFixed(1)}%</span>
                     <span className="text-xs flex-1">
                       {sorted.slice(0, 3).map(([name, share]) => (

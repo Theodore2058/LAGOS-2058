@@ -84,14 +84,22 @@ export default function Scenarios() {
           Saved Scenarios ({scenarios.length})
         </h3>
         {scenarios.length === 0 ? (
-          <p className="text-xs text-text-secondary">No scenarios saved yet.</p>
+          <div className="flex flex-col items-center py-6 text-center">
+            <svg className="w-8 h-8 text-text-secondary/30 mb-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
+              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14 2 14 8 20 8" />
+            </svg>
+            <p className="text-xs text-text-secondary">No scenarios saved yet.</p>
+            <p className="text-[10px] text-text-secondary/50 mt-0.5">Use the form above to save the current game state.</p>
+          </div>
         ) : (
           <div className="space-y-1">
             {scenarios.map(s => (
               <div key={s.name} className="flex items-center gap-3 text-sm py-2 px-2 -mx-2 rounded hover:bg-bg-tertiary/20 transition-colors border-b border-bg-tertiary/30">
                 <span className="flex-1 font-mono">{s.name}</span>
                 <span className="text-xs text-text-secondary">{s.n_parties} parties, {s.n_turns} turns</span>
-                <button onClick={() => handleDelete(s.name)} className="text-xs text-danger/60 hover:text-danger transition-colors">Delete</button>
+                <button onClick={() => handleDelete(s.name)} className="text-danger/60 hover:text-danger p-1 rounded hover:bg-danger/10 transition-colors" aria-label={`Delete scenario ${s.name}`}>
+                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" /></svg>
+                </button>
               </div>
             ))}
           </div>

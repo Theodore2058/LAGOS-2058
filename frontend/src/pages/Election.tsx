@@ -39,7 +39,7 @@ export default function Election() {
         <div className="flex gap-2 items-center">
           <span className="text-sm text-text-secondary">{parties.length} parties loaded</span>
           <button onClick={() => setShowParams(!showParams)}
-            className="px-3 py-1.5 text-sm bg-bg-tertiary rounded hover:bg-bg-tertiary/80">
+            className="px-3 py-1.5 text-sm bg-bg-tertiary rounded hover:bg-bg-tertiary/80 transition-colors">
             {showParams ? 'Hide' : 'Show'} Parameters
           </button>
           <button onClick={handleRun} disabled={loading}
@@ -68,6 +68,21 @@ export default function Election() {
       )}
 
       {results && !loading && <ElectionDashboard results={results} parties={parties} />}
+
+      {!results && !loading && (
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <div className="w-16 h-16 rounded-2xl bg-accent/10 flex items-center justify-center mb-4">
+            <svg className="w-8 h-8 text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
+              <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+            </svg>
+          </div>
+          <p className="text-text-secondary font-medium mb-1">Ready to simulate</p>
+          <p className="text-xs text-text-secondary/60 max-w-md">
+            Click <span className="text-accent font-medium">Run Election</span> to execute a one-shot election with Monte Carlo sampling.
+            Use <span className="text-text-primary font-medium">Show Parameters</span> to tune the Merrill-Grofman model before running.
+          </p>
+        </div>
+      )}
     </div>
   );
 }
