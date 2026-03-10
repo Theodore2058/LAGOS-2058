@@ -371,7 +371,7 @@ def apply_score_modifiers(
     - ETO interaction: +1 if party has any ETO score >= 7
     - Momentum: +0.5 per momentum level
     - Cohesion penalty: -1 if cohesion between 4 and 5
-    - Media volatility: x1.5 deviation from 5 (media actions only)
+    - Media volatility: x2.0 deviation from 5 (media actions only)
     """
     # ETO interaction: +1 if any ETO score >= 7
     for (p, _cat, _az), sc in state.eto_scores.items():

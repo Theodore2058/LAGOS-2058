@@ -743,43 +743,43 @@ Campaign effects flow through exactly five channels:
 
 ## 17. Campaign Actions
 
-Parties can take **15 types of campaign actions**, each with different costs, targets, and effects across the five channels. Every action fills a distinct strategic niche -- there is no single dominant strategy.
+Parties can take **14 types of campaign actions**, each with different costs, targets, and effects across the five channels. Every action fills a distinct strategic niche -- there is no single dominant strategy. All action magnitudes are scaled by a **GM score multiplier** (sm = gm_score / 6.0), so the quality of a party's execution directly affects outcomes.
 
 ### The Full Action Menu
 
 **1. Manifesto (Cost: 3 PC)**
 A major policy document released nationally. Raises awareness broadly (scaled by media infrastructure, 0.08-0.30 range). Can update the party's positions on any of the 28 dimensions. If positions shift too dramatically (more than 3 points on any dimension), the party suffers a credibility penalty (reduced valence) and loses internal cohesion. *Niche: repositioning on issues. The only way to change your party's policy stance.*
 
-**2. Advertising (Cost: 2-4 PC)**
-Paid media campaigns. The cost scales with budget (higher budget = higher cost). Comes in different media: radio (better in low-media areas), TV (better in high-media areas), social media (scales with internet access). Raises awareness and shifts salience on language-profiled dimensions. Heavy advertising (budget >= 1.5) also provides a small turnout boost. *Niche: broad awareness reach with medium-specific targeting.*
+**2. Advertising (Cost: 2-5 PC)**
+Paid media campaigns. The cost scales with budget tier (0/1/2 extra PC) and medium (TV adds +1 PC surcharge). Comes in different media: radio (better in low-media areas), TV (better in high-media areas, but costs more), social media (scales with internet access). Raises awareness and shifts salience on language-profiled dimensions. Heavy advertising (budget tier >= 1) also provides a small turnout boost. *Niche: broad awareness reach with medium-specific targeting.*
 
-**3. Rally (Cost: 2-3 PC)**
-Physical campaign events. Scaled by a "ground mobilization score" (how well-organized the rally is). Raises salience on language-profiled dimensions, boosts awareness in target LGAs (scaled by population density), and reduces abstention (tau modifier). High-quality rallies (gm_score >= 9) cost an extra PC. *Niche: synergy hub -- pairs with ground_game (valence +0.04), advertising (salience +0.02), and endorsement (valence +0.03).*
+**3. Rally (Cost: 2 PC)**
+Physical campaign events. Raises salience (+0.025 x sm) on language-profiled dimensions, boosts awareness (+0.04 x sm) in target LGAs (scaled by population density), reduces abstention (tau -0.02 x sm), and **recovers cohesion** (+0.15 x sm). *Niche: the cheapest cohesion recovery tool and synergy hub -- pairs with ground_game (valence +0.04), advertising (salience +0.02), and endorsement (valence +0.03).*
 
 **4. Ground Game (Cost: 3-5 PC)**
-Door-to-door canvassing and field operations. The primary turnout-boosting mechanism (strongest tau effect: -0.06 per intensity). Also raises the turnout ceiling by addressing infrastructure barriers (+0.05 per intensity). Personal contact builds trust (valence +0.03 per intensity) and awareness (+0.05 per intensity). Intensity > 1.0 adds +1 PC, > 1.5 adds +2 PC. *Niche: the GOTV workhorse. Best combined value per PC when you need turnout + valence in a targeted region. Synergizes with rally (valence) and patronage (tau).*
+Door-to-door canvassing and field operations. The primary turnout-boosting mechanism (tau -0.05 x intensity x sm). Also raises the turnout ceiling (+0.04 x intensity x sm). Personal contact builds trust (valence +0.02 x intensity x sm) and awareness (+0.03 x intensity x sm). Intensity tier 1 adds +1 PC, tier 2 adds +2 PC. *Niche: the GOTV workhorse. Best combined value per PC when you need turnout + valence in a targeted region. Synergizes with rally (valence) and patronage (tau).*
 
 **5. Endorsement (Cost: 2 PC)**
 Securing public support from influential figures. Different endorser types have different valence impact and shape the conversation on different issue dimensions:
 - Traditional ruler: +0.12 valence, shifts salience on traditional authority + infrastructure
 - Religious leader: +0.10 valence, shifts salience on sharia + women's rights
-- ETO leader: +0.10 valence, shifts salience on resource revenue + land tenure
+- ETO leader: +0.10 valence, shifts salience on resource revenue + taxation
 - Celebrity: +0.08 valence, shifts salience on biological enhancement + media freedom
-- Notable/professional: +0.06 valence, shifts salience on constitutional structure + housing
+- Notable/professional: +0.06 valence, shifts salience on constitutional structure + education
 
-Also provides an awareness boost (+0.05) through the endorser's network. Endorsements can be withdrawn, removing both the valence and salience effects. *Niche: regional valence with issue framing. The salience shift lets you steer which dimensions voters care about in the endorser's area. Synergizes with rally (+0.03 valence).*
+Also provides an awareness boost (+0.05) through the endorser's network. **Endorsements are fragile**: if a party triggers a scandal, all its endorsements are automatically withdrawn. If a party uses ethnic_mobilization in the same region as a religious leader or traditional ruler endorsement, there is a 30% chance the endorsement is withdrawn. *Niche: regional valence with issue framing, but requires careful play to maintain.*
 
 **6. Ethnic Mobilization (Cost: 2 PC)**
-Activating ethnic identity as a voting cue. Raises salience on identity-correlated dimensions (ethnic quotas, traditional authority, constitutional structure, AZ restructuring) at +0.04 each. Boosts awareness among the target ethnic group, scaled by their population share in each LGA (+0.08 x ethnic_pct). **Generates exposure** (+0.5) -- overuse creates a backlash risk (see [Section 19](#19-campaign-dynamics-cohesion-exposure-and-momentum)). *Niche: cheap identity activation for parties with strong ethnic bases. The exposure risk is the balancing cost -- two uses puts you near the 1.5 penalty threshold.*
+Activating ethnic identity as a voting cue. Raises salience on identity-correlated dimensions (ethnic quotas, traditional authority, constitutional structure, AZ restructuring) at +0.04 each. Boosts awareness among the target ethnic group, scaled by their population share in each LGA (+0.08 x ethnic_pct). Provides a turnout boost (tau -0.04 x sm) in the target region. **Generates exposure** (+0.8 per use) -- overuse creates a backlash risk (see [Section 19](#19-campaign-dynamics-cohesion-exposure-and-momentum)). *Niche: cheap identity activation for parties with strong ethnic bases. The high exposure cost means ~3 uses approaches scandal territory.*
 
 **7. Patronage (Cost: 3-5 PC)**
-Direct material incentives to voters or communities. Provides a strong valence boost (+0.10 x scale) and turnout mobilization via patronage networks (tau -0.05 x scale) in target LGAs. Small awareness boost (+0.02 x scale). **Generates significant exposure** (+0.3 x scale). Scale > 1.5 adds +1 PC, > 2.0 adds +2 PC. *Niche: the strongest single-action valence boost in the game, but carries the highest exposure risk. Best used sparingly in key regions where the valence swing justifies the scandal risk. Synergizes with ground_game (tau -0.03).*
+Direct material incentives to voters or communities. Provides a strong valence boost (+0.10 x scale) and turnout mobilization via patronage networks (tau -0.05 x scale) in target LGAs. Small awareness boost (+0.02 x scale). **Generates significant exposure** (+0.3 x scale). Tier 1 adds +1 PC, tier 2 adds +2 PC. *Niche: the strongest single-action valence boost in the game, but carries the highest exposure risk. Best used sparingly in key regions. Synergizes with ground_game (tau -0.03).*
 
 **8. Opposition Research (Cost: 2 PC)**
-Investigating and publicizing an opponent's weaknesses. Raises salience on dimensions where the target party holds unpopular positions (+0.03 per dimension). Applies negative valence (-0.06) to the target party. Counterintuitively, it raises the *opponent's* awareness (+0.06) -- you're introducing voters to the opponent's actual positions (which you believe are unpopular). *Niche: the only offensive action that directly damages a rival's valence. Synergizes with media (+0.03 additional valence penalty to target).*
+Investigating and publicizing an opponent's weaknesses. Raises salience on dimensions where the target party holds unpopular positions (+0.03 per dimension, up to 4 dimensions). Applies negative valence (-0.08 x sm) to the target party. Raises the *acting party's own* awareness (+0.02 x sm) as the opposition becomes a topic of conversation. **Costs cohesion** (-0.3) -- going negative hurts internal party discipline. *Niche: the only offensive action that directly damages a rival's valence. Synergizes with media (+0.03 additional valence penalty to target).*
 
 **9. Media Engagement (Cost: 1 PC)**
-Press conferences, interviews, social media engagement. Cheap but modest -- valence effect is +/-0.015 at extremes (scaled by success parameter 0-1). Awareness boost is small (0.02 x success x media_factor). Salience shift is volatile: amplified at success extremes but can backfire. Momentum penalty: -25% effectiveness if the party has changed campaign direction 3+ times recently. *Niche: the cheapest action, useful for maintaining presence when PC is tight. Volume plays (multiple media per turn) suffer from action fatigue. Best combined with oppo research for the synergy bonus.*
+Press conferences, interviews, social media engagement. Cheap but volatile -- the GM score is amplified (2x deviation from center), so low-quality media backfires hard and high-quality media overperforms. Valence and salience scale with the amplified media impact. Successful media (impact > 0.2) **adds +0.2 exposure** as media blitzes attract scrutiny. Creativity bonuses are capped at +1 for media (vs +3 for other actions), preserving genuine risk. Momentum penalty: -25% effectiveness if the party has changed direction 3+ times recently. *Niche: cheapest action but genuinely risky. Best combined with oppo research for the synergy bonus.*
 
 **10. ETO Engagement (Cost: 3-4 PC)**
 Building relationships with Elite Territorial Organizations -- the institutional power brokers in each Administrative Zone. Four categories, each with immediate salience effects on relevant issue dimensions in the target zone:
@@ -788,19 +788,19 @@ Building relationships with Elite Territorial Organizations -- the institutional
 - **Elite ETOs**: Salience on Chinese relations, constitutional structure, BIC reform.
 - **Youth ETOs**: Salience on biological enhancement, media freedom, environmental regulation.
 
-ETO scores accumulate on a 0-10 scale per (party, category, AZ) and persist across turns. All categories raise awareness in their zone (+0.03 x score_change). Score_change > 3.0 adds +1 PC cost. At score >= 7.0, Economic ETOs generate PC dividends (+1 PC/turn, max 2). At score >= 5.0, parties can use **ETO Intelligence** (free zone-level polling). *Niche: long-term investment with compounding returns. The immediate salience shift gives some value on the turn you spend, while the dividend and intelligence thresholds reward sustained commitment.*
+ETO scores accumulate on a 0-10 scale per (party, category, AZ) and persist across turns. All categories raise awareness in their zone (+0.04 x score_change x sm) and provide a valence boost (+0.02 x score_change x sm) in the AZ. Salience shifts at +0.03 per relevant dimension. Score_change > 3.0 adds +1 PC cost. At score >= 7.0, Economic ETOs generate PC dividends (+1 PC/turn, max 2). At score >= 5.0, parties can use **ETO Intelligence** (free zone-level polling). *Niche: long-term investment with compounding returns. The immediate effects give value on the turn you spend, while dividends and intelligence reward sustained commitment.*
 
 **11. Crisis Response (Cost: 2 PC)**
-Reactive action to exogenous events (security crisis, economic shock, scandal). Provides a strong valence boost (+0.10 x effectiveness) and high awareness spike (+0.06 x effectiveness). Also restores party cohesion (+0.5 x effectiveness) -- rallying around a crisis strengthens internal discipline. *Niche: the best valence-per-PC ratio in the game when a crisis is active. Also the only action that recovers cohesion (besides natural +1/turn). Purely reactive -- most valuable on turns when crisis events fire.*
+Reactive action to exogenous events (security crisis, economic shock, scandal). Provides a strong valence boost (+0.08 x sm) and high awareness spike (+0.05 x sm). Also restores party cohesion (+0.50 x sm) -- rallying around a crisis strengthens internal discipline. **Exempt from action fatigue.** *Niche: the best valence-per-PC ratio when a crisis is active, and a strong cohesion recovery tool. Purely reactive -- most valuable on turns when crisis events fire.*
 
-**12. Fundraising (Cost: 0 PC, Generates PC)**
-Generates political capital from different sources, each with tradeoffs:
-- **Business elite**: 4 PC yield, but +1.0 exposure (donors expect favors)
-- **Diaspora**: 3 PC yield, no side effects
-- **Grassroots**: 2 PC yield, small turnout boost in target region (tau -0.02)
-- **Membership**: 1-3 PC yield scaled by cohesion (high cohesion = more PC)
+**12. Fundraising (Cost: 2 PC, Generates PC)**
+Costs 2 PC to execute; yield depends on source and GM score (poor execution can net a loss). Different sources offer different base yields and side effects:
+- **Business elite**: 5 PC base yield, but +1.5 exposure (donors expect favors)
+- **Diaspora**: 4 PC base yield, no side effects
+- **Grassroots**: 4 PC base yield, turnout boost (tau -0.03 x sm), awareness boost (+0.02 x sm)
+- **Membership**: 2-5 PC yield scaled by cohesion, +0.10 cohesion recovery
 
-Consecutive fundraising from the same source suffers -1 PC per repeat. Economic ETOs scoring >= 7.0 add +1 PC bonus. *Niche: pure resource generation. The source choice matters -- business_elite is highest yield but the exposure stacks with patronage/ethnic_mob risk.*
+Actual yield = floor(base x sm), so a poor GM score (sm < 0.5) can result in 0-1 PC yield against a 2 PC cost -- a net loss. Consecutive fundraising from the same source suffers -1 PC per repeat. Economic ETOs scoring >= 7.0 add +1 PC bonus. *Niche: resource generation with meaningful source trade-offs. Business_elite is highest yield but 2 uses = 3.0 exposure = scandal territory.*
 
 **13. Poll (Cost: 1-5 PC by tier)**
 Intelligence-gathering action that reveals where voters stand on issue dimensions. Polls return noisy estimates of population-weighted average ideal points for target LGAs -- they tell you *what voters care about*, not how they'll vote. Results are queued and delivered next turn.
@@ -819,9 +819,6 @@ Optional filters: target_zones, target_states, specific dimensions. Noise is Gau
 
 **14. ETO Intelligence (Cost: 0 PC)**
 Free alternative to polls for parties with established ETO presence. Requires ETO score >= 5.0 in the target zone (any category). Returns zone-level voter positions with margin +/-0.8 (improving to +/-0.5 at ETO score 10). Unlike polls, results are delivered same turn. *Niche: rewards ETO investment with free, faster intelligence. The margin is worse than a tier 2 poll but the cost is zero.*
-
-**15. Pledge (Cost: 1 PC)**
-A legislative promise addressing specific issue dimensions. Creates a valence boost (+0.04 x popularity, where popularity is 0-1). Subject to **diminishing returns**: each additional pledge by the same party halves in impact (voters discount serial promises). The first pledge at popularity 0.8 gives +0.032 valence; the fourth gives ~+0.016. *Niche: cheap valence with a natural cap. Best used sparingly on popular dimensions early in the campaign before diminishing returns erode value.*
 
 ### Language Profiles
 
@@ -849,9 +846,9 @@ Campaign actions cost **Political Capital (PC)** — a scarce resource that forc
 
 - **Income**: Every party receives **7 PC per turn** automatically
 - **Hoarding cap**: A party can hold at most **18 PC** at any time. Excess above 18 is lost before new income is added.
-- **Total budget**: Over 12 turns, a party earns 7 × 12 = 84 PC (before fundraising or ETO dividends)
-- **Fundraising**: Generates +3 PC per action, unlimited uses, 0 cost
-- **ETO dividends**: Economic ETOs scoring ≥ 8 generate +1 PC each (max 2 per turn)
+- **Total budget**: Over 12 turns, a party earns 7 x 12 = 84 PC (before fundraising or ETO dividends)
+- **Fundraising**: Costs 2 PC; yields 2-5 PC depending on source and GM score (poor execution can net a loss)
+- **ETO dividends**: Economic ETOs scoring >= 7 generate +1 PC each (max 2 per turn)
 
 ### No Action Cap
 
@@ -863,10 +860,11 @@ Several actions have costs that scale with their parameters:
 
 | Action | Base Cost | Surcharge Conditions |
 |--------|-----------|---------------------|
-| Advertising | 2 PC | +1 if budget > 1.5, +2 if budget > 2.0 |
-| Rally | 2 PC | +1 if gm_score >= 9.0 |
-| Ground Game | 3 PC | +1 if intensity > 1.0, +2 if intensity > 1.5 |
-| Patronage | 3 PC | +1 if scale > 1.5, +2 if scale > 2.0 |
+| Advertising | 2 PC | +0/1/2 by budget tier, +1 if medium is TV |
+| Rally | 2 PC | (flat cost) |
+| Ground Game | 3 PC | +0/1/2 by intensity tier |
+| Patronage | 3 PC | +0/1/2 by patronage tier |
+| Fundraising | 2 PC | (flat cost; yield depends on source and GM score) |
 | ETO Engagement | 3 PC | +1 if score_change > 3.0 |
 | Poll | 1-5 PC | Directly set by poll_tier parameter |
 
@@ -876,7 +874,7 @@ Repeating the same action type on consecutive turns suffers diminishing returns:
 
 > fatigue_multiplier = 1 / (1 + 0.2 x consecutive_turns)
 
-After 3 consecutive turns of media engagement, effectiveness drops to 62.5%. Exempt actions: fundraising, poll, pledge, manifesto. This prevents spam strategies and encourages action diversity.
+After 3 consecutive turns of media engagement, effectiveness drops to 62.5%. Exempt actions: fundraising, poll, manifesto, crisis_response. This prevents spam strategies and encourages action diversity.
 
 ### Synergies
 
@@ -896,9 +894,10 @@ Synergies reward players who plan complementary action pairs rather than stackin
 
 With 84 PC total (before fundraising), a party must choose between:
 - **Breadth vs. depth**: Cheap actions (media at 1 PC) spread thin, while expensive ones (ground_game at 3 PC, patronage at 3 PC) concentrate impact
-- **Risk vs. reward**: Patronage gives the best single-action valence (+0.10) but accumulates exposure that can trigger scandals
-- **Short-term vs. investment**: ETO engagement costs 3 PC with modest immediate salience shift, but compounds into free intelligence and PC dividends
-- **Offense vs. defense**: Opposition research damages rivals but doesn't help you directly; crisis response is reactive but gives the best valence-per-PC when a crisis fires
+- **Risk vs. reward**: Patronage gives the best single-action valence (+0.10) but accumulates exposure that can trigger scandals; media is cheap but can backfire with 2x volatility
+- **Short-term vs. investment**: ETO engagement costs 3 PC with immediate salience/valence/awareness effects, but compounds into free intelligence and PC dividends at higher scores
+- **Offense vs. defense**: Opposition research damages rivals but costs cohesion (-0.3); crisis response is reactive but gives the best valence-per-PC when a crisis fires
+- **Cohesion management**: Rally (+0.15 cohesion) and crisis response (+0.50 cohesion) are the only active cohesion recovery tools beyond natural +1/turn healing
 - **Information**: Polls and ETO intelligence cost PC (or ETO investment) but inform where to target actions for maximum effect
 
 The hoarding cap (18 PC) prevents indefinite saving, and the lack of an action cap means unspent PC represents wasted potential. This creates a natural campaign rhythm where parties should stay aggressive.
@@ -914,23 +913,24 @@ Beyond the five channels, the campaign system tracks several dynamic properties 
 **Cohesion** represents a party's internal unity and organizational effectiveness. It ranges from 0 (completely fractured) to 10 (perfectly unified).
 
 - All parties start at their initial cohesion level
-- **Cohesion multiplier**: Effects scale with cohesion. A party at cohesion 2 gets only 30% of the benefit from its actions, while a party at cohesion 8 gets full benefit.
-- **Recovery**: Cohesion recovers +1 per turn naturally (internal healing)
-- **Damage**: Sharp manifesto reversals (moving more than 3 points on any issue) reduce cohesion
-- **Implication**: A party that flip-flops on issues will find its subsequent campaign actions less effective until cohesion recovers
+- **Cohesion multiplier**: Effects scale with cohesion. A party at cohesion 2 gets only 15% of the benefit from its actions, while a party at cohesion 8+ gets full benefit.
+- **Recovery**: Cohesion recovers +1 per turn naturally (internal healing). Rally (+0.15) and crisis response (+0.50) also restore cohesion. Membership fundraising adds +0.10.
+- **Damage**: Sharp manifesto reversals (moving more than 3 points on any issue) reduce cohesion. Opposition research costs -0.3 cohesion. Scandals cost -1.0 cohesion.
+- **Implication**: A party that flip-flops on issues or goes negative will find its subsequent campaign actions less effective until cohesion recovers
 
-The cohesion multiplier follows a curve: at cohesion 0, effectiveness is near zero; at cohesion 5, it's about 60%; at cohesion 8-10, it's near 100%. This means early cohesion damage is devastating, while the last few points matter less.
+The cohesion multiplier follows a piecewise curve: at cohesion 0-2, effectiveness is 15%; at cohesion 5, it's about 55%; at cohesion 8-10, it's near 100%. This means cohesion damage is devastating and recovery matters.
 
 ### Exposure (0+)
 
 **Exposure** represents how much scrutiny and controversy a party has attracted through aggressive tactics.
 
-- Increases from patronage (+0.3 x scale), ethnic mobilization (+0.5), and business_elite fundraising (+1.0)
-- Penalty kicks in above **1.5** exposure -- the party becomes a target for media criticism, opposition research, and voter backlash
-- Exposure penalty reduces effective valence
-- Cannot be reduced -- once you've accumulated exposure, it stays
+- Increases from patronage (+0.3 x scale), ethnic mobilization (+0.8 per use), business_elite fundraising (+1.5 per use), and successful media (+0.2 when media_impact > 0.2)
+- Penalty kicks in above **1.0** exposure -- the party suffers a valence penalty of -0.04 per point above the threshold (capped at -0.20)
+- **Scandal risk**: At exposure 2.0+, each turn carries a chance of triggering a scandal (5% at 2.0, scaling to 75% at 9.0+). Scandals cause -0.12 valence, -3 PC, -1.0 cohesion, and halve remaining exposure
+- **Decay**: After 3 consecutive clean turns (no new exposure), exposure decays by -1.0/turn. Scandals also halve exposure.
+- **Endorsement withdrawal**: Scandals cause all endorsements to be withdrawn
 
-This creates a risk/reward trade-off: patronage (strongest valence) and ethnic mobilization (cheapest identity play) are powerful tools, but two ethnic mobilizations or one patronage + one ethnic mobilization puts you near the penalty threshold. Business_elite fundraising is the highest-yield source but adds exposure fast.
+This creates a risk/reward trade-off: patronage (strongest valence) and ethnic mobilization (cheapest identity play) are powerful tools, but a single ethnic mobilization (+0.8) nearly hits the penalty threshold, and two uses of business_elite fundraising (+3.0 total) guarantees scandal risk. The scandal system makes exposure a genuine strategic constraint.
 
 ### Momentum
 
@@ -1098,7 +1098,7 @@ When running a campaign simulation, additional output includes:
 |----------|-------|---------|
 | PC income per turn | 7 | Automatic political capital income |
 | PC hoarding cap | 18 | Maximum PC a party can hold |
-| Fundraising yield | 2-4 | PC generated per fundraising action (source-dependent) |
+| Fundraising yield | 2-5 base | PC generated per fundraising action (source-dependent, scaled by GM score) |
 | Action cap | None | Parties can take unlimited actions per turn (PC-limited) |
 | Action fatigue rate | 0.2 | Diminishing returns multiplier for consecutive same-type actions |
 | Awareness floor | 0.60 | Minimum awareness level |
@@ -1106,7 +1106,9 @@ When running a campaign simulation, additional output includes:
 | EMA alpha | 0.65 | Effect blending weight for same-key overwrites |
 | Concentration decay | 0.15 | Diminishing returns for repeated regional targeting |
 | Cohesion recovery | +1/turn | Natural internal healing rate |
-| Exposure penalty threshold | 1.5 | Exposure above this triggers backlash |
+| Exposure penalty threshold | 1.0 | Exposure above this triggers valence penalty (-0.04/point, max -0.20) |
+| Exposure penalty per point | 0.04 | Valence penalty per exposure point above threshold |
+| Scandal threshold | 2.0+ | Exposure level where scandal probability begins (5% at 2.0, up to 75% at 9.0+) |
 | ETO dividend threshold | 7 | Economic ETO score needed for PC dividend |
 | ETO intelligence threshold | 5 | ETO score needed for free zone-level polling |
 | ETO dividend amount | 1 PC | Per qualifying Economic ETO |
@@ -1136,12 +1138,28 @@ LAGOS-2058/
 │       ├── results.py                   # Seat allocation, statistics
 │       ├── campaign.py                  # Multi-turn campaign loop
 │       ├── campaign_state.py            # CampaignState, CampaignModifiers
-│       ├── campaign_actions.py          # 15 action types, PC system, synergies
-│       └── campaign_modifiers.py        # Effect compilation, cohesion curve
+│       ├── campaign_actions.py          # 14 action types, PC system, GM scoring, synergies
+│       └── campaign_modifiers.py        # Effect compilation, cohesion curve, scandal system
+├── api/
+│   ├── main.py                          # FastAPI application entry point
+│   ├── routes/
+│   │   ├── config.py                    # Reference data endpoints (issues, zones, LGAs)
+│   │   ├── parties.py                   # Party configuration endpoints
+│   │   ├── election.py                  # Static election endpoints
+│   │   ├── campaign.py                  # Campaign simulation endpoints
+│   │   ├── crises.py                    # Crisis event endpoints
+│   │   └── scenarios.py                 # Scenario management endpoints
+│   ├── schemas/                         # Pydantic request/response models
+│   └── services/                        # Business logic layer
+├── frontend/
+│   └── src/
+│       ├── pages/                       # Dashboard, Parties, Election, Campaign, etc.
+│       └── components/                  # ActionBuilder, CheatSheet, TargetSelector, etc.
 ├── examples/
 │   ├── run_election.py                  # Static election with 14 parties
-│   └── run_full_campaign.py             # 12-turn campaign simulation
-├── tests/                               # 226 tests across 10 files
+│   ├── run_full_campaign.py             # 12-turn campaign simulation
+│   └── ...                              # Additional scenario variants
+├── tests/                               # 258 tests across 15 files
 └── README.md                            # This document
 ```
 
@@ -1150,7 +1168,7 @@ LAGOS-2058/
 - **174,960 voter types × 774 LGAs × 14 parties** computed using Float32 BLAS operations
 - Full election run (no campaign): ~2-3 minutes for 100 Monte Carlo iterations
 - Campaign simulation (12 turns × 100 MC runs): ~10-15 minutes
-- Test suite: ~3 minutes for all 226 tests
+- Test suite: ~3 minutes for all 258 tests
 
 ### Calibration Targets
 
@@ -1171,7 +1189,7 @@ LAGOS-2058 is a production-grade election simulation that combines:
 - **Rigorous political science theory** (Merrill-Grofman spatial model, multinomial logit, abstention-as-party)
 - **Rich demographic modeling** (174,960 voter types across 8 dimensions of identity)
 - **Nigerian institutional context** (ethnic federalism, presidential spread rule, 774 LGAs, 8 AZs)
-- **Strategic campaign gameplay** (5 modification channels, 15 action types, synergies, political capital economy)
+- **Strategic campaign gameplay** (5 modification channels, 14 action types, synergies, political capital economy)
 - **Robust uncertainty quantification** (3-tier Monte Carlo noise, swing LGA analysis)
 
 It models the full complexity of a multiethnic, multireligious, regionally diverse democracy where identity, policy, economics, and campaign strategy all interact to produce election outcomes.
