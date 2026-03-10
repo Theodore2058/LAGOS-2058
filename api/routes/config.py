@@ -42,20 +42,19 @@ ADMIN_ZONES = {
 }
 
 ACTION_DESCRIPTIONS = {
-    "rally": "Hold a political rally. Boosts awareness and salience in target region. Language choice affects which issues get amplified.",
+    "rally": "Hold a political rally. Boosts salience, awareness, and cohesion. Cheapest cohesion recovery tool.",
     "advertising": "Run advertising campaign via radio, TV, or internet. Budget determines reach and cost.",
     "manifesto": "Release or update party manifesto. Shifts up to 5 policy positions with credibility penalty for large changes.",
-    "ground_game": "Deploy field operatives for door-to-door canvassing. Reduces abstention (tau) in target areas.",
-    "endorsement": "Secure endorsement from a notable figure. Provides valence boost in endorser's region.",
-    "ethnic_mobilization": "Mobilize along ethnic lines. Powerful but increases exposure risk.",
-    "patronage": "Distribute patronage in target region. Boosts ceiling and awareness but carries exposure risk.",
-    "opposition_research": "Investigate a rival party. May reduce their valence if successful.",
-    "media": "Shape media narrative. Cheap but volatile — can backfire.",
-    "eto_engagement": "Engage with Elected/Traditional/Opinion leaders. Builds institutional support scores.",
-    "crisis_response": "Respond to an active crisis. Narrative quality determines valence impact.",
-    "fundraising": "Raise funds. Yields +3 PC. Free to execute but limited effectiveness over time.",
+    "ground_game": "Deploy field operatives for door-to-door canvassing. Best GOTV action (tau + ceiling).",
+    "endorsement": "Secure endorsement from a notable figure. Fragile — can be lost to scandals or ethnic tension.",
+    "ethnic_mobilization": "Mobilize along ethnic lines. Powerful but heavy exposure (+0.8/use).",
+    "patronage": "Distribute patronage in target region. Boosts valence and turnout but carries exposure risk.",
+    "opposition_research": "Investigate a rival party. Damages opponent valence but costs cohesion (-0.3).",
+    "media": "Shape media narrative. Cheap but volatile — can backfire. Success adds exposure.",
+    "eto_engagement": "Engage with Elected/Traditional/Opinion leaders. Builds institutional support; dividends at score 7+.",
+    "crisis_response": "Respond to an active crisis. Strong valence + cohesion boost. Fatigue exempt.",
+    "fundraising": "Raise funds. Costs 2 PC; yield depends on source and GM score. Poor execution can net a loss.",
     "poll": "Commission a poll. Tier 1-5 determines cost, accuracy, and detail level. Results arrive next turn.",
-    "pledge": "Make a policy pledge on a specific dimension. Signals commitment but costs political capital.",
     "eto_intelligence": "Gather intelligence on ETO landscape in a target zone. Free but requires ETO score >= 5.0.",
 }
 

@@ -80,12 +80,10 @@ function formatActionParams(a: ActionInput): string[] {
     if (p.source) tags.push(String(p.source));
   } else if (a.action_type === 'opposition_research' && a.target_party) {
     tags.push(`vs ${a.target_party}`);
-  } else if (a.action_type === 'pledge') {
-    if (p.dimension != null) tags.push(`dim ${p.dimension}`);
   } else if (a.action_type === 'media') {
     if (p.tone) tags.push(String(p.tone));
   }
-  if (['rally', 'advertising', 'ground_game'].includes(a.action_type) && p.language && p.language !== 'english') {
+  if (['rally', 'advertising', 'ground_game', 'media'].includes(a.action_type) && p.language && p.language !== 'english') {
     tags.push(String(p.language));
   }
   return tags;

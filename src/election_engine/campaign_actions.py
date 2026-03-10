@@ -36,17 +36,17 @@ PC_COSTS: dict[str, int] = {
     "media": 1,                  # Cheap but volatile
     "eto_engagement": 3,         # Building institutional support
     "crisis_response": 2,        # Reactive situational cost
-    "fundraising": 0,            # Free — generates PC
+    "fundraising": 2,            # Costs 2 PC; yield depends on GM score
     "poll": 1,                   # Base cost; poll_tier param sets actual cost 1-5
-    "pledge": 1,                 # Promises cost political capital to credibly signal
+
     "eto_intelligence": 0,       # Free — requires ETO score >= 5.0 in target zone
 }
 
 # PC system constants
 PC_INCOME_PER_TURN = 7           # Unconditional income at start of each turn
 PC_HOARDING_CAP = 18             # Hard cap: excess above this lost before income
-PC_FUNDRAISING_YIELD = 3         # Base PC from a fundraising action
-PC_ETO_DIVIDEND_THRESHOLD = 8    # Economic ETO score required for dividend
+PC_FUNDRAISING_YIELD = 4         # Default base yield (diaspora source)
+PC_ETO_DIVIDEND_THRESHOLD = 7    # Economic ETO score required for dividend
 PC_ETO_DIVIDEND_AMOUNT = 1       # PC per qualifying Economic ETO
 PC_ETO_DIVIDEND_CAP = 2          # Max ETO dividend per turn
 
@@ -57,9 +57,9 @@ PC_ETO_DIVIDEND_CAP = 2          # Max ETO dividend per turn
 
 ACTION_TARGET_SCOPE: dict[str, str] = {
     "rally": "district",
-    "ground_game": "lga",
+    "ground_game": "district",
     "patronage": "lga",
-    "ethnic_mobilization": "lga",
+    "ethnic_mobilization": "regional",
     "eto_engagement": "lga",
     "crisis_response": "lga",
     "advertising": "regional",
@@ -68,13 +68,22 @@ ACTION_TARGET_SCOPE: dict[str, str] = {
     "manifesto": "none",
     "fundraising": "none",
     "opposition_research": "none",
-    "pledge": "none",
     "poll": "none",
     "eto_intelligence": "none",
 }
 
 
-def _area_surcharge(action_type: str, n_target_lgas: int, n_target_azs: int) -> int:
+ENDORSER_TARGET_SCOPE: dict[str, str] = {
+    "traditional_ruler": "lga",
+    "religious_leader": "regional",
+    "eto_leader": "regional",
+    "celebrity": "none",
+    "notable": "district",
+}
+
+
+def _area_surcharge(action_type: str, n_target_lgas: int, n_target_azs: int,
+                    scope_override: str | None = None) -> int:
     """
     Compute area-based cost surcharge.
 
@@ -84,7 +93,7 @@ def _area_surcharge(action_type: str, n_target_lgas: int, n_target_azs: int) -> 
         National (0 targets = all 8): +3 PC flat.
     None-scope actions: no surcharge.
     """
-    scope = ACTION_TARGET_SCOPE.get(action_type, "none")
+    scope = scope_override or ACTION_TARGET_SCOPE.get(action_type, "none")
     if scope == "district":
         return 0  # Rally: flat cost, no area surcharge
     if scope == "lga":
@@ -125,32 +134,27 @@ def compute_action_cost(
     """
     base = PC_COSTS.get(action_type, 2)
 
-    # Area-based surcharge
-    base += _area_surcharge(action_type, n_target_lgas, n_target_azs)
+    # Area-based surcharge (endorsement scope depends on endorser type)
+    scope_override = None
+    if action_type == "endorsement":
+        endorser_type = params.get("endorser_type", "notable")
+        scope_override = ENDORSER_TARGET_SCOPE.get(endorser_type, "regional")
+    base += _area_surcharge(action_type, n_target_lgas, n_target_azs, scope_override)
 
     # Parameter-based surcharges
     if action_type == "advertising":
-        budget = params.get("budget", 1.0)
+        budget = int(params.get("budget", 0))  # 0, 1, or 2 extra PC
         medium = params.get("medium", "radio")
-        if budget > 2.0:
-            base += 2
-        elif budget > 1.5:
-            base += 1
+        base += max(0, min(2, budget))
         # TV is more expensive than radio/internet
         if medium == "tv":
             base += 1
     elif action_type == "ground_game":
-        intensity = params.get("intensity", 1.0)
-        if intensity > 1.5:
-            base += 2
-        elif intensity > 1.0:
-            base += 1
+        intensity_tier = int(params.get("intensity", 0))  # 0, 1, or 2 extra PC
+        base += max(0, min(2, intensity_tier))
     elif action_type == "patronage":
-        scale = params.get("scale", 1.0)
-        if scale > 2.0:
-            base += 2
-        elif scale > 1.5:
-            base += 1
+        tier = int(params.get("tier", 0))  # 0, 1, or 2 extra PC
+        base += max(0, min(2, tier))
     elif action_type == "eto_engagement":
         score_change = params.get("score_change", 1.0)
         if score_change > 3.0:
@@ -179,7 +183,7 @@ class ActionSpec:
         One of: "rally", "advertising", "manifesto", "ground_game",
         "endorsement", "ethnic_mobilization", "patronage",
         "opposition_research", "media", "eto_engagement",
-        "crisis_response", "fundraising", "poll", "pledge".
+        "crisis_response", "fundraising", "poll".
     target_lgas : np.ndarray | None
         Boolean mask (n_lga,). None = national.
     language : str
@@ -326,7 +330,7 @@ def _effect_key(party: str, channel: str, target: str = "",
 _GM_SCORING_EXEMPT = {"poll", "eto_intelligence"}
 
 
-def compute_gm_score(params: dict) -> float:
+def compute_gm_score(params: dict, action_type: str = "") -> float:
     """Compute raw GM score from strategic fit + quality + creativity bonuses.
 
     Strategic Fit (1-5): Right region, demographic, issue, language, medium.
@@ -338,6 +342,9 @@ def compute_gm_score(params: dict) -> float:
 
     Final Score = Strategic Fit + Quality (range 2-10).
     Score 1 reserved for catastrophic failures (set manually).
+
+    Media actions: creativity bonuses capped at +1 (not +3) to preserve
+    genuine volatility risk.
     """
     strategic_fit = max(1, min(5, int(params.get("strategic_fit", 3))))
     quality = max(1, min(5, int(params.get("quality", 3))))
@@ -346,6 +353,9 @@ def compute_gm_score(params: dict) -> float:
         bool(params.get("has_visual_audio")),
         bool(params.get("has_strategic_docs")),
     ])
+    # Media: cap creativity at +1 to preserve downside risk
+    if action_type == "media":
+        creativity = min(1, creativity)
     quality = min(5, quality + creativity)
     return float(strategic_fit + quality)
 
@@ -378,10 +388,10 @@ def apply_score_modifiers(
     if 4.0 <= cohesion <= 5.0:
         gm_score -= 1.0
 
-    # Media volatility: x1.5 deviation from 5
+    # Media volatility: x2.0 deviation from 5 (high variance by design)
     if action_type == "media":
         deviation = gm_score - 5.0
-        gm_score = 5.0 + deviation * 1.5
+        gm_score = 5.0 + deviation * 2.0
 
     return max(1.0, gm_score)
 
@@ -399,7 +409,7 @@ def score_multiplier(
     """
     if action_type in _GM_SCORING_EXEMPT:
         return 1.0
-    raw = compute_gm_score(params)
+    raw = compute_gm_score(params, action_type)
     modified = apply_score_modifiers(raw, action_type, state, party)
     return modified / 6.0
 
@@ -416,7 +426,7 @@ def resolve_rally(action: ActionSpec, state: CampaignState,
     """
     dims, weights = _language_dims(action.language)
     sm = score_multiplier(action.params, "rally", state, action.party)
-    base_magnitude = 0.015 * sm
+    base_magnitude = 0.025 * sm
     party_idx = state.party_names.index(action.party)
 
     for dim, w in zip(dims, weights):
@@ -434,7 +444,7 @@ def resolve_rally(action: ActionSpec, state: CampaignState,
         state.apply_effect(effect)
 
     # Awareness boost: scales with population density in target LGAs
-    awareness_boost = 0.03 * sm
+    awareness_boost = 0.04 * sm
     if action.target_lgas is not None:
         n = len(lga_data)
         density = _col_safe(lga_data, "Population Density per km2", 200.0, n) / 1000.0
@@ -458,6 +468,10 @@ def resolve_rally(action: ActionSpec, state: CampaignState,
     )
     state.apply_effect(tau_effect)
 
+    # Rallies unify the party — cheapest cohesion recovery tool
+    old_coh = state.cohesion.get(action.party, 10.0)
+    state.cohesion[action.party] = min(10.0, old_coh + 0.15 * sm)
+
 
 def resolve_advertising(action: ActionSpec, state: CampaignState,
                         lga_data: pd.DataFrame, parties: list) -> None:
@@ -466,7 +480,8 @@ def resolve_advertising(action: ActionSpec, state: CampaignState,
     """
     dims, weights = _language_dims(action.language)
     medium = action.params.get("medium", "radio")
-    budget_scale = action.params.get("budget", 1.0)
+    budget_tier = int(action.params.get("budget", 0))  # 0=standard, 1=heavy, 2=blitz
+    budget_scale = 1.0 + budget_tier  # maps to 1.0, 2.0, 3.0
     sm = score_multiplier(action.params, "advertising", state, action.party)
     base_magnitude = 0.02 * budget_scale * sm
     party_idx = state.party_names.index(action.party)
@@ -500,8 +515,8 @@ def resolve_advertising(action: ActionSpec, state: CampaignState,
 
     state.raise_awareness(party_idx, action.target_lgas, reach.astype(np.float32))
 
-    # Heavy advertising creates general political awareness → slight turnout boost
-    if budget_scale >= 1.5:
+    # Heavy/blitz advertising creates general political awareness → slight turnout boost
+    if budget_tier >= 1:
         tau_mag = -0.02 * budget_scale * sm
         tau_effect = ActiveEffect(
             source_party=action.party,
@@ -568,7 +583,8 @@ def resolve_ground_game(action: ActionSpec, state: CampaignState,
     """
     Ground Game: raises turnout ceiling in target LGAs and small awareness boost.
     """
-    intensity = action.params.get("intensity", 1.0)
+    intensity_tier = int(action.params.get("intensity", 0))
+    intensity_scale = 1.0 + 0.5 * intensity_tier  # 1.0, 1.5, 2.0
     sm = score_multiplier(action.params, "ground_game", state, action.party)
     party_idx = state.party_names.index(action.party)
 
@@ -580,13 +596,13 @@ def resolve_ground_game(action: ActionSpec, state: CampaignState,
         target_lgas=action.target_lgas,
         target_dimensions=None,
         target_party=None,
-        magnitude=0.05 * intensity * sm,
+        magnitude=0.04 * intensity_scale * sm,
         effect_key=_effect_key(action.party, "ceiling", "", "gg", ""),
     )
     state.apply_effect(effect)
 
     # Awareness boost from door-to-door contact
-    state.raise_awareness(party_idx, action.target_lgas, np.float32(0.05 * intensity * sm))
+    state.raise_awareness(party_idx, action.target_lgas, np.float32(0.03 * intensity_scale * sm))
 
     # Personal contact builds trust — small valence boost
     valence_effect = ActiveEffect(
@@ -597,13 +613,13 @@ def resolve_ground_game(action: ActionSpec, state: CampaignState,
         target_lgas=action.target_lgas,
         target_dimensions=None,
         target_party=action.party,
-        magnitude=0.03 * intensity * sm,
+        magnitude=0.02 * intensity_scale * sm,
         effect_key=_effect_key(action.party, "valence", action.party, "gg", ""),
     )
     state.apply_effect(valence_effect)
 
     # Ground game is the primary GOTV mechanism — reduces abstention
-    tau_mag = -0.06 * intensity * sm  # stronger turnout effect than rallies
+    tau_mag = -0.05 * intensity_scale * sm  # stronger turnout effect than rallies
     tau_effect = ActiveEffect(
         source_party=action.party,
         source_action="ground_game",
@@ -656,6 +672,7 @@ def resolve_endorsement(action: ActionSpec, state: CampaignState,
         "endorser_type": endorser_type,
         "source_party": action.party,
         "turn_applied": state.turn,
+        "target_lgas": endorser_lgas,
     }
 
     # Endorsers shape the conversation: salience shift on endorser-associated dimensions
@@ -724,8 +741,22 @@ def resolve_ethnic_mobilization(action: ActionSpec, state: CampaignState,
     awareness_boost = (0.08 * eth_pct * sm).astype(np.float32)
     state.raise_awareness(party_idx, action.target_lgas, awareness_boost)
 
-    # Exposure accumulation
-    state.exposure[action.party] = state.exposure.get(action.party, 0.0) + 0.5
+    # Turnout boost — ethnic mobilization drives co-ethnic voters to polls
+    tau_effect = ActiveEffect(
+        source_party=action.party,
+        source_action="ethnic_mobilization",
+        source_turn=state.turn,
+        channel="tau",
+        target_lgas=action.target_lgas,
+        target_dimensions=None,
+        target_party=None,
+        magnitude=-0.04 * sm,  # negative = less abstention = more turnout
+        effect_key=_effect_key(action.party, "tau", "", "ethnic", ""),
+    )
+    state.apply_effect(tau_effect)
+
+    # Exposure accumulation (heavy — scandal risk after ~3 uses)
+    state.exposure[action.party] = state.exposure.get(action.party, 0.0) + 0.8
     state._last_exposure_turn[action.party] = state.turn
 
 
@@ -736,7 +767,8 @@ def resolve_patronage(action: ActionSpec, state: CampaignState,
     exposure accumulation.
     """
     party_idx = state.party_names.index(action.party)
-    scale = action.params.get("scale", 1.0)
+    tier = int(action.params.get("tier", 0))
+    scale = 1.0 + tier  # tier 0 → 1.0, tier 1 → 2.0, tier 2 → 3.0
     sm = score_multiplier(action.params, "patronage", state, action.party)
 
     effect = ActiveEffect(
@@ -817,13 +849,18 @@ def resolve_opposition_research(action: ActionSpec, state: CampaignState,
         target_lgas=action.target_lgas,
         target_dimensions=None,
         target_party=target_party,
-        magnitude=-0.06 * sm,
+        magnitude=-0.08 * sm,
         effect_key=_effect_key(action.party, "valence", target_party, "oppo", ""),
     )
     state.apply_effect(valence_effect)
 
-    # Raise OPPONENT's awareness (you're introducing voters to their worst positions)
-    state.raise_awareness(target_idx, action.target_lgas, np.float32(0.06 * sm))
+    # Own awareness boost (you're in the news for attacking)
+    party_idx = state.party_names.index(action.party)
+    state.raise_awareness(party_idx, action.target_lgas, np.float32(0.02 * sm))
+
+    # Cohesion cost: going negative is internally controversial
+    old_coh = state.cohesion.get(action.party, 10.0)
+    state.cohesion[action.party] = max(0.0, old_coh - 0.3)
 
 
 def resolve_media(action: ActionSpec, state: CampaignState,
@@ -831,16 +868,38 @@ def resolve_media(action: ActionSpec, state: CampaignState,
     """
     Media Engagement: broad salience shift (volatile magnitude),
     awareness boost scaled by media infrastructure.
+
+    Tone modifies channel distribution:
+      positive  – own valence emphasis, less salience
+      negative  – hurts target opponent valence, more awareness
+      contrast  – amplifies salience shifts, mild opponent effect
     """
     dims, weights = _language_dims(action.language)
     party_idx = state.party_names.index(action.party)
+    tone = action.params.get("tone", "positive")
+    target_party = action.params.get("target_party")
 
-    # GM scoring: media volatility (x1.5 deviation from 5) applied by apply_score_modifiers
-    raw_gm = compute_gm_score(action.params)
+    # GM scoring: media volatility (x2.0 deviation from 5) applied by apply_score_modifiers
+    raw_gm = compute_gm_score(action.params, "media")
     mod_gm = apply_score_modifiers(raw_gm, "media", state, action.party)
     # Media impact: centered on 5, above = positive press, below = negative press
     media_impact = (mod_gm - 5.0) / 5.0  # range ~-0.8 to ~+1.4
-    magnitude = 0.025 * media_impact
+
+    # Tone-dependent channel multipliers
+    if tone == "negative":
+        salience_mult = 0.6
+        own_valence_mult = 0.5
+        awareness_mult = 1.3
+    elif tone == "contrast":
+        salience_mult = 1.4
+        own_valence_mult = 0.75
+        awareness_mult = 1.1
+    else:  # positive (default)
+        salience_mult = 0.8
+        own_valence_mult = 1.25
+        awareness_mult = 1.0
+
+    magnitude = 0.025 * media_impact * salience_mult
 
     # Volatile momentum penalizes media effectiveness
     if state._momentum_history.get(action.party):
@@ -863,8 +922,8 @@ def resolve_media(action: ActionSpec, state: CampaignState,
         )
         state.apply_effect(effect)
 
-    # Valence effect: good press helps, bad press hurts
-    valence_mag = 0.04 * media_impact
+    # Own-party valence: good press helps, bad press hurts
+    valence_mag = 0.04 * media_impact * own_valence_mult
     valence_effect = ActiveEffect(
         source_party=action.party,
         source_action="media",
@@ -878,11 +937,46 @@ def resolve_media(action: ActionSpec, state: CampaignState,
     )
     state.apply_effect(valence_effect)
 
+    # Opponent valence (negative/contrast tones only)
+    if tone == "negative" and target_party and target_party in state.party_names:
+        opp_valence = -0.04 * abs(media_impact)
+        opp_effect = ActiveEffect(
+            source_party=action.party,
+            source_action="media",
+            source_turn=state.turn,
+            channel="valence",
+            target_lgas=None,
+            target_dimensions=None,
+            target_party=target_party,
+            magnitude=opp_valence,
+            effect_key=_effect_key(action.party, "valence", target_party, "media", "neg"),
+        )
+        state.apply_effect(opp_effect)
+    elif tone == "contrast" and target_party and target_party in state.party_names:
+        opp_valence = -0.02 * media_impact
+        opp_effect = ActiveEffect(
+            source_party=action.party,
+            source_action="media",
+            source_turn=state.turn,
+            channel="valence",
+            target_lgas=None,
+            target_dimensions=None,
+            target_party=target_party,
+            magnitude=opp_valence,
+            effect_key=_effect_key(action.party, "valence", target_party, "media", "ctr"),
+        )
+        state.apply_effect(opp_effect)
+
     # Awareness boost (you're in the news — always some visibility)
     mf = _media_factor(lga_data)
-    awareness_base = max(0.01, abs(media_impact) * 0.02 + 0.01)
+    awareness_base = max(0.01, abs(media_impact) * 0.02 + 0.01) * awareness_mult
     awareness_boost = (awareness_base * mf).astype(np.float32)
     state.raise_awareness(party_idx, None, awareness_boost)
+
+    # Successful media blitzes attract scrutiny — exposure from visibility
+    if media_impact > 0.2:
+        state.exposure[action.party] = state.exposure.get(action.party, 0.0) + 0.2
+        state._last_exposure_turn[action.party] = state.turn
 
 
 def resolve_eto_engagement(action: ActionSpec, state: CampaignState,
@@ -905,7 +999,23 @@ def resolve_eto_engagement(action: ActionSpec, state: CampaignState,
     # All ETOs raise awareness in their AZ (institutional presence = visibility)
     if score_change > 0:
         az_mask = (lga_data["Administrative Zone"].values.astype(int) == az)
-        state.raise_awareness(party_idx, az_mask, np.float32(0.03 * score_change * sm))
+        state.raise_awareness(party_idx, az_mask, np.float32(0.04 * score_change * sm))
+
+    # Institutional engagement builds trust — AZ-scoped valence boost
+    if score_change > 0:
+        az_mask_val = (lga_data["Administrative Zone"].values.astype(int) == az)
+        val_effect = ActiveEffect(
+            source_party=action.party,
+            source_action="eto_engagement",
+            source_turn=state.turn,
+            channel="valence",
+            target_lgas=az_mask_val,
+            target_dimensions=None,
+            target_party=action.party,
+            magnitude=0.02 * score_change * sm,
+            effect_key=_effect_key(action.party, "valence", action.party, f"eto_{eto_category}", str(az)),
+        )
+        state.apply_effect(val_effect)
 
     # ETO engagement shifts salience on category-relevant dimensions in the zone
     # This gives immediate return alongside the long-term investment
@@ -918,7 +1028,7 @@ def resolve_eto_engagement(action: ActionSpec, state: CampaignState,
     dims_for_cat = eto_salience_dims.get(eto_category, [])
     if dims_for_cat and score_change > 0:
         az_mask_lgas = (lga_data["Administrative Zone"].values.astype(int) == az)
-        sal_mag = 0.02 * min(score_change, 3.0) / 3.0 * sm  # capped contribution
+        sal_mag = 0.03 * min(score_change, 3.0) / 3.0 * sm  # capped contribution
         for dim in dims_for_cat:
             effect = ActiveEffect(
                 source_party=action.party,
@@ -950,29 +1060,32 @@ def resolve_crisis_response(action: ActionSpec, state: CampaignState,
         target_lgas=action.target_lgas,
         target_dimensions=None,
         target_party=action.party,
-        magnitude=0.05 * sm,
+        magnitude=0.08 * sm,
         effect_key=_effect_key(action.party, "valence", action.party, "crisis", ""),
     )
     state.apply_effect(effect)
 
     # Crisis response is highly visible — strong awareness spike
-    state.raise_awareness(party_idx, action.target_lgas, np.float32(0.03 * sm))
+    state.raise_awareness(party_idx, action.target_lgas, np.float32(0.05 * sm))
 
     # Cohesion boost: rallying around the crisis strengthens party discipline
     old_coh = state.cohesion.get(action.party, 10.0)
-    state.cohesion[action.party] = min(10.0, old_coh + 0.25 * sm)
+    state.cohesion[action.party] = min(10.0, old_coh + 0.50 * sm)
 
 
 def resolve_fundraising(action: ActionSpec, state: CampaignState,
                         lga_data: pd.DataFrame, parties: list) -> None:
     """
-    Fundraising: source-dependent PC generation with side effects.
+    Fundraising: costs 2 PC up front; yield depends on GM score and source.
+
+    Yield = floor(base_yield * sm) where sm is the GM score multiplier.
+    With base cost 2, a poor GM score (sm < 0.5) can result in a net loss.
 
     Sources:
-    - business_elite: High yield (4 PC), +1 exposure (donors expect favors)
-    - diaspora: Medium yield (3 PC), no side effects
-    - grassroots: Low yield (2 PC), small turnout bonus in target region
-    - membership: Yield scales with cohesion (1-3 PC), no side effect
+    - business_elite: High base yield (5 PC), +1 exposure (donors expect favors)
+    - diaspora: Medium base yield (4 PC), no side effects
+    - grassroots: Low base yield (3 PC), small turnout bonus in target region
+    - membership: Yield scales with cohesion (2-4 PC), no side effect
 
     Consecutive fundraising from the same source: -1 PC yield per repeat.
     """
@@ -986,15 +1099,16 @@ def resolve_fundraising(action: ActionSpec, state: CampaignState,
     hist = state._fundraising_history[party]
     consecutive = hist.get(source, 0)
 
-    # Base yields per source
+    # Base yields per source (before GM score scaling)
+    party_idx = state.party_names.index(party)
     if source == "business_elite":
-        base_yield = 4
-        # Side effect: exposure from donor expectations
-        state.exposure[party] = state.exposure.get(party, 0.0) + 1.0
+        base_yield = 5
+        # Side effect: heavy exposure from donor expectations (scandal threshold after 2 uses)
+        state.exposure[party] = state.exposure.get(party, 0.0) + 1.5
         state._last_exposure_turn[party] = state.turn
     elif source == "grassroots":
-        base_yield = 2
-        # Side effect: small turnout boost in target region
+        base_yield = 4
+        # Side effect: turnout boost + awareness in target region
         if action.target_lgas is not None:
             tau_effect = ActiveEffect(
                 source_party=party,
@@ -1004,18 +1118,22 @@ def resolve_fundraising(action: ActionSpec, state: CampaignState,
                 target_lgas=action.target_lgas,
                 target_dimensions=None,
                 target_party=None,
-                magnitude=-0.02,
+                magnitude=-0.03,
                 effect_key=_effect_key(party, "tau", "", "fund_grass", ""),
             )
             state.apply_effect(tau_effect)
+            state.raise_awareness(party_idx, action.target_lgas, np.float32(0.02 * sm))
     elif source == "membership":
-        # Yield scales with cohesion: cohesion 10 = 3 PC, cohesion 5 = 2, cohesion 2 = 1
+        # Yield scales with cohesion: cohesion 10 = 5 PC, cohesion 5 = 3, cohesion 2 = 2
         coh = state.cohesion.get(party, 10.0)
-        base_yield = max(1, min(3, int(coh / 3.5) + 1))
+        base_yield = max(2, min(5, int(coh / 3.5) + 2))
+        # Side effect: membership drives strengthen party discipline
+        old_coh = state.cohesion.get(party, 10.0)
+        state.cohesion[party] = min(10.0, old_coh + 0.10)
     else:  # diaspora or unspecified
-        base_yield = PC_FUNDRAISING_YIELD  # 3 PC
+        base_yield = 4
 
-    # Economic ETO multiplier: score 7+ gives 20% bonus
+    # Economic ETO multiplier: score 7+ gives +1 bonus
     eto_bonus = 0
     for (p, cat, az), score in state.eto_scores.items():
         if p == party and cat == "economic" and score >= 7.0:
@@ -1023,11 +1141,11 @@ def resolve_fundraising(action: ActionSpec, state: CampaignState,
             break
 
     # Consecutive same-source penalty: -1 per repeat
-    penalty = min(consecutive, base_yield - 1)  # don't go below 1
-    final_yield = max(1, int(round((base_yield - penalty + eto_bonus) * sm)))
+    penalty = min(consecutive, base_yield - 1)
+    # GM score scales the yield — poor scores can reduce it below cost
+    final_yield = max(0, int((base_yield - penalty + eto_bonus) * sm))
 
-    # Apply yield — override the flat PC_FUNDRAISING_YIELD in the campaign loop
-    # We store the computed yield so the campaign loop can use it
+    # Apply yield (cost was already deducted by the campaign loop)
     state.political_capital[party] = state.political_capital.get(party, 0.0) + final_yield
 
     # Update consecutive tracking: increment this source, reset others
@@ -1289,48 +1407,6 @@ def resolve_eto_intelligence(action: ActionSpec, state: CampaignState,
     })
 
 
-def resolve_pledge(action: ActionSpec, state: CampaignState,
-                   lga_data: pd.DataFrame, parties: list) -> None:
-    """
-    Legislative Pledge: promises on issue dimensions create a valence boost.
-
-    Params:
-    - pledge: dict with pledge metadata (stored for bookkeeping)
-    - dimensions: list of issue dimension indices the pledge addresses
-    - popularity: 0-1 scale of how popular the pledge is (default 0.5)
-
-    Valence boost = 0.04 * popularity, applied nationally.
-    Duplicate pledges (same party, same dimensions) produce no additional effect.
-    """
-    pledge_data = action.params.get("pledge", {})
-    dimensions = action.params.get("dimensions", [])
-    popularity = action.params.get("popularity", 0.5)
-    sm = score_multiplier(action.params, "pledge", state, action.party)
-
-    if action.party not in state.pledges:
-        state.pledges[action.party] = []
-    state.pledges[action.party].append(pledge_data)
-
-    # Valence boost from promising popular policies — diminishing returns
-    if popularity > 0:
-        dim_key = ",".join(str(d) for d in sorted(dimensions)) if dimensions else "general"
-        # Each additional pledge halves in impact (voters discount serial promises)
-        n_prior = len(state.pledges.get(action.party, [])) - 1  # -1 for the one just appended
-        diminish = 1.0 / (1.0 + 0.5 * max(0, n_prior))
-        effect = ActiveEffect(
-            source_party=action.party,
-            source_action="pledge",
-            source_turn=state.turn,
-            channel="valence",
-            target_lgas=action.target_lgas,
-            target_dimensions=None,
-            target_party=action.party,
-            magnitude=0.04 * popularity * diminish * sm,
-            effect_key=_effect_key(action.party, "valence", action.party, "pledge", dim_key),
-        )
-        state.apply_effect(effect)
-
-
 # ---------------------------------------------------------------------------
 # Helper: safe column extraction
 # ---------------------------------------------------------------------------
@@ -1350,7 +1426,7 @@ ACTION_RESOLUTION_ORDER: dict[str, int] = {
     "manifesto": 0,              # Positions updated first
     "eto_engagement": 1,         # ETO scores updated early
     "endorsement": 2,            # Coalition/endorsement effects
-    "pledge": 2,                 # Pledges alongside endorsements
+
     "rally": 3,                  # Campaign actions resolve simultaneously
     "advertising": 3,
     "media": 3,
@@ -1383,7 +1459,6 @@ _RESOLVERS = {
     "crisis_response": resolve_crisis_response,
     "fundraising": resolve_fundraising,
     "poll": resolve_poll,
-    "pledge": resolve_pledge,
     "eto_intelligence": resolve_eto_intelligence,
 }
 
@@ -1568,7 +1643,7 @@ def apply_synergies(
 # ---------------------------------------------------------------------------
 
 # Actions exempt from fatigue (free actions, info-only)
-_FATIGUE_EXEMPT = {"fundraising", "poll", "pledge", "manifesto"}
+_FATIGUE_EXEMPT = {"fundraising", "poll", "manifesto", "crisis_response"}
 
 # Fatigue multiplier: 1/(1 + 0.2*N) where N = consecutive turns using same action type
 FATIGUE_RATE = 0.20
@@ -1648,3 +1723,62 @@ def withdraw_endorsement(
         del state.effects[k]
         found = True
     return found
+
+
+def check_endorsement_fragility(
+    state: CampaignState,
+    turn_actions: list[ActionSpec],
+    rng: np.random.Generator,
+) -> list[dict]:
+    """
+    Check endorsement withdrawal conditions after a turn.
+
+    Endorsements can be lost when:
+    1. A scandal hits the endorsed party (valence damaged).
+    2. Ethnic mobilization is used in the same region as a
+       religious_leader or traditional_ruler endorsement (30% chance).
+
+    Returns list of withdrawal event dicts for logging.
+    """
+    withdrawals: list[dict] = []
+    keys_to_check = list(state._endorsements.keys())
+
+    # Collect ethnic_mobilization actions by party this turn
+    ethnic_actions: dict[str, list] = {}
+    for a in turn_actions:
+        if a.action_type == "ethnic_mobilization":
+            ethnic_actions.setdefault(a.party, []).append(a)
+
+    for eff_key in keys_to_check:
+        if eff_key not in state._endorsements:
+            continue
+        info = state._endorsements[eff_key]
+        party = info["source_party"]
+        etype = info["endorser_type"]
+
+        # Check: ethnic_mobilization conflicts with traditional/religious endorsements
+        if etype in ("religious_leader", "traditional_ruler"):
+            party_ethnic = ethnic_actions.get(party, [])
+            if party_ethnic and rng.random() < 0.30:
+                withdraw_endorsement(party, etype, state)
+                withdrawals.append({
+                    "party": party,
+                    "endorser_type": etype,
+                    "reason": "ethnic_mobilization_conflict",
+                    "turn": state.turn,
+                })
+                continue
+
+        # Check: scandal this turn → auto-withdraw
+        for scandal in state.scandal_history:
+            if scandal.get("party") == party and scandal.get("turn") == state.turn:
+                withdraw_endorsement(party, etype, state)
+                withdrawals.append({
+                    "party": party,
+                    "endorser_type": etype,
+                    "reason": "scandal",
+                    "turn": state.turn,
+                })
+                break
+
+    return withdrawals

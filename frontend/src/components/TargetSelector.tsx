@@ -44,20 +44,35 @@ export default function TargetSelector({ lgas, districts, selectedLGAs, selected
     });
   }, [states, byState, search]);
 
+  // District scope hooks (must be called unconditionally for React rules of hooks)
+  const byAz = useMemo(() => {
+    if (!districts) return new Map<number, VotingDistrict[]>();
+    const map = new Map<number, VotingDistrict[]>();
+    for (const d of districts) {
+      const list = map.get(d.az) ?? [];
+      list.push(d);
+      map.set(d.az, list);
+    }
+    return map;
+  }, [districts]);
+
+  const filteredDistricts = useMemo(() => {
+    if (!districts) return [];
+    if (!search) return districts;
+    const q = search.toLowerCase();
+    return districts.filter(d =>
+      d.district_id.toLowerCase().includes(q) ||
+      d.az_name.toLowerCase().includes(q) ||
+      d.states.toLowerCase().includes(q) ||
+      d.top_group.toLowerCase().includes(q) ||
+      d.lga_names.some(n => n.toLowerCase().includes(q))
+    );
+  }, [districts, search]);
+
   if (scope === 'none') return null;
 
   // District scope: pick voting districts grouped by AZ
   if (scope === 'district' && districts && onDistrictChange) {
-    const byAz = useMemo(() => {
-      const map = new Map<number, VotingDistrict[]>();
-      for (const d of districts) {
-        const list = map.get(d.az) ?? [];
-        list.push(d);
-        map.set(d.az, list);
-      }
-      return map;
-    }, [districts]);
-
     const toggleDistrict = (id: string) => {
       if (singleDistrict) {
         // Single-select: toggle off if already selected, otherwise replace
@@ -86,18 +101,6 @@ export default function TargetSelector({ lgas, districts, selectedLGAs, selected
       const d = districts.find(d => d.district_id === id);
       return sum + (d?.n_lgas ?? 0);
     }, 0);
-
-    const filteredDistricts = useMemo(() => {
-      if (!search) return districts;
-      const q = search.toLowerCase();
-      return districts.filter(d =>
-        d.district_id.toLowerCase().includes(q) ||
-        d.az_name.toLowerCase().includes(q) ||
-        d.states.toLowerCase().includes(q) ||
-        d.top_group.toLowerCase().includes(q) ||
-        d.lga_names.some(n => n.toLowerCase().includes(q))
-      );
-    }, [districts, search]);
 
     return (
       <div>

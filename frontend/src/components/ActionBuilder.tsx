@@ -18,27 +18,25 @@ interface Props {
 // Categorize actions for grouped display
 const ACTION_CATEGORIES: { label: string; actions: string[] }[] = [
   { label: 'Outreach', actions: ['rally', 'advertising', 'ground_game', 'media'] },
-  { label: 'Political', actions: ['endorsement', 'patronage', 'ethnic_mobilization', 'pledge', 'eto_engagement'] },
-  { label: 'Strategic', actions: ['opposition_research', 'crisis_response', 'coalition_signal', 'manifesto'] },
+  { label: 'Political', actions: ['endorsement', 'patronage', 'ethnic_mobilization', 'eto_engagement'] },
+  { label: 'Strategic', actions: ['opposition_research', 'crisis_response', 'manifesto'] },
   { label: 'Resources', actions: ['fundraising', 'poll', 'eto_intelligence'] },
 ];
 
 // Which effect channels each action primarily affects
 const ACTION_CHANNELS: Record<string, { ch: string; color: string }[]> = {
-  rally:                [{ ch: 'awareness', color: 'bg-blue-400' }, { ch: 'salience', color: 'bg-purple-400' }, { ch: 'tau', color: 'bg-emerald-400' }],
-  advertising:          [{ ch: 'awareness', color: 'bg-blue-400' }, { ch: 'salience', color: 'bg-purple-400' }],
-  ground_game:          [{ ch: 'awareness', color: 'bg-blue-400' }, { ch: 'tau', color: 'bg-emerald-400' }],
-  media:                [{ ch: 'valence', color: 'bg-amber-400' }, { ch: 'salience', color: 'bg-purple-400' }],
-  endorsement:          [{ ch: 'valence', color: 'bg-amber-400' }],
-  patronage:            [{ ch: 'ceiling', color: 'bg-rose-400' }, { ch: 'awareness', color: 'bg-blue-400' }],
-  ethnic_mobilization:  [{ ch: 'ceiling', color: 'bg-rose-400' }],
-  pledge:               [{ ch: 'salience', color: 'bg-purple-400' }],
-  eto_engagement:       [{ ch: 'valence', color: 'bg-amber-400' }],
-  opposition_research:  [{ ch: 'valence', color: 'bg-amber-400' }],
-  crisis_response:      [{ ch: 'valence', color: 'bg-amber-400' }, { ch: 'awareness', color: 'bg-blue-400' }],
+  rally:                [{ ch: 'salience', color: 'bg-purple-400' }, { ch: 'awareness', color: 'bg-blue-400' }, { ch: 'tau', color: 'bg-emerald-400' }, { ch: 'cohesion', color: 'bg-cyan-400' }],
+  advertising:          [{ ch: 'salience', color: 'bg-purple-400' }, { ch: 'awareness', color: 'bg-blue-400' }],
+  ground_game:          [{ ch: 'ceiling', color: 'bg-rose-400' }, { ch: 'tau', color: 'bg-emerald-400' }, { ch: 'valence', color: 'bg-amber-400' }],
+  media:                [{ ch: 'valence', color: 'bg-amber-400' }, { ch: 'salience', color: 'bg-purple-400' }, { ch: 'exposure', color: 'bg-red-400' }],
+  endorsement:          [{ ch: 'valence', color: 'bg-amber-400' }, { ch: 'salience', color: 'bg-purple-400' }],
+  patronage:            [{ ch: 'valence', color: 'bg-amber-400' }, { ch: 'tau', color: 'bg-emerald-400' }, { ch: 'exposure', color: 'bg-red-400' }],
+  ethnic_mobilization:  [{ ch: 'salience', color: 'bg-purple-400' }, { ch: 'tau', color: 'bg-emerald-400' }, { ch: 'exposure', color: 'bg-red-400' }],
+  eto_engagement:       [{ ch: 'valence', color: 'bg-amber-400' }, { ch: 'salience', color: 'bg-purple-400' }, { ch: 'awareness', color: 'bg-blue-400' }],
+  opposition_research:  [{ ch: 'valence', color: 'bg-amber-400' }, { ch: 'salience', color: 'bg-purple-400' }],
+  crisis_response:      [{ ch: 'valence', color: 'bg-amber-400' }, { ch: 'awareness', color: 'bg-blue-400' }, { ch: 'cohesion', color: 'bg-cyan-400' }],
   fundraising:          [],
   poll:                 [],
-  coalition_signal:     [{ ch: 'valence', color: 'bg-amber-400' }],
   manifesto:            [{ ch: 'salience', color: 'bg-purple-400' }, { ch: 'valence', color: 'bg-amber-400' }],
   eto_intelligence:     [],
 };
@@ -58,10 +56,8 @@ function computeActionCost(
 ): number {
   let cost = baseCost;
 
-  // Area-based surcharge (rally is flat cost, no surcharge)
-  if (actionType === 'rally') {
-    // Rally always costs base (2 PC), no area surcharge
-  } else if (scope === 'lga' || scope === 'district') {
+  // Area-based surcharge (district scope has no surcharge — rally, ground_game)
+  if (scope === 'lga') {
     if (nTargetLGAs === 0) {
       cost += 3; // national blanket
     } else if (nTargetLGAs > 10) {
@@ -77,19 +73,16 @@ function computeActionCost(
 
   // Parameter-based surcharges
   if (actionType === 'advertising') {
-    const budget = (params.budget as number) ?? 1.0;
+    const budget = (params.budget as number) ?? 0;
     const medium = (params.medium as string) ?? 'radio';
-    if (budget > 2.0) cost += 2;
-    else if (budget > 1.5) cost += 1;
+    cost += budget;
     if (medium === 'tv') cost += 1;
   } else if (actionType === 'ground_game') {
-    const intensity = (params.intensity as number) ?? 1.0;
-    if (intensity > 1.5) cost += 2;
-    else if (intensity > 1.0) cost += 1;
+    const intensity = (params.intensity as number) ?? 0;
+    cost += intensity;
   } else if (actionType === 'patronage') {
-    const scale = (params.scale as number) ?? 1.0;
-    if (scale > 2.0) cost += 2;
-    else if (scale > 1.5) cost += 1;
+    const tier = (params.tier as number) ?? 0;
+    cost += tier;
   } else if (actionType === 'eto_engagement') {
     const scoreChange = (params.score_change as number) ?? 1.0;
     if (scoreChange > 3.0) cost += 1;
@@ -116,18 +109,26 @@ const MEDIUM_DESCRIPTIONS: Record<string, string> = {
 };
 
 const ENDORSER_TYPES = [
-  { value: 'traditional_ruler', label: 'Traditional Ruler', desc: 'Strong regional influence (+0.12 valence)' },
-  { value: 'religious_leader', label: 'Religious Leader', desc: 'Faith community networks (+0.10 valence)' },
-  { value: 'eto_leader', label: 'ETO Leader', desc: 'Institutional authority (+0.10 valence)' },
-  { value: 'celebrity', label: 'Celebrity', desc: 'Media attention, moderate impact (+0.08 valence)' },
-  { value: 'notable', label: 'Notable Figure', desc: 'General credibility (+0.06 valence)' },
+  { value: 'traditional_ruler', label: 'Traditional Ruler', desc: 'Local chief/emir — LGA scope (+0.12 valence)' },
+  { value: 'religious_leader', label: 'Religious Leader', desc: 'Faith community — regional scope (+0.10 valence)' },
+  { value: 'eto_leader', label: 'ETO Leader', desc: 'Zone authority — regional scope (+0.10 valence)' },
+  { value: 'celebrity', label: 'Celebrity', desc: 'National figure — no targeting (+0.08 valence)' },
+  { value: 'notable', label: 'Notable Figure', desc: 'Local figure — district scope (+0.06 valence)' },
 ];
 
+const ENDORSER_SCOPE: Record<string, string> = {
+  traditional_ruler: 'lga',
+  religious_leader: 'regional',
+  eto_leader: 'regional',
+  celebrity: 'none',
+  notable: 'district',
+};
+
 const FUNDRAISING_SOURCES = [
-  { value: 'diaspora', label: 'Diaspora', desc: '3 PC yield, no side effects' },
-  { value: 'business_elite', label: 'Business Elite', desc: '4 PC yield, +1.0 exposure risk' },
-  { value: 'grassroots', label: 'Grassroots', desc: '2 PC yield, small turnout boost' },
-  { value: 'membership', label: 'Membership', desc: '1-3 PC yield (scales with cohesion)' },
+  { value: 'diaspora', label: 'Diaspora', desc: 'Base yield 4 PC, no side effects' },
+  { value: 'business_elite', label: 'Business Elite', desc: 'Base yield 5 PC, +1.5 exposure risk' },
+  { value: 'grassroots', label: 'Grassroots', desc: 'Base yield 4 PC, turnout + awareness boost' },
+  { value: 'membership', label: 'Membership', desc: 'Base yield 2-5 PC (cohesion), +cohesion recovery' },
 ];
 
 // Actions exempt from GM scoring
@@ -167,7 +168,11 @@ export default function ActionBuilder({ parties, actionTypes, issueNames, lgas, 
   const [params, setParams] = useState<Record<string, unknown>>({});
 
   const selectedAction = actionTypes.find(a => a.name === actionType);
-  const scope = selectedAction?.scope ?? 'none';
+  const baseScope = selectedAction?.scope ?? 'none';
+  // Endorsement scope varies by endorser type
+  const scope = actionType === 'endorsement'
+    ? (ENDORSER_SCOPE[(params.endorser_type as string) ?? 'notable'] ?? 'district')
+    : baseScope;
 
   // For district scope, count total LGAs across selected districts
   const districtLGACount = useMemo(() => {
@@ -202,7 +207,7 @@ export default function ActionBuilder({ parties, actionTypes, issueNames, lgas, 
     if (!party || !actionType) return;
     // Build parameters, including GM scoring fields for scored actions
     const finalParams = { ...params };
-    if (['rally', 'advertising', 'ground_game'].includes(actionType)) {
+    if (['rally', 'advertising', 'ground_game', 'media'].includes(actionType)) {
       finalParams.language = language;
     }
     // Include GM scoring params for all scored actions
@@ -399,7 +404,7 @@ export default function ActionBuilder({ parties, actionTypes, issueNames, lgas, 
       )}
 
       {/* Language selector */}
-      {['rally', 'advertising', 'ground_game'].includes(actionType) && (
+      {['rally', 'advertising', 'ground_game', 'media'].includes(actionType) && (
         <div>
           <label className="text-xs text-text-secondary block mb-1">Language</label>
           <select value={language} onChange={e => setLanguage(e.target.value)}
@@ -423,42 +428,120 @@ export default function ActionBuilder({ parties, actionTypes, issueNames, lgas, 
             ))}
           </select>
           <p className="text-[10px] text-text-secondary mt-0.5">{MEDIUM_DESCRIPTIONS[(params.medium as string) ?? 'radio']}</p>
-          <label className="text-xs text-text-secondary block mb-1 mt-2">Budget ({((params.budget as number) ?? 1.0).toFixed(1)}) {((params.budget as number) ?? 1.0) > 1.5 ? '— +1 PC' : ''}{((params.budget as number) ?? 1.0) > 2.0 ? ' (+2 total)' : ''}</label>
-          <input type="range" min={0.5} max={3} step={0.1} value={(params.budget as number) ?? 1.0}
-            onChange={e => setParams({ ...params, budget: parseFloat(e.target.value) })}
-            className="w-full accent-accent" />
+          <label className="text-xs text-text-secondary block mb-1 mt-2">Ad Spend</label>
+          <div className="flex gap-1.5">
+            {([
+              { value: 0, label: 'Standard', desc: '+0 PC' },
+              { value: 1, label: 'Heavy', desc: '+1 PC' },
+              { value: 2, label: 'Blitz', desc: '+2 PC' },
+            ] as const).map(opt => (
+              <button key={opt.value} type="button"
+                className={`flex-1 px-2 py-1 rounded text-xs border transition-colors ${
+                  ((params.budget as number) ?? 0) === opt.value
+                    ? 'bg-accent/20 border-accent text-accent'
+                    : 'border-bg-tertiary text-text-secondary hover:border-text-secondary'
+                }`}
+                onClick={() => setParams({ ...params, budget: opt.value })}
+              >
+                <div className="font-medium">{opt.label}</div>
+                <div className="text-[10px] opacity-60">{opt.desc}</div>
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
       {actionType === 'ground_game' && (
         <div>
-          <label className="text-xs text-text-secondary block mb-1">Intensity ({((params.intensity as number) ?? 1.0).toFixed(1)}) {((params.intensity as number) ?? 1.0) > 1.0 ? '— stronger GOTV + awareness' : ''}</label>
-          <input type="range" min={0.5} max={2} step={0.1} value={(params.intensity as number) ?? 1.0}
-            onChange={e => setParams({ ...params, intensity: parseFloat(e.target.value) })}
-            className="w-full accent-accent" />
+          <label className="text-xs text-text-secondary block mb-1">Intensity</label>
+          <div className="flex gap-1.5">
+            {([
+              { value: 0, label: 'Standard', desc: '+0 PC' },
+              { value: 1, label: 'Reinforced', desc: '+1 PC' },
+              { value: 2, label: 'Surge', desc: '+2 PC' },
+            ] as const).map(opt => (
+              <button key={opt.value} type="button"
+                className={`flex-1 px-2 py-1 rounded text-xs border transition-colors ${
+                  ((params.intensity as number) ?? 0) === opt.value
+                    ? 'bg-accent/20 border-accent text-accent'
+                    : 'border-bg-tertiary text-text-secondary hover:border-text-secondary'
+                }`}
+                onClick={() => setParams({ ...params, intensity: opt.value })}
+              >
+                <div className="font-medium">{opt.label}</div>
+                <div className="text-[10px] opacity-60">{opt.desc}</div>
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
       {actionType === 'patronage' && (
         <div>
-          <label className="text-xs text-text-secondary block mb-1">Scale ({((params.scale as number) ?? 1.0).toFixed(1)})</label>
-          <input type="range" min={0.5} max={3} step={0.1} value={(params.scale as number) ?? 1.0}
-            onChange={e => setParams({ ...params, scale: parseFloat(e.target.value) })}
-            className="w-full accent-accent" />
-          <p className="text-xs text-danger mt-1">+{(0.3 * ((params.scale as number) ?? 1.0)).toFixed(1)} exposure risk</p>
+          <label className="text-xs text-text-secondary block mb-1">Scale</label>
+          <div className="flex gap-1">
+            {[
+              { value: 0, label: 'Standard', desc: '+0.3 exposure' },
+              { value: 1, label: 'Heavy', desc: '+0.6 exposure' },
+              { value: 2, label: 'Massive', desc: '+0.9 exposure' },
+            ].map(opt => (
+              <button key={opt.value} type="button"
+                onClick={() => setParams({ ...params, tier: opt.value })}
+                className={`flex-1 px-2 py-1.5 rounded text-xs border transition-colors ${
+                  (params.tier ?? 0) === opt.value
+                    ? 'bg-accent text-white border-accent'
+                    : 'bg-surface border-border hover:border-accent'
+                }`}>
+                <div className="font-medium">{opt.label}</div>
+                <div className="text-[10px] opacity-60">{opt.desc}</div>
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-danger mt-1">+{(0.3 * (1 + ((params.tier as number) ?? 0))).toFixed(1)} exposure risk</p>
         </div>
       )}
 
       {actionType === 'opposition_research' && (
-        <div>
-          <label className="text-xs text-text-secondary block mb-1">Target Party</label>
-          <select value={targetParty} onChange={e => setTargetParty(e.target.value)}
-            className={selectClass}>
-            <option value="">-- Select --</option>
-            {parties.filter(p => p.name !== party).map(p => (
-              <option key={p.name} value={p.name}>{p.name}</option>
-            ))}
-          </select>
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs text-text-secondary block mb-1">Target Party</label>
+            <select value={targetParty} onChange={e => setTargetParty(e.target.value)}
+              className={selectClass}>
+              <option value="">-- Select --</option>
+              {parties.filter(p => p.name !== party).map(p => (
+                <option key={p.name} value={p.name}>{p.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs text-text-secondary block mb-1">
+              Target Dimensions <span className="opacity-50">(max 4; empty = auto-detect weakest)</span>
+            </label>
+            <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto">
+              {issueNames.map((name, i) => {
+                const current = (params.target_dimensions as number[]) ?? [];
+                const selected = current.includes(i);
+                const atLimit = current.length >= 4 && !selected;
+                return (
+                  <button key={i} type="button"
+                    disabled={atLimit}
+                    onClick={() => {
+                      const next = selected ? current.filter(d => d !== i) : [...current, i];
+                      setParams({ ...params, target_dimensions: next.length ? next : undefined });
+                    }}
+                    className={`px-2 py-0.5 rounded text-[10px] border transition-colors ${
+                      selected
+                        ? 'bg-accent text-white border-accent'
+                        : atLimit
+                          ? 'bg-surface border-border opacity-30 cursor-not-allowed'
+                          : 'bg-surface border-border hover:border-accent'
+                    }`}>
+                    {name}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
       )}
 
@@ -504,26 +587,6 @@ export default function ActionBuilder({ parties, actionTypes, issueNames, lgas, 
         </div>
       )}
 
-      {actionType === 'pledge' && (
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="text-xs text-text-secondary block mb-1">Issue Dimension</label>
-            <select value={(params.dimension as number) ?? 0}
-              onChange={e => setParams({ ...params, dimension: parseInt(e.target.value) })}
-              className={selectClass}>
-              {issueNames.map((name, i) => <option key={i} value={i}>{name}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="text-xs text-text-secondary block mb-1">Description</label>
-            <input type="text" value={(params.description as string) ?? ''}
-              onChange={e => setParams({ ...params, description: e.target.value })}
-              className={inputClass}
-              placeholder="Pledge description" />
-          </div>
-        </div>
-      )}
-
       {actionType === 'media' && (
         <div className="grid grid-cols-2 gap-3">
           <div>
@@ -536,13 +599,26 @@ export default function ActionBuilder({ parties, actionTypes, issueNames, lgas, 
               <option value="contrast">Contrast (compare positions)</option>
             </select>
           </div>
-          <div>
-            <label className="text-xs text-text-secondary block mb-1">Narrative</label>
-            <input type="text" value={(params.narrative as string) ?? ''}
-              onChange={e => setParams({ ...params, narrative: e.target.value })}
-              className={inputClass}
-              placeholder="Media narrative" />
-          </div>
+          {((params.tone as string) === 'negative' || (params.tone as string) === 'contrast') ? (
+            <div>
+              <label className="text-xs text-text-secondary block mb-1">Target Party</label>
+              <select value={targetParty} onChange={e => setTargetParty(e.target.value)}
+                className={selectClass}>
+                <option value="">-- Select --</option>
+                {parties.filter(p => p.name !== party).map(p => (
+                  <option key={p.name} value={p.name}>{p.name}</option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <div>
+              <label className="text-xs text-text-secondary block mb-1">Narrative</label>
+              <input type="text" value={(params.narrative as string) ?? ''}
+                onChange={e => setParams({ ...params, narrative: e.target.value })}
+                className={inputClass}
+                placeholder="Media narrative" />
+            </div>
+          )}
         </div>
       )}
 
@@ -551,7 +627,7 @@ export default function ActionBuilder({ parties, actionTypes, issueNames, lgas, 
           <div>
             <label className="text-xs text-text-secondary block mb-1">Endorser Type</label>
             <select value={(params.endorser_type as string) ?? 'notable'}
-              onChange={e => setParams({ ...params, endorser_type: e.target.value })}
+              onChange={e => { setParams({ ...params, endorser_type: e.target.value }); setTargetLGAs([]); setTargetAzs([]); setTargetDistricts([]); }}
               className={selectClass}>
               {ENDORSER_TYPES.map(et => (
                 <option key={et.value} value={et.value}>{et.label}</option>
@@ -571,21 +647,42 @@ export default function ActionBuilder({ parties, actionTypes, issueNames, lgas, 
         </div>
       )}
 
-      {actionType === 'fundraising' && (
-        <div>
-          <label className="text-xs text-text-secondary block mb-1">Source</label>
-          <select value={(params.source as string) ?? 'diaspora'}
-            onChange={e => setParams({ ...params, source: e.target.value })}
-            className={selectClass}>
-            {FUNDRAISING_SOURCES.map(s => (
-              <option key={s.value} value={s.value}>{s.label}</option>
-            ))}
-          </select>
-          <p className="text-[10px] text-text-secondary mt-0.5">
-            {FUNDRAISING_SOURCES.find(s => s.value === ((params.source as string) ?? 'diaspora'))?.desc}
-          </p>
-        </div>
-      )}
+      {actionType === 'fundraising' && (() => {
+        const source = (params.source as string) ?? 'diaspora';
+        const baseYield = source === 'business_elite' ? 5 : source === 'grassroots' ? 4 : source === 'membership' ? 3 : 4;
+        const gmScore = computeGMScore(params);
+        const sm = gmScore / 6.0;
+        const yieldPC = Math.max(0, Math.floor(baseYield * sm));
+        const net = yieldPC - 2;
+        const netColor = net > 0 ? 'text-emerald-400' : net === 0 ? 'text-amber-400' : 'text-red-400';
+        return (
+          <div className="space-y-2">
+            <div>
+              <label className="text-xs text-text-secondary block mb-1">Source</label>
+              <select value={source}
+                onChange={e => setParams({ ...params, source: e.target.value })}
+                className={selectClass}>
+                {FUNDRAISING_SOURCES.map(s => (
+                  <option key={s.value} value={s.value}>{s.label}</option>
+                ))}
+              </select>
+              <p className="text-[10px] text-text-secondary mt-0.5">
+                {FUNDRAISING_SOURCES.find(s => s.value === source)?.desc}
+              </p>
+            </div>
+            <div className="bg-bg-tertiary rounded-md px-3 py-2 border border-bg-quaternary/30">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-text-secondary">Yield Preview</span>
+                <span className="text-text-secondary">base {baseYield} × {sm.toFixed(2)} = <span className="text-text-primary font-medium">{yieldPC} PC</span></span>
+              </div>
+              <div className="flex items-center justify-between text-xs mt-1">
+                <span className="text-text-secondary">Net (yield − 2 cost)</span>
+                <span className={`font-bold ${netColor}`}>{net > 0 ? '+' : ''}{net} PC</span>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {actionType === 'crisis_response' && (
         <p className="text-[10px] text-text-secondary">Responds to active crises. Boosts valence and cohesion in affected areas.</p>

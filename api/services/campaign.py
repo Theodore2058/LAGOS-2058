@@ -245,11 +245,14 @@ class CampaignSession:
             if ai.target_azs:
                 params["_n_target_azs"] = len(ai.target_azs)
 
+            # Language may arrive in parameters (frontend) or top-level (API schema)
+            lang = params.pop("language", None) or ai.language
+
             spec = ActionSpec(
                 party=ai.party,
                 action_type=ai.action_type,
                 target_lgas=target,
-                language=ai.language,
+                language=lang,
                 params=params,
             )
             turn_actions.append(spec)

@@ -21,6 +21,7 @@ from .campaign_actions import (
     PC_ETO_DIVIDEND_THRESHOLD, PC_ETO_DIVIDEND_AMOUNT, PC_ETO_DIVIDEND_CAP,
     ACTION_RESOLUTION_ORDER,
     apply_synergies, update_action_fatigue, get_fatigue_multiplier,
+    check_endorsement_fragility,
 )
 from .campaign_modifiers import compile_modifiers, roll_scandals, apply_exposure_decay
 from .campaign_state import CampaignState, CampaignModifiers, CrisisEvent, ActiveEffect
@@ -298,6 +299,12 @@ def update_post_turn(
     if rng is not None:
         scandals = roll_scandals(state, rng)
         post_turn_log["scandals"] = scandals
+
+    # --- Endorsement fragility (withdrawals from scandals or ethnic tension) ---
+    if rng is not None:
+        endorsement_withdrawals = check_endorsement_fragility(state, turn_actions, rng)
+        if endorsement_withdrawals:
+            post_turn_log["endorsement_withdrawals"] = endorsement_withdrawals
 
     # --- Exposure decay (3 clean turns → -1/turn) ---
     apply_exposure_decay(state)

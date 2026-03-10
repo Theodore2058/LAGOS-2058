@@ -188,15 +188,16 @@ def _apply_exposure_penalty(
     """
     Apply valence penalty for accumulated exposure from risky actions.
 
-    Exposure accumulates from ethnic_mobilization (+0.5) and patronage (+0.3).
-    Above threshold 1.5, parties suffer a national valence penalty proportional
-    to excess exposure: -0.03 per point above threshold, capped at -0.15.
+    Exposure accumulates from ethnic_mobilization (+0.8), patronage (+0.3*scale),
+    business_elite fundraising (+1.5), and successful media (+0.2).
+    Above threshold 1.0, parties suffer a national valence penalty proportional
+    to excess exposure: -0.04 per point above threshold, capped at -0.20.
     """
     if modifiers.valence is None:
         return
-    EXPOSURE_THRESHOLD = 1.5
-    PENALTY_PER_POINT = 0.03
-    MAX_PENALTY = 0.15
+    EXPOSURE_THRESHOLD = 1.0
+    PENALTY_PER_POINT = 0.04
+    MAX_PENALTY = 0.20
     for party_name in state.party_names:
         exp = state.exposure.get(party_name, 0.0)
         if exp > EXPOSURE_THRESHOLD:
@@ -212,11 +213,12 @@ def _apply_exposure_penalty(
 
 # Probability of scandal triggering at each exposure tier, per turn
 SCANDAL_PROBABILITY_TABLE: dict[tuple[float, float], float] = {
-    (0.0, 3.0): 0.0,
-    (3.0, 4.0): 0.10,
-    (4.0, 6.0): 0.25,
-    (6.0, 9.0): 0.45,
-    (9.0, float("inf")): 0.70,
+    (0.0, 2.0): 0.0,
+    (2.0, 3.0): 0.05,
+    (3.0, 4.0): 0.15,
+    (4.0, 6.0): 0.30,
+    (6.0, 9.0): 0.50,
+    (9.0, float("inf")): 0.75,
 }
 
 SCANDAL_VALENCE_PENALTY = 0.12       # National valence hit

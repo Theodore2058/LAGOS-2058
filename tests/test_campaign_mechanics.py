@@ -369,17 +369,17 @@ def test_pc_costs_defined_for_all_actions():
 
 
 def test_pc_cost_advertising_surcharge():
-    """Advertising cost scales with budget parameter and area targeting."""
-    # Single AZ targeting (base cost, no area surcharge)
-    assert compute_action_cost("advertising", {"budget": 1.0}, n_target_azs=1) == 2
-    assert compute_action_cost("advertising", {"budget": 1.6}, n_target_azs=1) == 3
-    assert compute_action_cost("advertising", {"budget": 2.5}, n_target_azs=1) == 4
+    """Advertising cost scales with budget tier and area targeting."""
+    # Single AZ targeting (base cost + budget tier, no area surcharge)
+    assert compute_action_cost("advertising", {"budget": 0}, n_target_azs=1) == 2   # standard
+    assert compute_action_cost("advertising", {"budget": 1}, n_target_azs=1) == 3   # heavy
+    assert compute_action_cost("advertising", {"budget": 2}, n_target_azs=1) == 4   # blitz
     # TV medium adds +1 PC
-    assert compute_action_cost("advertising", {"budget": 1.0, "medium": "tv"}, n_target_azs=1) == 3
+    assert compute_action_cost("advertising", {"budget": 1, "medium": "tv"}, n_target_azs=1) == 4
     # Multi-AZ adds surcharge
-    assert compute_action_cost("advertising", {"budget": 1.0}, n_target_azs=3) == 4  # base 2 + 2 AZs extra
-    # National (0 AZs) = base + 3
-    assert compute_action_cost("advertising", {"budget": 1.0}, n_target_azs=0) == 5  # base 2 + 3 national
+    assert compute_action_cost("advertising", {"budget": 1}, n_target_azs=3) == 5  # base 2 + 1 budget + 2 AZs extra
+    # National (0 AZs) = base + budget + 3
+    assert compute_action_cost("advertising", {"budget": 1}, n_target_azs=0) == 6  # base 2 + 1 budget + 3 national
 
 
 def test_pc_hoarding_cap():
@@ -428,8 +428,8 @@ def test_pc_fundraising_generates_pc():
         DATA_PATH, config, turns=turns, seed=42, verbose=False,
         enforce_pc=True, initial_pc={"P0": 0.0, "P1": 0.0},
     )
-    # P0: 0 + 7 income + 3 fundraising yield = 10
-    assert results[0]["pc_state"]["P0"] == 7.0 + PC_FUNDRAISING_YIELD
+    # P0: 0 + 7 income - 2 cost + 4 yield (diaspora, default GM score 6) = 9
+    assert results[0]["pc_state"]["P0"] == 9.0
 
 
 @pytest.mark.slow
@@ -451,33 +451,30 @@ def test_pc_variable_costs():
     """Variable PC costs scale with action parameters (single-target, no area surcharge)."""
     from election_engine.campaign_actions import compute_action_cost
 
-    # Advertising surcharges (1 AZ = no area surcharge)
-    assert compute_action_cost("advertising", {"budget": 1.0}, n_target_azs=1) == 2
-    assert compute_action_cost("advertising", {"budget": 1.6}, n_target_azs=1) == 3
-    assert compute_action_cost("advertising", {"budget": 2.5}, n_target_azs=1) == 4
+    # Advertising: discrete tiers 0/1/2 (1 AZ = no area surcharge)
+    assert compute_action_cost("advertising", {"budget": 0}, n_target_azs=1) == 2  # standard
+    assert compute_action_cost("advertising", {"budget": 1}, n_target_azs=1) == 3  # heavy
+    assert compute_action_cost("advertising", {"budget": 2}, n_target_azs=1) == 4  # blitz
 
-    # Ground game surcharges (1 LGA = no area surcharge)
-    assert compute_action_cost("ground_game", {"intensity": 1.0}, n_target_lgas=1) == 3
-    assert compute_action_cost("ground_game", {"intensity": 1.2}, n_target_lgas=1) == 4
-    assert compute_action_cost("ground_game", {"intensity": 2.0}, n_target_lgas=1) == 5
+    # Ground game: discrete tiers 0/1/2
+    assert compute_action_cost("ground_game", {"intensity": 0}, n_target_lgas=1) == 3
+    assert compute_action_cost("ground_game", {"intensity": 1}, n_target_lgas=1) == 4
+    assert compute_action_cost("ground_game", {"intensity": 2}, n_target_lgas=1) == 5
 
-    # Rally surcharge for high gm_score (1 LGA)
-    assert compute_action_cost("rally", {"gm_score": 7.0}, n_target_lgas=1) == 2
-    assert compute_action_cost("rally", {"gm_score": 9.0}, n_target_lgas=1) == 3
+    # Rally has no parameter surcharge — always flat 2 (district scope, no area surcharge)
+    assert compute_action_cost("rally", {}, n_target_lgas=1) == 2
 
-    # Patronage surcharge (base 3, +1 at scale>1.5, +2 at scale>2.0) (1 LGA)
-    assert compute_action_cost("patronage", {"scale": 1.0}, n_target_lgas=1) == 3
-    assert compute_action_cost("patronage", {"scale": 1.6}, n_target_lgas=1) == 4
-    assert compute_action_cost("patronage", {"scale": 2.5}, n_target_lgas=1) == 5
+    # Patronage: discrete tiers 0/1/2 (1 LGA = no area surcharge)
+    assert compute_action_cost("patronage", {"tier": 0}, n_target_lgas=1) == 3
+    assert compute_action_cost("patronage", {"tier": 1}, n_target_lgas=1) == 4
+    assert compute_action_cost("patronage", {"tier": 2}, n_target_lgas=1) == 5
 
     # ETO engagement surcharge (1 LGA)
     assert compute_action_cost("eto_engagement", {"score_change": 3.0}, n_target_lgas=1) == 3
     assert compute_action_cost("eto_engagement", {"score_change": 4.0}, n_target_lgas=1) == 4
 
-    # Area surcharge: LGA-scope national = base + 3
-    assert compute_action_cost("rally", {"gm_score": 5.0}, n_target_lgas=0) == 5  # 2 + 3
-    # Area surcharge: LGA-scope 30 LGAs = base + 1
-    assert compute_action_cost("rally", {"gm_score": 5.0}, n_target_lgas=30) == 3  # 2 + 1
+    # Fundraising always costs 2 (no area surcharge, scope=none)
+    assert compute_action_cost("fundraising", {}) == 2
 
 
 @pytest.mark.slow
@@ -553,18 +550,18 @@ def test_exposure_penalty():
     _apply_exposure_penalty(modifiers, state)
     assert np.all(modifiers.valence == 0)
 
-    # Exposure below threshold — no penalty
+    # Exposure at threshold — no penalty
     state.exposure["A"] = 1.0
     modifiers = CampaignModifiers.zeros(5, 2)
     _apply_exposure_penalty(modifiers, state)
     assert np.all(modifiers.valence[:, 0] == 0)
 
     # Exposure above threshold — penalty
-    state.exposure["A"] = 3.0  # 1.5 above threshold
+    state.exposure["A"] = 3.0  # 2.0 above threshold (1.0)
     modifiers = CampaignModifiers.zeros(5, 2)
     _apply_exposure_penalty(modifiers, state)
-    # penalty = min(1.5 * 0.03, 0.15) = 0.045
-    assert modifiers.valence[0, 0] == pytest.approx(-0.045, abs=0.001)
+    # penalty = min(2.0 * 0.04, 0.20) = 0.08
+    assert modifiers.valence[0, 0] == pytest.approx(-0.08, abs=0.001)
     # Party B unaffected
     assert np.all(modifiers.valence[:, 1] == 0)
 
@@ -649,11 +646,12 @@ def test_scandal_probability_table():
     """Scandal probability increases with exposure."""
     from election_engine.campaign_modifiers import get_scandal_probability
     assert get_scandal_probability(0.0) == 0.0
-    assert get_scandal_probability(2.0) == 0.0
-    assert get_scandal_probability(3.0) == 0.10
-    assert get_scandal_probability(5.0) == 0.25
-    assert get_scandal_probability(7.0) == 0.45
-    assert get_scandal_probability(10.0) == 0.70
+    assert get_scandal_probability(1.5) == 0.0
+    assert get_scandal_probability(2.0) == 0.05
+    assert get_scandal_probability(3.0) == 0.15
+    assert get_scandal_probability(5.0) == 0.30
+    assert get_scandal_probability(7.0) == 0.50
+    assert get_scandal_probability(10.0) == 0.75
 
 
 def test_scandal_roll_no_exposure():
@@ -666,7 +664,7 @@ def test_scandal_roll_no_exposure():
 
     rng = np.random.default_rng(42)
     scandals = roll_scandals(state, rng)
-    assert len(scandals) == 0  # exposure < 3 → probability = 0
+    assert len(scandals) == 0  # exposure < 2 → probability = 0
 
 
 def test_scandal_roll_high_exposure():
@@ -778,12 +776,12 @@ def test_fundraising_default_source():
     from election_engine.campaign_actions import resolve_fundraising
     resolve_fundraising(action, state, lga_data, [])
 
-    # Diaspora yields 3 PC (same as old flat rate)
-    assert state.political_capital["A"] == pytest.approx(3.0)
+    # Diaspora yields 4 PC
+    assert state.political_capital["A"] == pytest.approx(4.0)
 
 
 def test_fundraising_business_elite_high_yield_plus_exposure():
-    """Business elite fundraising: 4 PC yield + 1 exposure."""
+    """Business elite fundraising: 5 PC yield + 1.5 exposure."""
     state = CampaignState(turn=1, n_lga=5, n_parties=1, party_names=["A"])
     state.awareness = np.full((5, 1), 0.70, dtype=np.float32)
     state.cohesion = {"A": 10.0}
@@ -797,8 +795,8 @@ def test_fundraising_business_elite_high_yield_plus_exposure():
     from election_engine.campaign_actions import resolve_fundraising
     resolve_fundraising(action, state, lga_data, [])
 
-    assert state.political_capital["A"] == pytest.approx(4.0)
-    assert state.exposure["A"] == pytest.approx(1.0)
+    assert state.political_capital["A"] == pytest.approx(5.0)
+    assert state.exposure["A"] == pytest.approx(1.5)
 
 
 def test_fundraising_membership_scales_with_cohesion():
@@ -1144,53 +1142,6 @@ def test_poll_national_tier1():
 # 3. Pledge valence boost
 # ---------------------------------------------------------------------------
 
-def test_pledge_valence_boost():
-    """Pledge with high popularity creates positive valence effect."""
-    import pandas as pd
-    from election_engine.campaign_actions import resolve_pledge
-
-    state = CampaignState(turn=1, n_lga=5, n_parties=2, party_names=["A", "B"])
-    state.awareness = np.full((5, 2), 0.70, dtype=np.float32)
-    state.cohesion = {"A": 10.0, "B": 10.0}
-
-    lga_data = pd.DataFrame({"Administrative Zone": [1, 1, 2, 2, 3]})
-
-    action = ActionSpec(
-        party="A", action_type="pledge",
-        params={"pledge": {"topic": "infrastructure"}, "dimensions": [16], "popularity": 0.8},
-    )
-    resolve_pledge(action, state, lga_data, [])
-
-    # Should have a valence effect for A
-    valence_effects = [e for e in state.effects.values()
-                       if e.channel == "valence" and e.target_party == "A"]
-    assert len(valence_effects) == 1
-    assert valence_effects[0].magnitude == pytest.approx(0.04 * 0.8, abs=0.001)
-    # Pledge stored
-    assert len(state.pledges.get("A", [])) == 1
-
-
-def test_pledge_zero_popularity_no_effect():
-    """Pledge with zero popularity produces no valence effect."""
-    import pandas as pd
-    from election_engine.campaign_actions import resolve_pledge
-
-    state = CampaignState(turn=1, n_lga=5, n_parties=1, party_names=["A"])
-    state.awareness = np.full((5, 1), 0.70, dtype=np.float32)
-    state.cohesion = {"A": 10.0}
-
-    lga_data = pd.DataFrame({"Administrative Zone": [1, 1, 2, 2, 3]})
-
-    action = ActionSpec(
-        party="A", action_type="pledge",
-        params={"pledge": {}, "dimensions": [], "popularity": 0.0},
-    )
-    resolve_pledge(action, state, lga_data, [])
-
-    assert len(state.effects) == 0
-    assert len(state.pledges.get("A", [])) == 1  # still recorded
-
-
 # ---------------------------------------------------------------------------
 # 4. Media valence effect
 # ---------------------------------------------------------------------------
@@ -1240,8 +1191,10 @@ def test_media_negative_valence():
         "Adult Literacy Rate Pct": [50, 50, 50, 50, 50],
     })
 
+    # Low GM score: strategic_fit=1 + quality=1 = raw 2, media volatility → 5+(2-5)*2 = -1 → clamped 1
+    # media_impact = (1 - 5) / 5 = -0.8 → negative valence
     action = ActionSpec(party="A", action_type="media",
-                        language="english", params={"success": 0.1})
+                        language="english", params={"strategic_fit": 1, "quality": 1})
     resolve_media(action, state, lga_data, [])
 
     # Should have negative valence for A
@@ -1378,15 +1331,14 @@ def test_action_fatigue_tracking():
 
 
 def test_fatigue_exempt_actions():
-    """Fundraising, poll, pledge, manifesto are exempt from fatigue."""
+    """Fundraising, poll, manifesto are exempt from fatigue."""
     from election_engine.campaign_actions import get_fatigue_multiplier
 
     state = CampaignState(turn=1, n_lga=5, n_parties=1, party_names=["A"])
-    state._action_fatigue = {"A": {"fundraising": 5, "poll": 3, "pledge": 2, "manifesto": 4}}
+    state._action_fatigue = {"A": {"fundraising": 5, "poll": 3, "manifesto": 4}}
 
     assert get_fatigue_multiplier(state, "A", "fundraising") == 1.0
     assert get_fatigue_multiplier(state, "A", "poll") == 1.0
-    assert get_fatigue_multiplier(state, "A", "pledge") == 1.0
     assert get_fatigue_multiplier(state, "A", "manifesto") == 1.0
 
 

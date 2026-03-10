@@ -31,10 +31,10 @@ def new_campaign(req: NewCampaignRequest):
         raise HTTPException(500, f"Failed to initialize campaign: {e}")
 
 
-@router.get("/state", response_model=CampaignStateResponse)
+@router.get("/state", response_model=CampaignStateResponse | None)
 def get_state():
     if campaign_mod.active_campaign is None:
-        raise HTTPException(404, "No active campaign")
+        return None
     return campaign_mod.active_campaign.get_state_response()
 
 

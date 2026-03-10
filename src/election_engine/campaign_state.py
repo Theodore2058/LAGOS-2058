@@ -96,8 +96,6 @@ class CampaignState:
     # ETO engagement scores: (party, eto_category, az) -> score 0-10
     eto_scores: dict[tuple[str, str, int], float] = field(default_factory=dict)
 
-    # Legislative pledges: party -> list of pledge dicts
-    pledges: dict[str, list] = field(default_factory=dict)
 
     # Geographic concentration: party -> consecutive turns targeting same region
     concentration: dict[str, int] = field(default_factory=dict)

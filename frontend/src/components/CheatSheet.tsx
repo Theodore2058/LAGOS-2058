@@ -115,20 +115,19 @@ function CostsTab() {
           </thead>
           <tbody>
             {[
-              ['rally', '2', ''],
-              ['advertising', '2', '+1 if budget>1.5, +2 if >2.0'],
-              ['manifesto', '3', ''],
-              ['ground_game', '3', '+1 if intensity>1.0, +2 if >1.5'],
-              ['endorsement', '2', ''],
-              ['ethnic_mobilization', '2', ''],
-              ['patronage', '3', '+1 if scale>1.5, +2 if >2.0'],
-              ['opposition_research', '2', ''],
-              ['media', '1', ''],
-              ['eto_engagement', '3', '+1 if score>3.0'],
-              ['crisis_response', '2', ''],
-              ['fundraising', '0', 'yields +3 PC'],
+              ['rally', '2', '+cohesion recovery'],
+              ['advertising', '2', '+1 (Heavy), +2 (Blitz), +1 TV'],
+              ['manifesto', '3', 'credibility risk if shift > 3'],
+              ['ground_game', '3', '+1 (Reinforced), +2 (Surge)'],
+              ['endorsement', '2', 'fragile: scandal/ethnic conflict'],
+              ['ethnic_mobilization', '2', '+0.8 exposure/use'],
+              ['patronage', '3', '+tier cost, +exposure'],
+              ['opposition_research', '2', '-0.3 cohesion cost'],
+              ['media', '1', 'volatile; +0.2 exposure if good'],
+              ['eto_engagement', '3', '+1 if score>3.0; dividends at 7+'],
+              ['crisis_response', '2', 'fatigue exempt; +cohesion'],
+              ['fundraising', '2', 'yield = base × GM score'],
               ['poll', '1-5', '= poll tier'],
-              ['pledge', '1', ''],
               ['eto_intelligence', '0', 'needs ETO >= 5.0'],
             ].map(([name, cost, note], i) => (
               <tr key={name} className={`border-b border-bg-tertiary/30 ${i % 2 === 1 ? 'bg-bg-tertiary/10' : ''}`}>

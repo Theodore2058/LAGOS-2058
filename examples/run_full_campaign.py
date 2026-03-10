@@ -17,7 +17,7 @@ Action costs:
   rally=2 (+1 if gm>=9), advertising=2 (+1 if budget>1.5, +2 if >2.0),
   manifesto=3, ground_game=3 (+1 if intensity>1.0), endorsement=2,
   ethnic_mob=2, patronage=3 (+1 if scale>1.5), oppo_research=2,
-  media=1, eto=3, crisis_response=2, fundraising=0, poll=1-5 (by tier), pledge=1
+  media=1, eto=3, crisis_response=2, fundraising=0, poll=1-5 (by tier)
 
 Iteration 2 lessons applied:
 - Media is the most cost-effective action (1 PC, huge returns) -- use liberally
@@ -99,125 +99,83 @@ party_names = [p.name for p in PARTIES]
 #   5=Eastern(Igbo/Benue)  6=Central(Kano/FCT)  7=Chad(Borno/Yobe)  8=Savanna(Sokoto/Kaduna)
 
 # ===== TURN 1: Opening Salvo =====
-# With no action cap, parties can do manifesto + fundraising + media + pledge = 4-5 PC.
+# With no action cap, parties can do manifesto + fundraising + media = 4-5 PC.
 # Key: every party starts media early (1 PC, best ROI from v1 analysis).
 turn1 = [
-    # --- NRP: Manifesto + media + pledge (3+1+0=4 PC, 3 left) ---
+    # --- NRP: Manifesto + media (3+1=4 PC, 3 left) ---
     # v1 lesson: NRP wasted actions at 2%. Pivot to media-first, save for ETO.
     ActionSpec(party="NRP", action_type="manifesto", params={}),
     ActionSpec(party="NRP", action_type="media", language="english", params={"success": 0.7}),
-    ActionSpec(party="NRP", action_type="pledge", params={
-        "pledge": {"topic": "meritocratic civil service reform"},
-        "dimensions": [4, 9], "popularity": 0.7}),
 
-    # --- CND: Manifesto + media + fundraising + pledge (3+1+0+0=4 PC, 3 left) ---
+    # --- CND: Manifesto + media + fundraising (3+1+0=4 PC, 3 left) ---
     # v1 lesson: CND had only 1 media action total. Front-runner needs media defense.
     ActionSpec(party="CND", action_type="manifesto", params={}),
     ActionSpec(party="CND", action_type="media", language="yoruba", params={"success": 0.8}),
     ActionSpec(party="CND", action_type="fundraising", params={"source": "membership"}),
-    ActionSpec(party="CND", action_type="pledge", params={
-        "pledge": {"topic": "press freedom guarantee"},
-        "dimensions": [23, 14], "popularity": 0.6}),
 
-    # --- ANPC: Media + fundraising + pledge (1+0+0=1 PC, 6 left for T2 manifesto) ---
+    # --- ANPC: Media + fundraising (1+0=1 PC, 6 left for T2 manifesto) ---
     # v1 lesson: ANPC was the #2 gainer. Keep the strategy but add more media.
     ActionSpec(party="ANPC", action_type="media", language="english", params={"success": 0.5}),
     ActionSpec(party="ANPC", action_type="fundraising", params={"source": "diaspora"}),
-    ActionSpec(party="ANPC", action_type="pledge", params={
-        "pledge": {"topic": "fiscal devolution to AZs"},
-        "dimensions": [1, 27], "popularity": 0.5}),
 
-    # --- IPA: Manifesto + media + fundraising + pledge (3+1+0+0=4 PC, 3 left) ---
+    # --- IPA: Manifesto + media + fundraising (3+1+0=4 PC, 3 left) ---
     # v1 lesson: IPA was losing to ANPC in Littoral. Add media, counter later.
     ActionSpec(party="IPA", action_type="manifesto", params={}),
     ActionSpec(party="IPA", action_type="media", language="igbo", params={"success": 0.6}),
     ActionSpec(party="IPA", action_type="fundraising", params={"source": "business_elite"}),
-    ActionSpec(party="IPA", action_type="pledge", params={
-        "pledge": {"topic": "fiscal autonomy for eastern zone"},
-        "dimensions": [1, 7], "popularity": 0.8}),
 
-    # --- NDC: Manifesto + media + rally + pledge (3+1+2+0=6 PC, 1 left) ---
+    # --- NDC: Manifesto + media + rally (3+1+2=6 PC, 1 left) ---
     # v1 lesson: NDC lost 14 LGAs. Add media (was 0 in v1), keep rally.
     ActionSpec(party="NDC", action_type="manifesto", params={}),
     ActionSpec(party="NDC", action_type="media", language="hausa", params={"success": 0.6}),
     ActionSpec(party="NDC", action_type="rally", language="hausa", params={"gm_score": 7.0}),
-    ActionSpec(party="NDC", action_type="pledge", params={
-        "pledge": {"topic": "universal infrastructure program"},
-        "dimensions": [16, 24], "popularity": 0.7}),
 
-    # --- UJP: Rally + media + fundraising + pledge (2+1+0+0=3 PC, 4 left) ---
+    # --- UJP: Rally + media + fundraising (2+1+0=3 PC, 4 left) ---
     # v1 lesson: UJP was a gainer. Add media to amplify.
     ActionSpec(party="UJP", action_type="rally", language="arabic", params={"gm_score": 7.0}),
     ActionSpec(party="UJP", action_type="media", language="hausa", params={"success": 0.5}),
     ActionSpec(party="UJP", action_type="fundraising", params={"source": "grassroots"}),
-    ActionSpec(party="UJP", action_type="pledge", params={
-        "pledge": {"topic": "Islamic welfare expansion"},
-        "dimensions": [0, 24, 16], "popularity": 0.6}),
 
-    # --- NWF: Manifesto + media + fundraising + pledge (3+1+0+0=4 PC, 3 left) ---
+    # --- NWF: Manifesto + media + fundraising (3+1+0=4 PC, 3 left) ---
     ActionSpec(party="NWF", action_type="manifesto", params={}),
     ActionSpec(party="NWF", action_type="media", language="pidgin", params={"success": 0.5}),
     ActionSpec(party="NWF", action_type="fundraising", params={"source": "grassroots"}),
-    ActionSpec(party="NWF", action_type="pledge", params={
-        "pledge": {"topic": "minimum wage tripling"},
-        "dimensions": [10, 8, 18], "popularity": 0.7}),
 
-    # --- NHA: Advertising + media + pledge (2+1+0=3 PC, 4 left) ---
+    # --- NHA: Advertising + media (2+1=3 PC, 4 left) ---
     # v1 lesson: NHA was THE biggest winner. Double down on media-heavy.
     ActionSpec(party="NHA", action_type="advertising", language="english",
               params={"medium": "social_media", "budget": 1.0}),
     ActionSpec(party="NHA", action_type="media", language="english", params={"success": 0.8}),
-    ActionSpec(party="NHA", action_type="pledge", params={
-        "pledge": {"topic": "universal bio-enhancement access"},
-        "dimensions": [20, 9], "popularity": 0.5}),
 
-    # --- SNM: Manifesto + media + rally + pledge (3+1+2+0=6 PC, 1 left) ---
+    # --- SNM: Manifesto + media + rally (3+1+2=6 PC, 1 left) ---
     ActionSpec(party="SNM", action_type="manifesto", params={}),
     ActionSpec(party="SNM", action_type="media", language="hausa", params={"success": 0.5}),
     ActionSpec(party="SNM", action_type="rally", language="hausa", params={"gm_score": 6.0}),
-    ActionSpec(party="SNM", action_type="pledge", params={
-        "pledge": {"topic": "WAFTA renegotiation and import controls"},
-        "dimensions": [2, 21, 12], "popularity": 0.6}),
 
-    # --- NSA: Manifesto + media + fundraising + pledge (3+1+0+0=4 PC, 3 left) ---
+    # --- NSA: Manifesto + media + fundraising (3+1+0=4 PC, 3 left) ---
     ActionSpec(party="NSA", action_type="manifesto", params={}),
     ActionSpec(party="NSA", action_type="media", language="english", params={"success": 0.6}),
     ActionSpec(party="NSA", action_type="fundraising", params={"source": "diaspora"}),
-    ActionSpec(party="NSA", action_type="pledge", params={
-        "pledge": {"topic": "professional border security force"},
-        "dimensions": [12, 11], "popularity": 0.6}),
 
-    # --- CDA: Manifesto + endorsement + media + pledge (3+2+1+0=6 PC, 1 left) ---
+    # --- CDA: Manifesto + endorsement + media (3+2+1=6 PC, 1 left) ---
     # v1 lesson: CDA dropped -0.20%. Add media, keep religious endorsement.
     ActionSpec(party="CDA", action_type="manifesto", params={}),
     ActionSpec(party="CDA", action_type="endorsement", params={"endorser_type": "religious_leader"}),
     ActionSpec(party="CDA", action_type="media", language="english", params={"success": 0.5}),
-    ActionSpec(party="CDA", action_type="pledge", params={
-        "pledge": {"topic": "secular constitution defense"},
-        "dimensions": [0, 14], "popularity": 0.5}),
 
-    # --- MBPP: Manifesto + media + fundraising + pledge (3+1+0+0=4 PC, 3 left) ---
+    # --- MBPP: Manifesto + media + fundraising (3+1+0=4 PC, 3 left) ---
     ActionSpec(party="MBPP", action_type="manifesto", params={}),
     ActionSpec(party="MBPP", action_type="media", language="english", params={"success": 0.5}),
     ActionSpec(party="MBPP", action_type="fundraising", params={"source": "grassroots"}),
-    ActionSpec(party="MBPP", action_type="pledge", params={
-        "pledge": {"topic": "Middle Belt infrastructure fund"},
-        "dimensions": [16, 24, 15], "popularity": 0.7}),
 
-    # --- PLF: Rally + media + fundraising + pledge (2+1+0+0=3 PC, 4 left) ---
+    # --- PLF: Rally + media + fundraising (2+1+0=3 PC, 4 left) ---
     ActionSpec(party="PLF", action_type="rally", language="pidgin", params={"gm_score": 8.0}),
     ActionSpec(party="PLF", action_type="media", language="pidgin", params={"success": 0.6}),
     ActionSpec(party="PLF", action_type="fundraising", params={"source": "grassroots"}),
-    ActionSpec(party="PLF", action_type="pledge", params={
-        "pledge": {"topic": "resource revenue for local communities"},
-        "dimensions": [7, 24, 8], "popularity": 0.8}),
 
-    # --- NNV: Manifesto + media + pledge (3+1+0=4 PC, 3 left) ---
+    # --- NNV: Manifesto + media (3+1=4 PC, 3 left) ---
     ActionSpec(party="NNV", action_type="manifesto", params={}),
     ActionSpec(party="NNV", action_type="media", language="english", params={"success": 0.6}),
-    ActionSpec(party="NNV", action_type="pledge", params={
-        "pledge": {"topic": "one Nigeria unity program"},
-        "dimensions": [6, 11, 27], "popularity": 0.5}),
 ]
 
 # ===== TURN 2: ETO Launch + Endorsements =====
@@ -1253,10 +1211,8 @@ def _weighted_shares(lga_df, pop, total_pop):
             shares[p] = float(np.dot(lga_df[col].values, pop) / total_pop)
     return shares, pop, total_pop
 
-
 def _weighted_turnout(lga_df, pop, total_pop):
     return float(np.dot(lga_df["Turnout"].values, pop) / total_pop)
-
 
 def print_turn_summary(i, result, party_names):
     """Print concise per-turn summary."""
@@ -1282,7 +1238,6 @@ def print_turn_summary(i, result, party_names):
     post_log = result.get("post_turn_log", {})
     for scandal in post_log.get("scandals", []):
         print(f"  SCANDAL: {scandal['party']} (exposure={scandal['exposure_at_trigger']:.1f})")
-
 
 def print_detailed_final(result, party_names, data_path):
     """Print detailed final results matching run_election.py output."""
@@ -1468,7 +1423,6 @@ def print_detailed_final(result, party_names, data_path):
     except Exception:
         pass
 
-
 def main():
     print("=" * 70)
     print("LAGOS-2058 Full Campaign Simulation - 14 Parties, 12 Turns (v2)")
@@ -1499,7 +1453,6 @@ def main():
 
     print("\n" + "=" * 70)
     print("Campaign simulation complete.")
-
 
 if __name__ == "__main__":
     main()
