@@ -48,7 +48,7 @@ The system answers this question for each of 774 local government areas in Niger
 - **Seat counts** across the whole country
 - **Uncertainty ranges** via hundreds of randomized simulation runs
 
-It also includes a **campaign layer** where parties can spend political resources over 12 turns to shift voter awareness, change issue salience, boost their appeal, and drive turnout — simulating the strategic dynamics of a real election campaign.
+It also includes a **campaign layer** where parties can spend political resources over 8 turns to shift voter awareness, change issue salience, boost their appeal, and drive turnout — simulating the strategic dynamics of a real election campaign.
 
 ---
 
@@ -672,7 +672,9 @@ This weighted average produces a single set of vote shares for each LGA.
 
 ### Seat Allocation
 
-Each LGA is won by whichever party has the highest vote share (plurality/first-past-the-post). With 774 LGAs, there are 774 seats to distribute.
+The 774 LGAs are grouped into **150 voting districts**, each with a variable number of seats (totaling **622 seats** nationally). Within each district, seats are allocated proportionally using the **Sainte-Laguë method** — a divisor-based proportional representation system that divides each party's district vote total by successive odd numbers (1, 3, 5, 7, ...) and awards seats to the highest quotients.
+
+This means seat allocation is not winner-take-all at the LGA level. A party that wins 40% of the vote in a 5-seat district will typically get 2 seats, while the runner-up at 30% gets 1-2 seats. This produces more proportional outcomes than pure plurality and rewards parties with broad geographic support.
 
 ### The Presidential Spread Rule
 
@@ -691,7 +693,7 @@ The output includes:
 
 ## 16. The Campaign System
 
-Everything described so far produces a **static election** — a snapshot of what would happen if the election were held today with no campaigning. The **campaign layer** adds a 12-turn strategic game on top of this foundation.
+Everything described so far produces a **static election** — a snapshot of what would happen if the election were held today with no campaigning. The **campaign layer** adds an 8-turn strategic game on top of this foundation.
 
 ### The Core Principle
 
@@ -846,7 +848,7 @@ Campaign actions cost **Political Capital (PC)** — a scarce resource that forc
 
 - **Income**: Every party receives **7 PC per turn** automatically
 - **Hoarding cap**: A party can hold at most **18 PC** at any time. Excess above 18 is lost before new income is added.
-- **Total budget**: Over 12 turns, a party earns 7 x 12 = 84 PC (before fundraising or ETO dividends)
+- **Total budget**: Over 8 turns, a party earns 7 x 8 = 56 PC (before fundraising or ETO dividends)
 - **Fundraising**: Costs 2 PC; yields 2-5 PC depending on source and GM score (poor execution can net a loss)
 - **ETO dividends**: Economic ETOs scoring >= 7 generate +1 PC each (max 2 per turn)
 
@@ -892,7 +894,7 @@ Synergies reward players who plan complementary action pairs rather than stackin
 
 ### Strategic Implications
 
-With 84 PC total (before fundraising), a party must choose between:
+With 56 PC total (before fundraising), a party must choose between:
 - **Breadth vs. depth**: Cheap actions (media at 1 PC) spread thin, while expensive ones (ground_game at 3 PC, patronage at 3 PC) concentrate impact
 - **Risk vs. reward**: Patronage gives the best single-action valence (+0.10) but accumulates exposure that can trigger scandals; media is cheap but can backfire with 2x volatility
 - **Short-term vs. investment**: ETO engagement costs 3 PC with immediate salience/valence/awareness effects, but compounds into free intelligence and PC dividends at higher scores
@@ -912,11 +914,14 @@ Beyond the five channels, the campaign system tracks several dynamic properties 
 
 **Cohesion** represents a party's internal unity and organizational effectiveness. It ranges from 0 (completely fractured) to 10 (perfectly unified).
 
-- All parties start at their initial cohesion level
+- All parties start at cohesion 10.0
 - **Cohesion multiplier**: Effects scale with cohesion. A party at cohesion 2 gets only 15% of the benefit from its actions, while a party at cohesion 8+ gets full benefit.
 - **Recovery**: Cohesion recovers +1 per turn naturally (internal healing). Rally (+0.15) and crisis response (+0.50) also restore cohesion. Membership fundraising adds +0.10.
-- **Damage**: Sharp manifesto reversals (moving more than 3 points on any issue) reduce cohesion. Opposition research costs -0.3 cohesion. Scandals cost -1.0 cohesion.
-- **Implication**: A party that flip-flops on issues or goes negative will find its subsequent campaign actions less effective until cohesion recovers
+- **Broad engagement bonus**: If a party campaigns in 3+ distinct Administrative Zones in a single turn, it gains +1.0 cohesion (capped at 10).
+- **Damage**: Opposition research costs -0.3 cohesion. Scandals cost -1.0 cohesion.
+- **Region neglect**: If any of a party's support regions (AZs where it has regional strongholds) go unengaged for 3+ consecutive turns, the party suffers -1.0 cohesion per turn.
+- **GM score penalty**: When cohesion falls between 4.0 and 5.0, action GM scores suffer a -1 penalty, making it harder to achieve strong outcomes.
+- **Implication**: A party that goes negative or neglects its base regions will find its subsequent campaign actions less effective until cohesion recovers
 
 The cohesion multiplier follows a piecewise curve: at cohesion 0-2, effectiveness is 15%; at cohesion 5, it's about 55%; at cohesion 8-10, it's near 100%. This means cohesion damage is devastating and recovery matters.
 
@@ -928,7 +933,7 @@ The cohesion multiplier follows a piecewise curve: at cohesion 0-2, effectivenes
 - Penalty kicks in above **1.0** exposure -- the party suffers a valence penalty of -0.04 per point above the threshold (capped at -0.20)
 - **Scandal risk**: At exposure 2.0+, each turn carries a chance of triggering a scandal (5% at 2.0, scaling to 75% at 9.0+). Scandals cause -0.12 valence, -3 PC, -1.0 cohesion, and halve remaining exposure
 - **Decay**: After 3 consecutive clean turns (no new exposure), exposure decays by -1.0/turn. Scandals also halve exposure.
-- **Endorsement withdrawal**: Scandals cause all endorsements to be withdrawn
+- **Endorsement withdrawal**: Scandals auto-withdraw all endorsements. Additionally, using ethnic mobilization has a 30% chance of withdrawing religious_leader or traditional_ruler endorsements.
 
 This creates a risk/reward trade-off: patronage (strongest valence) and ethnic mobilization (cheapest identity play) are powerful tools, but a single ethnic mobilization (+0.8) nearly hits the penalty threshold, and two uses of business_elite fundraising (+3.0 total) guarantees scandal risk. The scandal system makes exposure a genuine strategic constraint.
 
@@ -959,7 +964,7 @@ This means the most recent action dominates (65% weight) but older effects don't
 
 ### Crisis Events
 
-At predetermined turns (typically turns 4, 8, and 11), the simulation can inject **crisis events** — exogenous shocks that change the campaign environment. These might include:
+At predetermined turns (e.g., turns 4, 6, and 7 in the default scenario), the simulation can inject **crisis events** — exogenous shocks that change the campaign environment. These might include:
 
 - Security crises (raising military salience, hurting incumbent valence)
 - Economic shocks (raising economic salience, benefiting populist parties)
@@ -989,7 +994,7 @@ This takes about 2-3 minutes for 100 Monte Carlo runs. The hot loop processes 17
 A campaign simulation extends the static election:
 
 1. **Initialize campaign state**: Set up awareness arrays (at 0.60), cohesion, PC balances
-2. **For each of 12 turns**:
+2. **For each of 8 turns**:
    a. Process PC income (apply hoarding cap, add 7 PC per party, process ETO dividends)
    b. Process crisis events (if any for this turn)
    c. For each party's actions this turn: validate PC, deduct cost, resolve action
@@ -997,7 +1002,7 @@ A campaign simulation extends the static election:
    e. Run full election with modifiers applied
    f. Record results, update momentum
    g. Recover cohesion (+1 per party)
-3. **Final results**: The election results after turn 12 are the campaign outcome
+3. **Final results**: The election results after turn 8 are the campaign outcome
 
 ### Example Usage
 
@@ -1039,7 +1044,7 @@ For each of the 774 LGAs, the output includes:
 
 - **National vote shares**: Aggregate across all LGAs (population-weighted)
 - **National turnout**: Aggregate turnout rate
-- **Seat counts**: How many of the 774 LGA seats each party won
+- **Seat counts**: How many of the 622 district seats each party won (allocated via Sainte-Laguë across 150 districts)
 - **Top party**: Which party won the most seats
 
 ### Zonal and State Breakdowns
@@ -1128,7 +1133,7 @@ LAGOS-2058/
 │       ├── voter_types.py               # 174,960 voter type generation
 │       ├── salience.py                  # LGA-dependent issue salience
 │       ├── spatial.py                   # Merrill-Grofman spatial utility
-│       ├── ethnic_affinity.py           # Ethnic affinity matrix (15 groups)
+│       ├── ethnic_affinity.py           # Ethnic affinity matrix (17 groups: 15 core + 2 catch-alls)
 │       ├── religious_affinity.py        # Religious affinity matrix (9 categories)
 │       ├── utility.py                   # Total utility computation
 │       ├── softmax.py                   # Multinomial logit (probability conversion)
@@ -1157,7 +1162,7 @@ LAGOS-2058/
 │       └── components/                  # ActionBuilder, CheatSheet, TargetSelector, etc.
 ├── examples/
 │   ├── run_election.py                  # Static election with 14 parties
-│   ├── run_full_campaign.py             # 12-turn campaign simulation
+│   ├── run_full_campaign.py             # 8-turn campaign simulation
 │   └── ...                              # Additional scenario variants
 ├── tests/                               # 258 tests across 15 files
 └── README.md                            # This document
@@ -1167,7 +1172,7 @@ LAGOS-2058/
 
 - **174,960 voter types × 774 LGAs × 14 parties** computed using Float32 BLAS operations
 - Full election run (no campaign): ~2-3 minutes for 100 Monte Carlo iterations
-- Campaign simulation (12 turns × 100 MC runs): ~10-15 minutes
+- Campaign simulation (8 turns × 100 MC runs): ~10-15 minutes
 - Test suite: ~3 minutes for all 258 tests
 
 ### Calibration Targets
