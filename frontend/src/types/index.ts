@@ -30,6 +30,16 @@ export interface EngineParams {
   seed: number | null;
 }
 
+export interface DistrictResult {
+  district_id: string;
+  az_name: string;
+  seats: number;
+  total_votes: number;
+  vote_shares: Record<string, number>;
+  seat_allocation: Record<string, number>;
+  winner: string;
+}
+
 export interface ElectionResults {
   national_vote_shares: Record<string, number>;
   national_vote_counts: Record<string, number>;
@@ -38,10 +48,12 @@ export interface ElectionResults {
   seat_std: Record<string, number>;
   win_probability: Record<string, number>;
   enp: number;
+  total_seats: number;
   spread_check: Record<string, SpreadCheck>;
   zonal_results: ZonalResult[];
   state_results: StateResult[];
   lga_results: LGAResult[];
+  district_results: DistrictResult[];
   swing_lgas: SwingLGA[];
 }
 

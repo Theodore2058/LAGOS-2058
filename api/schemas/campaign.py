@@ -33,7 +33,7 @@ class NewCampaignRequest(BaseModel):
     params: EngineParamsInput = EngineParamsInput()
     n_monte_carlo: int = 5
     seed: int | None = None
-    n_turns: int = 12
+    n_turns: int = 8
 
 
 class AdvanceTurnRequest(BaseModel):
@@ -69,6 +69,7 @@ class TurnResultResponse(BaseModel):
     national_vote_shares: dict[str, float]
     national_turnout: float
     seat_counts: dict[str, float]
+    total_seats: int = 622
     actions_resolved: list[dict]
     synergies: list[dict]
     scandals: list[dict]

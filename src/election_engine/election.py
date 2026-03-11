@@ -24,7 +24,7 @@ import pandas as pd
 
 from .campaign_state import CampaignModifiers
 from .config import ElectionConfig
-from .data_loader import load_lga_data
+from .data_loader import load_lga_data, load_district_data
 from .ethnic_affinity import EthnicAffinityMatrix
 from .religious_affinity import ReligiousAffinityMatrix
 from .salience import compute_all_lga_salience, SalienceRule
@@ -33,6 +33,7 @@ from .noise import apply_noise_arrays, compute_lga_kappa_multipliers
 from .results import (
     check_presidential_spread,
     aggregate_monte_carlo_from_arrays,
+    allocate_district_seats,
     compute_summary_stats,
 )
 
@@ -113,6 +114,14 @@ def run_election(
     if verbose:
         logger.info("Loaded %d LGAs", len(df))
 
+    # ---- Step 1b: Load district data (optional) ----
+    project_root = Path(data_path).resolve().parent.parent
+    district_data = load_district_data(
+        project_root / "voting_districts_summary.xlsx",
+        project_root / "seat_allocation.xlsx",
+        df["LGA Name"],
+    )
+
     # ---- Step 2: Compute salience for all LGAs ----
     if verbose:
         logger.info("Computing salience weights for %d LGAs...", len(df))
@@ -144,7 +153,11 @@ def run_election(
         logger.info("Base LGA results computed in %.1fs", time.time() - t_lga)
 
     # ---- Step 5: Summary from base run ----
-    summary = compute_summary_stats(lga_results_base, party_names)
+    summary = compute_summary_stats(
+        lga_results_base, party_names,
+        district_seats_df=district_data.district_seats if district_data else None,
+        lga_mapping_df=district_data.lga_mapping if district_data else None,
+    )
 
     # ---- Step 6: Monte Carlo runs (pre-allocated arrays) ----
     if verbose:
@@ -198,6 +211,8 @@ def run_election(
         party_names=party_names,
         pop=pop,
         base_run_df=lga_results_base,
+        lga_district_indices=district_data.lga_district_indices if district_data else None,
+        district_seat_counts=district_data.district_seat_counts if district_data else None,
     )
 
     # ---- Step 8: Spread checks ----
@@ -211,11 +226,22 @@ def run_election(
     if verbose:
         logger.info("Full election run completed in %.1fs", t_total)
 
+    # ---- District-level base results ----
+    district_results = None
+    total_seats = summary.get("total_seats", 774)
+    if district_data is not None:
+        district_results = allocate_district_seats(
+            lga_results_base, party_names,
+            district_data.district_seats, district_data.lga_mapping,
+        )
+
     return {
         "lga_results_base": lga_results_base,
         "mc_aggregated": mc_aggregated,
         "summary": summary,
         "spread_checks": spread_checks,
+        "district_results": district_results,
+        "total_seats": total_seats,
         "metadata": {
             "n_lgas": len(df),
             "n_parties": len(election_config.parties),

@@ -161,7 +161,7 @@ export default function Election() {
         </div>
       )}
 
-      {loading && <LoadingSpinner message={`Running ${params.n_monte_carlo} MC runs × ${parties.length} parties × 774 LGAs...`} size="lg" />}
+      {loading && <LoadingSpinner message={`Running ${params.n_monte_carlo} MC runs × ${parties.length} parties × 774 LGAs × 150 districts...`} size="lg" />}
 
       {results && !loading && <ElectionDashboard results={results} parties={parties} />}
 

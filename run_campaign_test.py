@@ -1,4 +1,4 @@
-"""Run a full 12-turn campaign with actions for all 14 parties, spending nearly all PC each turn."""
+"""Run a full 8-turn campaign with actions for all 14 parties, spending nearly all PC each turn."""
 import urllib.request
 import json
 
@@ -26,7 +26,7 @@ state = post('/campaign/new', {
     },
     'n_monte_carlo': 5,
     'seed': 42,
-    'n_turns': 12,
+    'n_turns': 8,
 })
 print(f'Campaign started: Turn {state["turn"]}/{state["n_turns"]}, Phase: {state["phase"]}')
 
@@ -67,35 +67,16 @@ TURN_PLANS = {
     ],  # 3+2=5
     7: [
         {'action_type': 'rally', 'parameters': {'language': 'english'}},
-        {'action_type': 'ground_game', 'parameters': {'intensity': 1.0, 'language': 'english'}},
-        {'action_type': 'endorsement', 'parameters': {'endorser_type': 'Religious leader', 'endorser_name': 'Cleric'}},
-    ],  # 2+3+2=7
-    8: [
         {'action_type': 'advertising', 'parameters': {'medium': 'tv', 'budget': 1.0, 'language': 'english'}},
-        {'action_type': 'rally', 'parameters': {'language': 'english'}},
-        {'action_type': 'media', 'parameters': {'tone': 'negative', 'narrative': 'Opposition failures'}},
-    ],  # 2+2+1=5
-    9: [
-        {'action_type': 'ground_game', 'parameters': {'intensity': 1.0, 'language': 'english'}},
-        {'action_type': 'rally', 'parameters': {'language': 'english'}},
-    ],  # 3+2=5
-    10: [
-        {'action_type': 'rally', 'parameters': {'language': 'english'}},
-        {'action_type': 'advertising', 'parameters': {'medium': 'radio', 'budget': 1.0, 'language': 'english'}},
         {'action_type': 'ground_game', 'parameters': {'intensity': 1.0, 'language': 'english'}},
     ],  # 2+2+3=7
-    11: [
-        {'action_type': 'advertising', 'parameters': {'medium': 'tv', 'budget': 1.0, 'language': 'english'}},
-        {'action_type': 'ground_game', 'parameters': {'intensity': 1.0, 'language': 'english'}},
-        {'action_type': 'media', 'parameters': {'tone': 'positive', 'narrative': 'Final vision'}},
-    ],  # 2+3+1=6
-    12: [
+    8: [
         {'action_type': 'rally', 'parameters': {'language': 'english'}},
         {'action_type': 'ground_game', 'parameters': {'intensity': 1.0, 'language': 'english'}},
     ],  # 2+3=5
 }
 
-for turn in range(1, 13):
+for turn in range(1, 9):
     plan = TURN_PLANS[turn]
     actions = []
     for i, pname in enumerate(party_names):

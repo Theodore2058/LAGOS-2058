@@ -1,5 +1,5 @@
 """
-Full 12-turn campaign simulation with all 14 parties and political capital.
+Full 8-turn campaign simulation with all 14 parties and political capital.
 
 Usage:
     python examples/run_full_campaign.py
@@ -29,10 +29,10 @@ Iteration 2 lessons applied:
 - No action cap means parties can take 4-6 actions/turn when flush
 
 Strategic phases:
-  Turns 1-3:  Foundation -- manifestos, fundraising, media blitz, early ETO
-  Turns 4-6:  Expansion -- ETO deepening, oppo research, synergies begin
-  Turns 7-9:  Intensification -- rally+gg synergies, ethnic mobilization, media+oppo
-  Turns 10-12: Final push -- max spend, triple synergies, burn all remaining PC
+  Turns 1-2:  Foundation -- manifestos, fundraising, media blitz, early ETO
+  Turns 3-4:  Expansion -- ETO deepening, oppo research, synergies begin
+  Turns 5-6:  Intensification -- rally+gg synergies, ethnic mobilization, media+oppo
+  Turns 7-8:  Final push -- max spend, triple synergies, burn all remaining PC
 """
 
 import sys
@@ -79,7 +79,7 @@ config = ElectionConfig(params=params, parties=PARTIES, n_monte_carlo=5)
 party_names = [p.name for p in PARTIES]
 
 # ---------------------------------------------------------------------------
-# 12-Turn Campaign Design (v2 -- analysis-informed)
+# 8-Turn Campaign Design (v2 -- analysis-informed)
 # ---------------------------------------------------------------------------
 # Key rivalries:
 #   NRP vs NDC:  secular meritocracy vs northern Islamic establishment
@@ -1162,7 +1162,7 @@ turn12 = [
 ]
 
 turns = [turn1, turn2, turn3, turn4, turn5, turn6,
-         turn7, turn8, turn9, turn10, turn11, turn12]
+         turn7, turn8]
 
 # ---------------------------------------------------------------------------
 # Crisis Events
@@ -1178,19 +1178,19 @@ crisis_events = [
         valence_effects={"NSA": +0.05, "UJP": -0.05, "NDC": -0.03},
         awareness_boost={"NSA": 0.04, "NNV": 0.02},
     ),
-    # Turn 8: WAFTA trade dispute
+    # Turn 6: WAFTA trade dispute
     CrisisEvent(
         name="WAFTA trade dispute",
-        turn=8,
+        turn=6,
         affected_lgas=None,
         salience_shifts={2: 0.10, 21: 0.06},
         valence_effects={"NHA": -0.05, "SNM": +0.05},
         awareness_boost={"SNM": 0.04, "NHA": 0.03},
     ),
-    # Turn 11: Religious tensions in Middle Belt
+    # Turn 7: Religious tensions in Middle Belt
     CrisisEvent(
         name="Religious tensions in Middle Belt",
-        turn=11,
+        turn=7,
         affected_lgas=None,
         salience_shifts={0: 0.08, 14: 0.04},
         valence_effects={"CDA": +0.04, "UJP": -0.04, "NDC": -0.02},
@@ -1425,7 +1425,7 @@ def print_detailed_final(result, party_names, data_path):
 
 def main():
     print("=" * 70)
-    print("LAGOS-2058 Full Campaign Simulation - 14 Parties, 12 Turns (v2)")
+    print("LAGOS-2058 Full Campaign Simulation - 14 Parties, 8 Turns (v2)")
     print(f"PC Income: {7}/turn | Hoarding Cap: {18} | No action cap")
     print(f"tau_0: {params.tau_0} (first election in decades - high turnout)")
     print(f"3 Crisis Events | {len(turns)} Turns")

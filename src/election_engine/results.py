@@ -575,12 +575,59 @@ def _empty_mc_result(party_names: list[str], base_run_df: pd.DataFrame) -> dict:
     }
 
 
+def _district_seats_for_run(
+    votes_per_lga: np.ndarray,
+    party_names: list[str],
+    lga_district_indices: np.ndarray,
+    district_seat_counts: np.ndarray,
+) -> np.ndarray:
+    """
+    Allocate seats via Sainte-Laguë for one MC run.
+
+    Parameters
+    ----------
+    votes_per_lga : ndarray, shape (n_lgas, J)
+    party_names : list[str]
+    lga_district_indices : ndarray, shape (n_lgas,) int — district index per LGA
+    district_seat_counts : ndarray, shape (n_districts,) int — seats per district
+
+    Returns
+    -------
+    ndarray, shape (J,) — total seats won by each party.
+    """
+    J = len(party_names)
+    n_districts = len(district_seat_counts)
+
+    # Aggregate votes to district level
+    district_votes = np.zeros((n_districts, J), dtype=np.float64)
+    for j in range(J):
+        district_votes[:, j] = np.bincount(
+            lga_district_indices, weights=votes_per_lga[:, j],
+            minlength=n_districts,
+        )
+
+    # Allocate seats per district
+    party_seats = np.zeros(J, dtype=np.int32)
+    for d in range(n_districts):
+        n_seats = int(district_seat_counts[d])
+        if n_seats < 1:
+            continue
+        dvotes = {party_names[j]: float(district_votes[d, j]) for j in range(J)}
+        alloc = sainte_lague(dvotes, n_seats)
+        for j, p in enumerate(party_names):
+            party_seats[j] += alloc[p]
+
+    return party_seats
+
+
 def aggregate_monte_carlo_from_arrays(
     all_shares: np.ndarray,
     all_turnout: np.ndarray,
     party_names: list[str],
     pop: np.ndarray,
     base_run_df: pd.DataFrame,
+    lga_district_indices: np.ndarray | None = None,
+    district_seat_counts: np.ndarray | None = None,
 ) -> dict:
     """
     Aggregate MC results from pre-allocated numpy arrays (fast path).
@@ -596,24 +643,50 @@ def aggregate_monte_carlo_from_arrays(
         LGA populations (for weighting).
     base_run_df : pd.DataFrame
         Base (deterministic) LGA results (for State/LGA Name metadata).
+    lga_district_indices : np.ndarray, optional, shape (n_lgas,)
+        Integer district index per LGA.  When provided (together with
+        *district_seat_counts*), seats are allocated per voting district
+        via Sainte-Laguë instead of LGA plurality.
+    district_seat_counts : np.ndarray, optional, shape (n_districts,)
+        Number of seats in each voting district.
 
     Returns
     -------
     dict — same structure as aggregate_monte_carlo.
     """
     n_runs, lga_count, J = all_shares.shape
+    use_districts = (
+        lga_district_indices is not None and district_seat_counts is not None
+    )
 
     # Handle MC=0: return stub results with no uncertainty data
     if n_runs == 0:
         return _empty_mc_result(party_names, base_run_df)
 
-    # Winner per LGA per run
+    # Winner per LGA per run (used for swing LGA detection regardless of seat method)
     winner_indices = np.argmax(all_shares, axis=2)
 
-    # Seat counts per run (vectorised via bincount)
-    seat_matrix = np.array([
-        np.bincount(winner_indices[r], minlength=J) for r in range(n_runs)
-    ])
+    if use_districts:
+        # District-based Sainte-Laguë allocation per MC run
+        seat_matrix = np.zeros((n_runs, J), dtype=np.int32)
+        # Filter to only LGAs that have a valid district mapping
+        valid_mask = lga_district_indices >= 0
+        valid_indices = lga_district_indices[valid_mask]
+        valid_pop = pop[valid_mask]
+        for r in range(n_runs):
+            votes_per_lga = (
+                valid_pop[:, None]
+                * all_turnout[r, valid_mask, None]
+                * all_shares[r, valid_mask, :]
+            )
+            seat_matrix[r] = _district_seats_for_run(
+                votes_per_lga, party_names, valid_indices, district_seat_counts,
+            )
+    else:
+        # Fallback: LGA plurality (774 seats, winner-take-all per LGA)
+        seat_matrix = np.array([
+            np.bincount(winner_indices[r], minlength=J) for r in range(n_runs)
+        ])
 
     seat_stats_rows = []
     for j, p in enumerate(party_names):
@@ -1123,6 +1196,8 @@ def compute_summary_stats(
     az_col: str = "Administrative Zone",
     az_name_col: str = "AZ Name",
     state_col: str = "State",
+    district_seats_df: pd.DataFrame | None = None,
+    lga_mapping_df: pd.DataFrame | None = None,
 ) -> dict:
     """
     Compute national and zonal summary statistics.
@@ -1132,10 +1207,22 @@ def compute_summary_stats(
         national_votes : dict[party, int]
         total_votes : int
         zonal_shares : pd.DataFrame (one row per zone)
-        seat_counts : dict[party, int] (kept for backwards compatibility)
+        seat_counts : dict[party, int]
         national_turnout : float
+        total_seats : int
     """
-    seats = count_seats(lga_results, party_names)
+    if district_seats_df is not None and lga_mapping_df is not None:
+        dist_df = allocate_district_seats(
+            lga_results, party_names, district_seats_df, lga_mapping_df,
+        )
+        seats = {}
+        for p in party_names:
+            col = f"{p}_seats"
+            seats[p] = int(dist_df[col].sum()) if col in dist_df.columns else 0
+        total_seats = int(district_seats_df["Seats"].astype(int).sum())
+    else:
+        seats = count_seats(lga_results, party_names)
+        total_seats = 774
 
     # Population-weighted national shares
     national = _pop_weighted_national(lga_results, party_names)
@@ -1215,6 +1302,7 @@ def compute_summary_stats(
         "seat_counts": seats,
         "national_turnout": turnout,
         "enp": enp,
+        "total_seats": total_seats,
     }
 
 

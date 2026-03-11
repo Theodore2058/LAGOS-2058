@@ -90,12 +90,14 @@ export default function Results() {
     })).sort((a, b) => b.delta - a.delta);
   }, [history]);
 
-  // Coalition math: find minimal winning coalitions (seats > 387)
+  const totalSeats = useMemo(() => history.length > 0 ? (history[history.length - 1].total_seats ?? 622) : 622, [history]);
+  const majority = Math.ceil(totalSeats / 2);
+
+  // Coalition math: find minimal winning coalitions
   const coalitions = useMemo(() => {
     if (history.length === 0) return [];
     const final = history[history.length - 1];
     const sorted = Object.entries(final.seat_counts).sort((a, b) => b[1] - a[1]);
-    const majority = 387;
     const results: { parties: string[]; seats: number; count: number }[] = [];
 
     // Try 2-party coalitions
@@ -153,7 +155,7 @@ export default function Results() {
     : '0';
 
   const winnerSeats = Math.round(final.seat_counts[sortedFinal[0][0]] ?? 0);
-  const hasMajority = winnerSeats > 387;
+  const hasMajority = winnerSeats > majority;
 
   const exportCSV = () => {
     const header = ['Turn', 'Turnout', ...partyNames.map(n => `${n}_VoteShare`), ...partyNames.map(n => `${n}_Seats`)];
@@ -195,7 +197,7 @@ export default function Results() {
         </div>
         <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/40 card-glow">
           <p className="text-xs text-text-secondary mb-1">Winner Seats</p>
-          <p className="text-xl font-bold">{winnerSeats} / 774</p>
+          <p className="text-xl font-bold">{winnerSeats} / {totalSeats}</p>
           <p className={`text-sm font-medium ${hasMajority ? 'text-success' : 'text-warning'}`}>{hasMajority ? 'Majority' : 'No majority'}</p>
         </div>
         <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/40 card-glow">
@@ -356,7 +358,7 @@ export default function Results() {
       {/* Coalition Math */}
       {!hasMajority && coalitions.length > 0 && (
         <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50">
-          <h3 className="text-sm font-semibold mb-3 text-text-secondary">Coalition Possibilities <span className="font-normal">— viable majority coalitions (&gt;387 seats)</span></h3>
+          <h3 className="text-sm font-semibold mb-3 text-text-secondary">Coalition Possibilities <span className="font-normal">— viable majority coalitions (&gt;{majority} seats)</span></h3>
           <div className="space-y-2">
             {coalitions.map((c, i) => (
               <div key={i} className="flex items-center gap-3 py-1.5 px-3 rounded bg-bg-tertiary/20 border border-bg-tertiary/30">
@@ -372,7 +374,7 @@ export default function Results() {
                 </div>
                 <span className="text-xs font-mono text-text-secondary">{c.seats} seats</span>
                 <div className="w-20 h-1.5 bg-bg-tertiary rounded-full overflow-hidden">
-                  <div className="h-full bg-success/60 rounded-full" style={{ width: `${Math.min(100, (c.seats / 774) * 100)}%` }} />
+                  <div className="h-full bg-success/60 rounded-full" style={{ width: `${Math.min(100, (c.seats / totalSeats) * 100)}%` }} />
                 </div>
               </div>
             ))}

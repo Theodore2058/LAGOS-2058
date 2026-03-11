@@ -44,7 +44,8 @@ export default function ElectionDashboard({ results, parties }: Props) {
     [seatData]
   );
 
-  const majorityLine = 387; // 774 / 2 rounded up
+  const totalSeats = results.total_seats ?? 622;
+  const majorityLine = Math.ceil(totalSeats / 2);
 
   // State winner counts
   const stateWinners = useMemo(() => {
@@ -81,7 +82,7 @@ export default function ElectionDashboard({ results, parties }: Props) {
         </div>
         <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/40 card-glow">
           <p className="text-[10px] text-text-secondary mb-1 uppercase tracking-[0.12em] font-medium">Winner Seats</p>
-          <p className="text-xl font-bold" style={{ fontFamily: "'JetBrains Mono', 'Courier New', monospace" }}>{Math.round(results.seat_counts[winner[0]] ?? 0)} / 774</p>
+          <p className="text-xl font-bold" style={{ fontFamily: "'JetBrains Mono', 'Courier New', monospace" }}>{Math.round(results.seat_counts[winner[0]] ?? 0)} / {totalSeats}</p>
           <p className="text-xs text-text-secondary/50 mt-0.5">&plusmn;{(results.seat_std[winner[0]] ?? 0).toFixed(1)} std</p>
         </div>
         <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/40 card-glow">
@@ -113,7 +114,7 @@ export default function ElectionDashboard({ results, parties }: Props) {
             </ResponsiveContainer>
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
               <span className="text-lg font-bold" style={{ color: winnerColor }}>{Math.round(results.seat_counts[winner[0]] ?? 0)}</span>
-              <span className="text-[9px] text-text-secondary/50">/ 774</span>
+              <span className="text-[9px] text-text-secondary/50">/ {totalSeats}</span>
             </div>
           </div>
           <div className="mt-2 w-full">
@@ -124,7 +125,7 @@ export default function ElectionDashboard({ results, parties }: Props) {
               </span>
             </div>
             <div className="h-1.5 bg-bg-tertiary rounded-full overflow-hidden relative">
-              <div className="h-full rounded-full" style={{ width: `${((results.seat_counts[winner[0]] ?? 0) / 774) * 100}%`, backgroundColor: winnerColor }} />
+              <div className="h-full rounded-full" style={{ width: `${((results.seat_counts[winner[0]] ?? 0) / {totalSeats}) * 100}%`, backgroundColor: winnerColor }} />
               <div className="absolute top-0 h-full w-px bg-warning" style={{ left: '50%' }} />
             </div>
           </div>
@@ -178,7 +179,7 @@ export default function ElectionDashboard({ results, parties }: Props) {
 
         {/* Seat Allocation */}
         <div className="bg-bg-secondary rounded-lg p-4 border border-bg-tertiary/50">
-          <h3 className="text-sm font-semibold mb-3 text-text-secondary">Seat Allocation (774 LGAs)</h3>
+          <h3 className="text-sm font-semibold mb-3 text-text-secondary">Seat Allocation ({totalSeats} Seats, 150 Districts)</h3>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={seatData} layout="vertical">
               <XAxis type="number" tick={{ fill: '#8b9bb4', fontSize: 10 }} domain={[0, 'auto']} />

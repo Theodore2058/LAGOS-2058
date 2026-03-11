@@ -57,10 +57,10 @@ def _load_district_map(lga_df: pd.DataFrame) -> dict[str, list[int]]:
     return _district_lga_map
 
 PHASE_NAMES = {
-    (1, 3): "Foundation",
-    (4, 6): "Expansion",
-    (7, 9): "Intensification",
-    (10, 12): "Final Push",
+    (1, 2): "Foundation",
+    (3, 4): "Expansion",
+    (5, 6): "Intensification",
+    (7, 8): "Final Push",
 }
 
 
@@ -349,12 +349,15 @@ class CampaignSession:
         if self.state.turn <= self.n_turns:
             process_pc_income(self.state)
 
+        total_seats = int(result.get("total_seats", 622))
+
         turn_result = TurnResultResponse(
             turn=processed_turn,
             state=self.get_state_response(),
             national_vote_shares=national_shares,
             national_turnout=turnout,
             seat_counts=seat_counts,
+            total_seats=total_seats,
             actions_resolved=actions_log,
             synergies=synergies_serializable,
             scandals=scandals_serializable,

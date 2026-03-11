@@ -206,10 +206,10 @@ function StrategyTab() {
           <h3 className="text-sm font-semibold mb-2 text-accent">Campaign Phases</h3>
           <div className="space-y-1.5">
             {[
-              ['T1-3', 'Foundation', 'Build awareness, establish presence'],
-              ['T4-6', 'Expansion', 'Broaden reach, build coalitions'],
-              ['T7-9', 'Intensification', 'Push salience, attack opponents'],
-              ['T10-12', 'Final Push', 'Maximize turnout, close the deal'],
+              ['T1-2', 'Foundation', 'Build awareness, establish presence'],
+              ['T3-4', 'Expansion', 'Broaden reach, build coalitions'],
+              ['T5-6', 'Intensification', 'Push salience, attack opponents'],
+              ['T7-8', 'Final Push', 'Maximize turnout, close the deal'],
             ].map(([turns, name, desc]) => (
               <div key={turns} className="flex gap-2 items-start">
                 <span className="font-mono text-accent/80 w-10 shrink-0">{turns}</span>
@@ -321,10 +321,10 @@ function FormulasTab() {
         <div>
           <h3 className="text-sm font-semibold mb-2 text-accent">Seat Allocation</h3>
           <div className="bg-bg-tertiary/30 rounded-md p-3 font-mono text-[11px] space-y-1.5">
-            <p className="text-text-secondary/60">FPTP per LGA:</p>
-            <p className="pl-3">winner = argmax(vote_share)</p>
-            <p className="text-text-secondary/60">774 LGAs = 774 seats total</p>
-            <p className="text-text-secondary/60">Majority threshold: 387 seats</p>
+            <p className="text-text-secondary/60">Sainte-Lagu&#235; per district:</p>
+            <p className="pl-3">150 districts, proportional allocation</p>
+            <p className="text-text-secondary/60">622 total seats across 150 districts</p>
+            <p className="text-text-secondary/60">Majority threshold: 312 seats</p>
           </div>
         </div>
       </div>

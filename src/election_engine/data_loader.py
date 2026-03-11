@@ -354,6 +354,126 @@ def _validate(df: pd.DataFrame, path: Path) -> None:
 _lga_data_cache: dict[str, LGAData] = {}
 
 
+# ---------------------------------------------------------------------------
+# District data
+# ---------------------------------------------------------------------------
+
+class DistrictData:
+    """
+    Validated container for voting-district data.
+
+    Attributes
+    ----------
+    lga_mapping : pd.DataFrame
+        774-row mapping of LGA → District ID (from voting_districts_summary.xlsx).
+    district_seats : pd.DataFrame
+        150-row table of per-district seat counts (from seat_allocation.xlsx).
+    seat_lookup : dict[str, int]
+        District ID → seat count.
+    total_seats : int
+        Sum of all district seats (622).
+    n_districts : int
+        Number of voting districts (150).
+    lga_district_indices : np.ndarray
+        Shape (774,) int array mapping each LGA row index to a district index (0..149).
+    district_seat_counts : np.ndarray
+        Shape (n_districts,) int array of seats per district in district-index order.
+    district_ids : list[str]
+        Ordered list of district IDs corresponding to district indices.
+    """
+
+    def __init__(
+        self,
+        lga_mapping: pd.DataFrame,
+        district_seats: pd.DataFrame,
+        lga_names: pd.Series,
+    ) -> None:
+        self.lga_mapping = lga_mapping
+        self.district_seats = district_seats
+
+        # Seat lookup
+        self.seat_lookup: dict[str, int] = dict(
+            zip(district_seats["District ID"], district_seats["Seats"].astype(int))
+        )
+        self.total_seats = int(district_seats["Seats"].astype(int).sum())
+        self.n_districts = len(district_seats)
+
+        # Build ordered district list and index arrays for MC aggregation
+        self.district_ids: list[str] = sorted(self.seat_lookup.keys())
+        dist_id_to_idx = {did: i for i, did in enumerate(self.district_ids)}
+
+        self.district_seat_counts = np.array(
+            [self.seat_lookup[did] for did in self.district_ids], dtype=np.int32,
+        )
+
+        # Map each LGA to its district index
+        lga_to_district: dict[str, str] = {}
+        for _, row in lga_mapping.iterrows():
+            lga_to_district[str(row["LGA"]).strip()] = str(row["District ID"]).strip()
+
+        lga_district_indices = np.full(len(lga_names), -1, dtype=np.int32)
+        for i, name in enumerate(lga_names):
+            did = lga_to_district.get(str(name).strip())
+            if did and did in dist_id_to_idx:
+                lga_district_indices[i] = dist_id_to_idx[did]
+        self.lga_district_indices = lga_district_indices
+
+        unmapped = int(np.sum(lga_district_indices < 0))
+        if unmapped > 0:
+            logger.warning("%d LGAs could not be mapped to a voting district", unmapped)
+
+
+_district_data_cache: dict[str, DistrictData] = {}
+
+
+def load_district_data(
+    district_file: str | Path,
+    seat_file: str | Path,
+    lga_names: pd.Series,
+) -> DistrictData | None:
+    """
+    Load voting-district mapping and seat allocation tables.
+
+    Returns None if either file is missing (backward-compatible fallback).
+    Results are cached by resolved file paths.
+
+    Parameters
+    ----------
+    district_file : path to voting_districts_summary.xlsx
+    seat_file : path to seat_allocation.xlsx
+    lga_names : pd.Series of LGA Name values (774 entries, matching LGA_DATA order)
+    """
+    district_file = Path(district_file)
+    seat_file = Path(seat_file)
+
+    if not district_file.exists() or not seat_file.exists():
+        logger.info("District data files not found; falling back to LGA-plurality seats")
+        return None
+
+    cache_key = f"{district_file.resolve()}|{seat_file.resolve()}"
+    if cache_key in _district_data_cache:
+        return _district_data_cache[cache_key]
+
+    logger.info("Loading district data from %s and %s", district_file, seat_file)
+
+    lga_mapping = pd.read_excel(
+        district_file, sheet_name="LGA Mapping", engine="openpyxl",
+    )
+    district_seats = pd.read_excel(
+        seat_file, sheet_name="District Seats", engine="openpyxl",
+    )
+
+    data = DistrictData(lga_mapping, district_seats, lga_names)
+    logger.info(
+        "Loaded %d districts, %d total seats, %d LGAs mapped",
+        data.n_districts,
+        data.total_seats,
+        int(np.sum(data.lga_district_indices >= 0)),
+    )
+    _district_data_cache[cache_key] = data
+    return data
+
+
 def load_lga_data(path: str | Path) -> LGAData:
     """
     Load and validate the LGA_DATA sheet from the polsim Excel file.

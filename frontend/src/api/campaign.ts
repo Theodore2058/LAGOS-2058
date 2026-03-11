@@ -29,6 +29,7 @@ export interface TurnResult {
   national_vote_shares: Record<string, number>;
   national_turnout: number;
   seat_counts: Record<string, number>;
+  total_seats: number;
   actions_resolved: Record<string, unknown>[];
   synergies: Record<string, unknown>[];
   scandals: Record<string, unknown>[];

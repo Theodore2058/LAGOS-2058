@@ -7,6 +7,7 @@ from .config import (
     Party,
     ElectionConfig,
 )
+from .data_loader import DistrictData, load_district_data
 from .results import (
     compute_vote_counts,
     compute_state_vote_counts,
@@ -30,6 +31,8 @@ __all__ = [
     "EngineParams",
     "Party",
     "ElectionConfig",
+    "DistrictData",
+    "load_district_data",
     "compute_vote_counts",
     "compute_state_vote_counts",
     "effective_number_of_parties",

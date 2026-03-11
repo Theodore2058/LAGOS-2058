@@ -178,7 +178,7 @@ export default function Crises() {
           </h3>
           {/* Mini turn heatmap */}
           <div className="flex gap-0.5 mt-2">
-            {Array.from({ length: 12 }, (_, i) => {
+            {Array.from({ length: 8 }, (_, i) => {
               const count = crises.filter(c => c.turn === i + 1).length;
               return (
                 <div key={i} className="flex-1 flex flex-col items-center gap-0.5" title={`T${i + 1}: ${count} crisis${count !== 1 ? 'es' : ''}`}>
@@ -190,7 +190,7 @@ export default function Crises() {
           </div>
         </div>
         <div className="flex-1 overflow-y-auto">
-          {Array.from({ length: 12 }, (_, i) => i + 1).map(turn => {
+          {Array.from({ length: 8 }, (_, i) => i + 1).map(turn => {
             const turnCrises = crises.filter(c => c.turn === turn);
             return (
               <div key={turn} className={`px-3 py-2.5 border-b border-bg-tertiary/30 transition-colors ${turnCrises.length > 0 ? 'bg-danger/5 border-l-2 border-l-danger/40' : 'hover:bg-bg-tertiary/20'}`}>
@@ -301,8 +301,8 @@ export default function Crises() {
                 className="w-full bg-bg-tertiary border border-bg-quaternary/50 rounded-md px-3 py-1.5 text-sm focus:border-accent focus:ring-1 focus:ring-accent/30 transition-colors placeholder:text-text-secondary/30" />
             </div>
             <div>
-              <label className="text-xs text-text-secondary block mb-1">Turn (1-12)</label>
-              <input type="number" min={1} max={12} value={editing.turn}
+              <label className="text-xs text-text-secondary block mb-1">Turn (1-8)</label>
+              <input type="number" min={1} max={8} value={editing.turn}
                 onChange={e => setEditing({ ...editing, turn: parseInt(e.target.value) || 1 })}
                 className="w-full bg-bg-tertiary border border-bg-quaternary/50 rounded-md px-3 py-1.5 text-sm focus:border-accent focus:ring-1 focus:ring-accent/30 transition-colors" />
             </div>

@@ -135,7 +135,7 @@ export default function Campaign() {
         tau_0: 3.0, tau_1: 0.3, tau_2: 0.5, beta_econ: 0.3,
         kappa: 200, sigma_national: 0.10, sigma_regional: 0.15,
         sigma_turnout: 0.0, sigma_turnout_regional: 0.0,
-      }, 5, null, 12);
+      }, 5, null, 8);
       setCampaignState(state);
       setHistory([]);
       setActions([]);
@@ -218,7 +218,7 @@ export default function Campaign() {
     return (
       <div className="p-8 max-w-2xl">
         <h2 className="text-2xl font-bold mb-2">Campaign Mode</h2>
-        <p className="text-text-secondary mb-6">{parties.length} parties loaded. Start a new 12-turn campaign simulation.</p>
+        <p className="text-text-secondary mb-6">{parties.length} parties loaded. Start a new 8-turn campaign simulation.</p>
         {error && <div className="mb-4 p-3 bg-danger/20 text-danger rounded-md text-sm border border-danger/30">{error}</div>}
         <div className="bg-bg-secondary rounded-lg p-6 border border-bg-tertiary/50">
           <div className="flex items-center gap-4 mb-4">
@@ -226,7 +226,7 @@ export default function Campaign() {
               <svg className="w-6 h-6 text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75}><path d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
             </div>
             <div>
-              <h3 className="text-sm font-semibold">12-Turn Campaign Simulation</h3>
+              <h3 className="text-sm font-semibold">8-Turn Campaign Simulation</h3>
               <p className="text-xs text-text-secondary">Actions, crises, PC economy, synergies, and scandals</p>
             </div>
           </div>
@@ -761,7 +761,7 @@ function TurnHistoryRow({ result: h, prevResult, parties, defaultExpanded }: { r
   const totalPC = h.actions_resolved.reduce((s, a) => s + Number((a as Record<string, unknown>).cost ?? 0), 0);
 
   // Phase from state context
-  const phaseMap: Record<number, string> = { 1: 'FDN', 2: 'FDN', 3: 'FDN', 4: 'EXP', 5: 'EXP', 6: 'EXP', 7: 'INT', 8: 'INT', 9: 'INT', 10: 'FIN', 11: 'FIN', 12: 'FIN' };
+  const phaseMap: Record<number, string> = { 1: 'FDN', 2: 'FDN', 3: 'EXP', 4: 'EXP', 5: 'INT', 6: 'INT', 7: 'FIN', 8: 'FIN' };
   const phaseTag = phaseMap[h.turn] ?? '';
 
   return (

@@ -65,6 +65,16 @@ class SwingLGA(BaseModel):
     top_parties: list[str]
 
 
+class DistrictResult(BaseModel):
+    district_id: str
+    az_name: str
+    seats: int
+    total_votes: int
+    vote_shares: dict[str, float]
+    seat_allocation: dict[str, int]
+    winner: str
+
+
 class ElectionResultsResponse(BaseModel):
     national_vote_shares: dict[str, float]
     national_vote_counts: dict[str, int]
@@ -73,8 +83,10 @@ class ElectionResultsResponse(BaseModel):
     seat_std: dict[str, float]
     win_probability: dict[str, float]
     enp: float
+    total_seats: int = 622
     spread_check: dict[str, SpreadCheckResult]
     zonal_results: list[ZonalResult]
     state_results: list[StateResult]
     lga_results: list[LGAResultRow]
+    district_results: list[DistrictResult] = []
     swing_lgas: list[SwingLGA]

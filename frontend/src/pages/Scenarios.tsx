@@ -237,10 +237,10 @@ export default function Scenarios() {
                   {/* Turn progress bar */}
                   <div className="mt-2">
                     <div className="h-1 bg-bg-quaternary/30 rounded-full overflow-hidden">
-                      <div className="h-full bg-accent/40 rounded-full transition-all" style={{ width: `${Math.min((s.n_turns / 12) * 100, 100)}%` }} />
+                      <div className="h-full bg-accent/40 rounded-full transition-all" style={{ width: `${Math.min((s.n_turns / 8) * 100, 100)}%` }} />
                     </div>
                     <div className="flex justify-between items-center mt-0.5">
-                      <span className="text-[9px] text-text-secondary/40">{s.n_turns}/12 turns</span>
+                      <span className="text-[9px] text-text-secondary/40">{s.n_turns}/8 turns</span>
                       {scenarios.length >= 2 && (
                         <button
                           onClick={() => {

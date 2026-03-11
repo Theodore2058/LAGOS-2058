@@ -9,7 +9,7 @@ from election_engine.election import run_election
 from api.schemas.party import PartySchema
 from api.schemas.election import (
     EngineParamsInput, ElectionResultsResponse, SpreadCheckResult,
-    ZonalResult, StateResult, LGAResultRow, SwingLGA,
+    ZonalResult, StateResult, LGAResultRow, SwingLGA, DistrictResult,
 )
 
 DATA_PATH = Path(__file__).parent.parent.parent / "data" / "nigeria_lga_polsim_2058.xlsx"
@@ -178,6 +178,31 @@ def run_and_transform(parties: list[PartySchema], params_input: EngineParamsInpu
                 top_parties=[p[0] for p in pshares[:2]],
             ))
 
+    # District results
+    total_seats = int(results.get("total_seats", 622))
+    district_results_list = []
+    dist_df = results.get("district_results")
+    if dist_df is not None and len(dist_df) > 0:
+        for _, row in dist_df.iterrows():
+            d_shares = {}
+            d_seats = {}
+            for pn in party_names:
+                scol = f"{pn}_share"
+                if scol in row.index:
+                    d_shares[pn] = round(float(row[scol]), 6)
+                seat_col = f"{pn}_seats"
+                if seat_col in row.index:
+                    d_seats[pn] = int(row[seat_col])
+            district_results_list.append(DistrictResult(
+                district_id=str(row.get("District ID", "")),
+                az_name=str(row.get("AZ Name", "")),
+                seats=int(row.get("Seats", 0)),
+                total_votes=int(row.get("Total_Votes", 0)),
+                vote_shares=d_shares,
+                seat_allocation=d_seats,
+                winner=str(row.get("Winner", "")),
+            ))
+
     return ElectionResultsResponse(
         national_vote_shares=national_shares,
         national_vote_counts=national_votes,
@@ -186,9 +211,11 @@ def run_and_transform(parties: list[PartySchema], params_input: EngineParamsInpu
         seat_std=seat_std,
         win_probability=win_prob,
         enp=enp,
+        total_seats=total_seats,
         spread_check=spread_checks,
         zonal_results=zonal_results,
         state_results=state_results,
         lga_results=lga_results,
+        district_results=district_results_list,
         swing_lgas=swing_lgas,
     )
