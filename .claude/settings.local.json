@@ -32,7 +32,11 @@
       "Bash(python -m pytest tests/ -x -q --tb=short)",
       "Bash(python3:*)",
       "Bash(python -m pytest tests/ -x -v)",
-      "Bash(python -m pytest tests/test_salience.py tests/test_spatial.py tests/test_worked_example.py -v)"
+      "Bash(python -m pytest tests/test_salience.py tests/test_spatial.py tests/test_worked_example.py -v)",
+      "Bash(python -c \":*)",
+      "Bash(python -m pytest tests/ -x -q)",
+      "Bash(python build_map.py)",
+      "Bash(grep -i \"game\\\\|gameplay\\\\|gm\\\\|player\\\\|mechanic\" /c/Default/LAGOS-2058/*.md)"
     ]
   }
 }
