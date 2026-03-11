@@ -23,6 +23,25 @@ export interface CampaignStateResponse {
   poll_results: Record<string, unknown>[];
 }
 
+export interface LGAResultCompact {
+  lga: string;
+  state: string;
+  az: number;
+  district_id: string;
+  turnout: number;
+  vote_shares: Record<string, number>;
+  winner: string;
+}
+
+export interface DistrictResultCompact {
+  district_id: string;
+  az_name: string;
+  seats: number;
+  vote_shares: Record<string, number>;
+  seat_allocation: Record<string, int>;
+  winner: string;
+}
+
 export interface TurnResult {
   turn: number;
   state: CampaignStateResponse;
@@ -33,6 +52,8 @@ export interface TurnResult {
   actions_resolved: Record<string, unknown>[];
   synergies: Record<string, unknown>[];
   scandals: Record<string, unknown>[];
+  lga_results: LGAResultCompact[];
+  district_results: DistrictResultCompact[];
 }
 
 export async function newCampaign(parties: Party[], params: Omit<EngineParams, 'n_monte_carlo' | 'seed'>,

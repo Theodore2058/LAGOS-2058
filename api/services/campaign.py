@@ -24,6 +24,7 @@ from api.schemas.election import EngineParamsInput
 from api.schemas.campaign import (
     ActionInput, CrisisInput, PartyStatus,
     CampaignStateResponse, TurnResultResponse,
+    LGAResultCompact, DistrictResultCompact,
 )
 from api.services.election import party_schema_to_engine, params_to_engine
 import openpyxl
@@ -351,6 +352,55 @@ class CampaignSession:
 
         total_seats = int(result.get("total_seats", 622))
 
+        # LGA results
+        lga_results_list: list[LGAResultCompact] = []
+        lga_df = result.get("lga_results_base")
+        if lga_df is not None:
+            for _, row in lga_df.iterrows():
+                shares: dict[str, float] = {}
+                winner = ""
+                best = -1.0
+                for pn in self.party_names:
+                    col = f"{pn}_share"
+                    if col in row.index:
+                        val = round(float(row[col]), 6)
+                        shares[pn] = val
+                        if val > best:
+                            best = val
+                            winner = pn
+                lga_results_list.append(LGAResultCompact(
+                    lga=str(row.get("LGA Name", "")),
+                    state=str(row.get("State", "")),
+                    az=int(row.get("Administrative Zone", 0)),
+                    district_id=str(row.get("District ID", "")),
+                    turnout=round(float(row.get("Turnout", 0)), 4),
+                    vote_shares=shares,
+                    winner=winner,
+                ))
+
+        # District results
+        district_results_list: list[DistrictResultCompact] = []
+        dist_df = result.get("district_results")
+        if dist_df is not None and len(dist_df) > 0:
+            for _, row in dist_df.iterrows():
+                d_shares: dict[str, float] = {}
+                d_seats: dict[str, int] = {}
+                for pn in self.party_names:
+                    scol = f"{pn}_share"
+                    if scol in row.index:
+                        d_shares[pn] = round(float(row[scol]), 6)
+                    seat_col = f"{pn}_seats"
+                    if seat_col in row.index:
+                        d_seats[pn] = int(row[seat_col])
+                district_results_list.append(DistrictResultCompact(
+                    district_id=str(row.get("District ID", "")),
+                    az_name=str(row.get("AZ Name", "")),
+                    seats=int(row.get("Seats", 0)),
+                    vote_shares=d_shares,
+                    seat_allocation=d_seats,
+                    winner=str(row.get("Winner", "")),
+                ))
+
         turn_result = TurnResultResponse(
             turn=processed_turn,
             state=self.get_state_response(),
@@ -361,6 +411,8 @@ class CampaignSession:
             actions_resolved=actions_log,
             synergies=synergies_serializable,
             scandals=scandals_serializable,
+            lga_results=lga_results_list,
+            district_results=district_results_list,
         )
         self.turn_results.append(turn_result)
         return turn_result

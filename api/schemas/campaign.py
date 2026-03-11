@@ -63,6 +63,25 @@ class CampaignStateResponse(BaseModel):
     poll_results: list[dict]
 
 
+class LGAResultCompact(BaseModel):
+    lga: str
+    state: str
+    az: int
+    district_id: str = ""
+    turnout: float
+    vote_shares: dict[str, float]
+    winner: str
+
+
+class DistrictResultCompact(BaseModel):
+    district_id: str
+    az_name: str
+    seats: int
+    vote_shares: dict[str, float]
+    seat_allocation: dict[str, int]
+    winner: str
+
+
 class TurnResultResponse(BaseModel):
     turn: int
     state: CampaignStateResponse
@@ -73,3 +92,5 @@ class TurnResultResponse(BaseModel):
     actions_resolved: list[dict]
     synergies: list[dict]
     scandals: list[dict]
+    lga_results: list[LGAResultCompact] = []
+    district_results: list[DistrictResultCompact] = []

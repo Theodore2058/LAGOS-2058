@@ -13,6 +13,7 @@ import ActionBuilder from '../components/ActionBuilder';
 import ErrorBanner from '../components/ErrorBanner';
 import { useToast } from '../components/Toast';
 import ConfirmModal from '../components/ConfirmModal';
+import DistrictResultsMap from '../components/DistrictResultsMap';
 import { useKeyboard } from '../hooks/useKeyboard';
 
 function computeQueuedActionCost(a: ActionInput, actionTypes: ActionType[]): number {
@@ -343,6 +344,22 @@ export default function Campaign() {
           </div>
         </div>
       )}
+
+      {/* District Results Map (shown on completion) */}
+      {isComplete && history.length > 0 && (() => {
+        const lastTurn = history[history.length - 1];
+        return lastTurn.district_results?.length > 0 ? (
+          <DistrictResultsMap
+            parties={parties}
+            districtResults={lastTurn.district_results}
+            lgaResults={lastTurn.lga_results ?? []}
+            seatCounts={lastTurn.seat_counts}
+            nationalShares={lastTurn.national_vote_shares}
+            totalSeats={lastTurn.total_seats}
+            nationalTurnout={lastTurn.national_turnout}
+          />
+        ) : null;
+      })()}
 
       {/* Turn Header */}
       {!isComplete && (
