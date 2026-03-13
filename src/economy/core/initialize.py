@@ -165,12 +165,12 @@ def _init_inventories(
         else:
             prod_weight = lga_data.pct_services + 0.3
 
-        # Base inventory: 10 units per 1000 people, scaled by production weight
-        base = pop_norm * (prod_weight + 0.1) * 10.0
-        inv[:, c] = base * cdef.base_price / 100_000.0  # normalize by price tier
+        # Base inventory: enough for ~20 market ticks of consumption
+        base = pop_norm * (prod_weight + 0.2) * 50.0
+        inv[:, c] = base
 
     # Ensure minimums
-    inv = np.maximum(inv, 0.1)
+    inv = np.maximum(inv, 1.0)
     state.inventories = inv
 
 
