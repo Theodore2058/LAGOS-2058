@@ -143,13 +143,18 @@ class TickScheduler:
         return result
 
     def run_structural_tick(self) -> TickResult:
-        """Execute one structural tick (monthly): forex, climate, demographics, land."""
+        """Execute one structural tick (monthly): all macro systems."""
         t0 = time.time()
 
         from src.economy.systems.forex import tick_forex, apply_forex_mutations
         from src.economy.systems.climate import tick_climate, apply_climate_mutations
         from src.economy.systems.demographics import tick_demographics, apply_demographic_mutations
         from src.economy.systems.land import tick_land, apply_land_mutations
+        from src.economy.systems.government import tick_government
+        from src.economy.systems.alsahid import tick_alsahid, apply_alsahid_mutations
+
+        # Government (policy queue, budget, corruption, infrastructure)
+        tick_government(self.state, self.config)
 
         # Forex
         forex_mut = tick_forex(self.state, self.config)
@@ -158,6 +163,10 @@ class TickScheduler:
         # Climate
         climate_mut = tick_climate(self.state, self.config)
         apply_climate_mutations(self.state, climate_mut)
+
+        # Al-Shahid parallel economy
+        alsahid_mut = tick_alsahid(self.state, self.config)
+        apply_alsahid_mutations(self.state, alsahid_mut)
 
         # Demographics
         demo_mut = tick_demographics(self.state, self.config)
