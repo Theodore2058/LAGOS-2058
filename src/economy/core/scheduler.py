@@ -142,6 +142,50 @@ class TickScheduler:
             self.on_tick(result)
         return result
 
+    def run_structural_tick(self) -> TickResult:
+        """Execute one structural tick (monthly): forex, climate, demographics, land."""
+        t0 = time.time()
+
+        from src.economy.systems.forex import tick_forex, apply_forex_mutations
+        from src.economy.systems.climate import tick_climate, apply_climate_mutations
+        from src.economy.systems.demographics import tick_demographics, apply_demographic_mutations
+        from src.economy.systems.land import tick_land, apply_land_mutations
+
+        # Forex
+        forex_mut = tick_forex(self.state, self.config)
+        apply_forex_mutations(self.state, forex_mut)
+
+        # Climate
+        climate_mut = tick_climate(self.state, self.config)
+        apply_climate_mutations(self.state, climate_mut)
+
+        # Demographics
+        demo_mut = tick_demographics(self.state, self.config)
+        apply_demographic_mutations(self.state, demo_mut)
+
+        # Land market
+        land_mut = tick_land(self.state, self.config)
+        apply_land_mutations(self.state, land_mut)
+
+        elapsed = time.time() - t0
+        self.structural_tick_count += 1
+        self.tick_count += 1
+
+        warnings = check_all_invariants(self.state)
+
+        result = TickResult(
+            tick_type="structural",
+            tick_number=self.tick_count,
+            game_day=self.state.game_day,
+            game_month=self.state.game_month,
+            elapsed_seconds=elapsed,
+            invariant_warnings=warnings,
+        )
+        self.history.append(result)
+        if self.on_tick:
+            self.on_tick(result)
+        return result
+
     def run_n_market_ticks(self, n: int, verbose: bool = False) -> list[TickResult]:
         """Run n market ticks sequentially."""
         results = []
@@ -180,6 +224,10 @@ class TickScheduler:
                     result = self.run_market_tick()
                 results.append(result)
 
+            # Structural tick at end of each month
+            structural_result = self.run_structural_tick()
+            results.append(structural_result)
+
             if verbose:
                 logger.info(
                     "Month %d complete: prices=[%.0f,%.0f] inv=%.1f warnings=%d",
@@ -187,7 +235,7 @@ class TickScheduler:
                     self.state.prices.min(),
                     self.state.prices.max(),
                     self.state.inventories.mean(),
-                    sum(len(r.invariant_warnings) for r in results[-56:]),
+                    sum(len(r.invariant_warnings) for r in results[-57:]),
                 )
 
         return results

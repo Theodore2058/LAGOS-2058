@@ -300,14 +300,18 @@ class TestIntegratedPipeline:
         assert result.tick_number > 0
 
     def test_mixed_ticks_one_month(self, state, config):
-        """One month of mixed ticks (56 market + 7 production) completes."""
+        """One month of mixed ticks (56 market/prod + 1 structural) completes."""
         scheduler = TickScheduler(state=state, config=config)
         results = scheduler.run_mixed_ticks(n_months=1)
-        assert len(results) == config.MARKET_TICKS_PER_MONTH
+        # 56 market/production ticks + 1 structural = 57
+        assert len(results) == config.MARKET_TICKS_PER_MONTH + 1
         # Count production ticks
         prod_ticks = sum(1 for r in results if r.tick_type == "production")
         expected_prod = config.PRODUCTION_TICKS_PER_MONTH - 1  # first tick=0 is market
         assert prod_ticks == expected_prod
+        # One structural tick
+        struct_ticks = sum(1 for r in results if r.tick_type == "structural")
+        assert struct_ticks == 1
 
     def test_three_month_stability(self, state, config):
         """Three months of mixed ticks maintain invariants."""
