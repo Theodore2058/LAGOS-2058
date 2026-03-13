@@ -99,13 +99,24 @@ class TickScheduler:
         return result
 
     def run_production_tick(self) -> TickResult:
-        """Execute one production tick (includes a market tick afterward)."""
+        """Execute one production tick (includes labor + market afterward)."""
         t0 = time.time()
 
         # Production
         prod_mut = tick_production(self.state, self.config)
         assert_production_valid(self.state, prod_mut)
         apply_production_mutations(self.state, prod_mut)
+
+        # Labor market
+        from src.economy.systems.labor import tick_labor, apply_labor_mutations, evaluate_strikes
+        labor_mut = tick_labor(self.state, self.config)
+        strikes_active, _ = evaluate_strikes(self.state, self.config)
+        apply_labor_mutations(self.state, labor_mut, strikes_active)
+
+        # Banking
+        from src.economy.systems.banking import tick_banking, apply_banking_mutations
+        bank_mut = tick_banking(self.state, self.config)
+        apply_banking_mutations(self.state, bank_mut)
 
         # Advance game week
         self.state.game_week += 1
