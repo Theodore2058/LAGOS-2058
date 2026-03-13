@@ -16,6 +16,7 @@ from api.routes.campaign import router as campaign_router
 from api.routes.crises import router as crises_router
 from api.routes.scenarios import router as scenarios_router
 from api.routes.economy import router as economy_router
+from api.routes.economy_ws import router as economy_ws_router
 
 app = FastAPI(title="LAGOS-2058 GM API", version="0.1.0")
 app.include_router(config_router)
@@ -25,6 +26,7 @@ app.include_router(campaign_router)
 app.include_router(crises_router)
 app.include_router(scenarios_router)
 app.include_router(economy_router)
+app.include_router(economy_ws_router)
 
 app.add_middleware(
     CORSMiddleware,
