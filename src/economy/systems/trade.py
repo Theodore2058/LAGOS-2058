@@ -186,7 +186,7 @@ def clear_market(
     # Mean reversion: gently pull prices toward base prices to prevent drift
     from src.economy.data.commodities import BASE_PRICES as _BP
     log_ratio = np.log(np.maximum(prices, 1.0) / _BP[np.newaxis, :])
-    mean_reversion = -0.05 * log_ratio  # 5% pull toward base per tick
+    mean_reversion = -0.02 * log_ratio  # 2% pull toward base per tick (~67%/month)
     prices *= np.exp(mean_reversion)
     prices[:] = np.maximum(prices, price_floor)
 

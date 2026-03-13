@@ -18,11 +18,9 @@ from src.economy.core.types import (
     SimConfig,
 )
 
-logger = logging.getLogger(__name__)
+from src.economy.data.commodity_ids import CRUDE_OIL, COBALT_ORE
 
-# Commodity column indices in the (774, 36) production/price arrays
-_CRUDE_OIL_ID = 12
-_COBALT_ID = 21
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -67,8 +65,8 @@ def tick_forex(state: EconomicState, config: SimConfig) -> ForexMutations:
     # 2. Export revenue (oil + cobalt, summed across all 774 LGAs)
     # ------------------------------------------------------------------
     # production_capacity[:, id] is the per-LGA monthly output proxy.
-    oil_output = state.production_capacity[:, _CRUDE_OIL_ID].sum()
-    cobalt_output = state.production_capacity[:, _COBALT_ID].sum()
+    oil_output = state.production_capacity[:, CRUDE_OIL].sum()
+    cobalt_output = state.production_capacity[:, COBALT_ORE].sum()
 
     export_revenue_usd = (
         oil_output * oil_price_new

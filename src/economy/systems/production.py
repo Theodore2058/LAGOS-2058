@@ -332,7 +332,7 @@ def _leontief_vec(
     bottleneck = np.minimum(bottleneck, power_factor)
 
     output = capacity * bottleneck * zaibatsu_bonus * enh_mult
-    return np.clip(output, 0.0, capacity * zaibatsu_bonus.max() * enh_mult.max())
+    return np.clip(output, 0.0, capacity * zaibatsu_bonus * enh_mult)
 
 
 # ---------------------------------------------------------------------------
@@ -371,4 +371,4 @@ def apply_production_mutations(
     """Apply production results to state."""
     state.inventories = np.maximum(state.inventories + mutations.inventory_deltas, 0.0)
     state.labor_employed = mutations.labor_employed_new
-    state.actual_output = state.inventories.copy()  # snapshot
+    state.actual_output = mutations.inventory_deltas.clip(min=0.0)  # actual production output
