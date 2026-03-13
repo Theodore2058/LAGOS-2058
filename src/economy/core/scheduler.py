@@ -42,11 +42,13 @@ class TickScheduler:
     """
     Orchestrates the three economic clocks.
 
-    Phase 1: synchronous execution, market + production ticks only.
+    Supports optional trade graph and trader agents for inter-LGA trade.
     """
 
     state: EconomicState
     config: SimConfig
+    trade_graph: object = None   # Optional[TradeGraph]
+    traders: object = None       # Optional[List[TraderAgent]]
     tick_count: int = 0
     market_tick_count: int = 0
     production_tick_count: int = 0
@@ -58,8 +60,16 @@ class TickScheduler:
         """Execute one market clock tick."""
         t0 = time.time()
 
+        # Run trader agents if available
+        trader_net_supply = None
+        if self.trade_graph is not None and self.traders is not None:
+            from src.economy.systems.traders import tick_traders
+            trader_net_supply = tick_traders(
+                self.state, self.config, self.traders, self.trade_graph,
+            )
+
         # Run market systems
-        mkt_mut = tick_market(self.state, self.config)
+        mkt_mut = tick_market(self.state, self.config, trader_net_supply)
 
         # Advance game time
         self.state.game_day += 1

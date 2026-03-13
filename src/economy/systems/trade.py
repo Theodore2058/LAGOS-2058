@@ -27,11 +27,16 @@ from src.economy.core.types import (
 logger = logging.getLogger(__name__)
 
 
-def tick_market(state: EconomicState, config: SimConfig) -> MarketMutations:
+def tick_market(
+    state: EconomicState,
+    config: SimConfig,
+    trader_net_supply: np.ndarray | None = None,
+) -> MarketMutations:
     """
     Execute one market tick: spoilage, demand computation, price clearing.
 
-    Phase 1: no trader agents, just local supply/demand clearing.
+    If trader_net_supply is provided (from trader agents), it is included
+    in the supply/demand balance.
     """
     N = config.N_LGAS
     C = config.N_COMMODITIES
@@ -44,8 +49,9 @@ def tick_market(state: EconomicState, config: SimConfig) -> MarketMutations:
     # 2. Compute consumer demand
     consumer_demand = compute_consumer_demand(state, config)
 
-    # 3. Clear markets (no trader supply in Phase 1)
-    trader_net_supply = np.zeros((N, C), dtype=np.float64)
+    # 3. Clear markets
+    if trader_net_supply is None:
+        trader_net_supply = np.zeros((N, C), dtype=np.float64)
     excess_demand = clear_market(
         prices=state.prices,
         inventories=state.inventories,
