@@ -156,16 +156,17 @@ def compute_naijin_credit_bias(
     if state.alsahid_control is None:
         return 1.0
 
-    # Get LGAs in this zone (admin_zones are 1-indexed)
-    # Simple proxy: average al-Shahid control in zone
-    # We don't have per-LGA zone mapping readily available in state,
-    # so use a rough north/south split
-    avg_control = state.alsahid_control.mean()
-    # Zones 5-8 are generally northern
-    if zone >= 4:  # 0-indexed zones 4-7 → admin zones 5-8
-        zone_control = avg_control * 1.5
+    from src.economy.core.types import lgas_in_zone
+
+    # Use real zone mapping to get actual al-Shahid control in this zone
+    if state.admin_zone is not None:
+        zone_lgas = lgas_in_zone(state, zone)
+        if len(zone_lgas) > 0:
+            zone_control = float(state.alsahid_control[zone_lgas].mean())
+        else:
+            zone_control = float(state.alsahid_control.mean())
     else:
-        zone_control = avg_control * 0.5
+        zone_control = float(state.alsahid_control.mean())
 
     return max(1.0 - zone_control * 0.3, 0.7)
 
@@ -188,37 +189,18 @@ def apply_banking_mutations(
 def _compute_zone_income(
     state: EconomicState, config: SimConfig,
 ) -> np.ndarray:
-    """Total wage income per zone."""
-    Z = config.N_ADMIN_ZONES
-    zone_income = np.zeros(Z, dtype=np.float64)
+    """Total wage income per zone using real admin zone mapping."""
+    from src.economy.core.types import aggregate_by_zone
 
-    # Sum wages * employment across all LGAs in each zone
     total_per_lga = (state.wages * state.labor_employed).sum(axis=1)
-
-    # Simple zone mapping: divide 774 LGAs into 8 roughly equal zones
-    # (In production, should use actual admin zone from LGA data)
-    lgas_per_zone = config.N_LGAS // Z
-    for z in range(Z):
-        start = z * lgas_per_zone
-        end = start + lgas_per_zone if z < Z - 1 else config.N_LGAS
-        zone_income[z] = total_per_lga[start:end].sum()
-
-    return zone_income
+    return aggregate_by_zone(state, total_per_lga, config.N_ADMIN_ZONES)
 
 
 def _compute_zone_revenue(
     state: EconomicState, config: SimConfig,
 ) -> np.ndarray:
-    """Total business revenue per zone (production * prices)."""
-    Z = config.N_ADMIN_ZONES
-    zone_revenue = np.zeros(Z, dtype=np.float64)
+    """Total business revenue per zone using real admin zone mapping."""
+    from src.economy.core.types import aggregate_by_zone
 
     production_value = (state.production_capacity * state.prices).sum(axis=1)
-
-    lgas_per_zone = config.N_LGAS // Z
-    for z in range(Z):
-        start = z * lgas_per_zone
-        end = start + lgas_per_zone if z < Z - 1 else config.N_LGAS
-        zone_revenue[z] = production_value[start:end].sum()
-
-    return zone_revenue
+    return aggregate_by_zone(state, production_value, config.N_ADMIN_ZONES)

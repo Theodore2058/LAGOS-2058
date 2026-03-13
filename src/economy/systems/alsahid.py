@@ -37,17 +37,9 @@ _CONTROL_DECAY_RATE: float = 0.02       # passive monthly decay
 _POVERTY_THRESHOLD: float = 0.40        # unemployment ratio considered "high"
 _STATE_CAPACITY_WEAKNESS: float = 0.50  # below this, state is "weak"
 
-# state_capacity is (12,) — map LGAs to admin zones (774 -> 12)
-_LGAS_PER_ZONE: int = 774 // 12        # ~64, remainder handled below
-
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-
-def _lga_to_zone(n_lgas: int, n_zones: int) -> np.ndarray:
-    """Return (n_lgas,) int array mapping each LGA to its admin zone index."""
-    return np.minimum(np.arange(n_lgas) * n_zones // n_lgas, n_zones - 1)
 
 
 def _unemployment_rate(state: EconomicState) -> np.ndarray:
@@ -83,8 +75,9 @@ def tick_alsahid(state: EconomicState, config: SimConfig) -> AlShahidMutations:
     # -- Current state --
     control = state.alsahid_control.copy()           # (774,)
     bic = state.bic_enforcement_intensity             # scalar float
-    zone_map = _lga_to_zone(n_lgas, state.state_capacity.shape[0])
-    state_cap_per_lga = state.state_capacity[zone_map]  # (774,)
+    # state_capacity is (12,) per ministry — use mean as per-LGA governance proxy
+    mean_capacity = float(state.state_capacity.mean())
+    state_cap_per_lga = np.full(n_lgas, mean_capacity, dtype=np.float64)
     unemp = _unemployment_rate(state)                    # (774,)
 
     # -------------------------------------------------------------------

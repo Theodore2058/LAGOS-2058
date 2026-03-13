@@ -47,6 +47,9 @@ def initialize_state(
     rng = np.random.default_rng(config.SEED)
     state = EconomicState(rng=rng)
 
+    # --- Admin zone mapping (0-indexed from 1-indexed data) ---
+    state.admin_zone = np.clip(lga_data.admin_zones - 1, 0, Z - 1).astype(np.int32)
+
     # --- Prices: start at base prices with small regional variation ---
     state.prices = np.tile(BASE_PRICES, (N, 1)).copy()
     # Add ±10% regional noise

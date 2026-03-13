@@ -513,10 +513,41 @@ class EconomicState:
     infra_power_reliability: Optional[np.ndarray] = None  # (774,) float64
     infra_telecom_quality: Optional[np.ndarray] = None  # (774,) float64
 
+    # --- Zone Mapping ---
+    admin_zone: Optional[np.ndarray] = None           # (774,) int32, 0-indexed zone IDs
+
     # --- RNG ---
     rng: np.random.Generator = field(
         default_factory=lambda: np.random.default_rng(42),
     )
+
+
+# ---------------------------------------------------------------------------
+# Zone helpers
+# ---------------------------------------------------------------------------
+
+def lgas_in_zone(state: EconomicState, zone: int) -> np.ndarray:
+    """Return array of LGA indices belonging to the given 0-indexed admin zone."""
+    if state.admin_zone is None:
+        raise ValueError("admin_zone not initialized on state")
+    return np.where(state.admin_zone == zone)[0]
+
+
+def aggregate_by_zone(
+    state: EconomicState, per_lga: np.ndarray, n_zones: int,
+) -> np.ndarray:
+    """Sum a per-LGA (774,) array into per-zone (Z,) array using real zone mapping."""
+    result = np.zeros(n_zones, dtype=np.float64)
+    if state.admin_zone is None:
+        # Fallback: equal division (should not happen after initialization)
+        lgas_per = len(per_lga) // n_zones
+        for z in range(n_zones):
+            start = z * lgas_per
+            end = start + lgas_per if z < n_zones - 1 else len(per_lga)
+            result[z] = per_lga[start:end].sum()
+        return result
+    np.add.at(result, state.admin_zone, per_lga)
+    return result
 
 
 # ---------------------------------------------------------------------------

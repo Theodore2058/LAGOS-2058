@@ -309,6 +309,68 @@ def _haversine(p1: np.ndarray, p2: np.ndarray) -> float:
 # Transport cost
 # ---------------------------------------------------------------------------
 
+def compute_visibility(
+    graph: TradeGraph, max_hops: int,
+) -> dict[int, np.ndarray]:
+    """
+    BFS from every LGA to find visible LGAs within max_hops.
+
+    Returns: dict mapping lga_id → array of visible lga_ids (sorted).
+    Cached on the graph object as `_visibility_cache`.
+    """
+    if hasattr(graph, '_visibility_cache') and graph._visibility_cache is not None:
+        cached_hops = getattr(graph, '_visibility_hops', -1)
+        if cached_hops == max_hops:
+            return graph._visibility_cache
+
+    adj = graph.adjacency_list
+    N = graph.n_lgas
+    visibility: dict[int, np.ndarray] = {}
+
+    for start in range(N):
+        visited = set()
+        visited.add(start)
+        frontier = [start]
+        for _ in range(max_hops):
+            next_frontier = []
+            for node in frontier:
+                for neighbor in adj.get(node, []):
+                    if neighbor not in visited:
+                        visited.add(neighbor)
+                        next_frontier.append(neighbor)
+            frontier = next_frontier
+            if not frontier:
+                break
+        visibility[start] = np.array(sorted(visited), dtype=np.int32)
+
+    graph._visibility_cache = visibility  # type: ignore[attr-defined]
+    graph._visibility_hops = max_hops  # type: ignore[attr-defined]
+    logger.info(
+        "Computed BFS visibility: max_hops=%d, avg visible=%.0f LGAs",
+        max_hops, np.mean([len(v) for v in visibility.values()]),
+    )
+    return visibility
+
+
+def get_best_visible_prices(
+    graph: TradeGraph,
+    prices: np.ndarray,
+    visibility: dict[int, np.ndarray],
+) -> np.ndarray:
+    """
+    For each LGA, find the maximum price within its visibility radius per commodity.
+
+    Returns: (N, C) array of best visible prices.
+    """
+    N, C = prices.shape
+    best_prices = prices.copy()
+    for i in range(N):
+        visible = visibility.get(i)
+        if visible is not None and len(visible) > 1:
+            best_prices[i] = prices[visible].max(axis=0)
+    return best_prices
+
+
 def transport_cost(
     commodity_value: float,
     distance_km: float,

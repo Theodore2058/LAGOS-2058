@@ -13,7 +13,7 @@ import numpy as np
 
 from src.economy.core.types import EconomicState, SimConfig, TraderAgent
 from src.economy.data.commodities import BASE_PRICES
-from src.economy.systems.trade_graph import TradeGraph
+from src.economy.systems.trade_graph import TradeGraph, compute_visibility, get_best_visible_prices
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +53,12 @@ def tick_traders(
     C = config.N_COMMODITIES
     net_supply = np.zeros((N, C), dtype=np.float64)
 
+    # Compute BFS visibility (cached on graph)
+    visibility = compute_visibility(graph, config.TRADER_INFO_RADIUS_HOPS)
+
+    # Best visible prices: traders respond to the highest price they can see
+    best_visible = get_best_visible_prices(graph, state.prices, visibility)
+
     sources = graph.edges[:, 0]  # (R,)
     dests = graph.edges[:, 1]    # (R,)
 
@@ -72,9 +78,17 @@ def tick_traders(
         price_src = state.prices[sources, c]  # (R,)
         price_dst = state.prices[dests, c]    # (R,)
 
-        # Forward: source → dest
+        # Use best visible price as the signal: trade toward destination
+        # only if it's in the direction of higher visible prices
+        best_src = best_visible[sources, c]
+        best_dst = best_visible[dests, c]
+
+        # Forward: source → dest (trade when dest direction has higher visible prices)
         transport_cost = price_src * route_cost_factor
+        # Profit uses actual dest price, but urgency is boosted by best visible
         profit_fwd = price_dst - price_src - transport_cost
+        # Scale urgency: if best visible price beyond dest is even higher, trade harder
+        signal_boost_fwd = np.clip(best_dst / np.maximum(price_dst, 1.0), 1.0, 2.0)
 
         fwd_mask = profit_fwd > 0
         if fwd_mask.any():
@@ -82,7 +96,8 @@ def tick_traders(
             fwd_dests = dests[fwd_mask]
             avail = state.inventories[fwd_sources, c]
             margin = np.clip(profit_fwd[fwd_mask] / np.maximum(price_src[fwd_mask], 1.0), 0, 0.5)
-            quantity = avail * 0.03 * margin
+            boost = signal_boost_fwd[fwd_mask]
+            quantity = avail * 0.03 * margin * boost
             quantity = np.minimum(quantity, avail * 0.10)
             np.add.at(net_supply[:, c], fwd_sources, -quantity)
             np.add.at(net_supply[:, c], fwd_dests, quantity)
@@ -90,6 +105,7 @@ def tick_traders(
         # Reverse: dest → source
         transport_cost_rev = price_dst * route_cost_factor
         profit_rev = price_src - price_dst - transport_cost_rev
+        signal_boost_rev = np.clip(best_src / np.maximum(price_src, 1.0), 1.0, 2.0)
 
         rev_mask = profit_rev > 0
         if rev_mask.any():
@@ -97,7 +113,8 @@ def tick_traders(
             rev_dests = sources[rev_mask]
             avail = state.inventories[rev_sources, c]
             margin = np.clip(profit_rev[rev_mask] / np.maximum(price_dst[rev_mask], 1.0), 0, 0.5)
-            quantity = avail * 0.03 * margin
+            boost = signal_boost_rev[rev_mask]
+            quantity = avail * 0.03 * margin * boost
             quantity = np.minimum(quantity, avail * 0.10)
             np.add.at(net_supply[:, c], rev_sources, -quantity)
             np.add.at(net_supply[:, c], rev_dests, quantity)

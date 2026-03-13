@@ -90,6 +90,7 @@ _ARRAY_FIELDS: List[str] = [
     "infra_road_quality",
     "infra_power_reliability",
     "infra_telecom_quality",
+    "admin_zone",
 ]
 
 
