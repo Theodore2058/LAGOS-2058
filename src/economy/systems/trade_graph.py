@@ -261,6 +261,27 @@ def update_trade_surcharges(graph: TradeGraph, alsahid_control: np.ndarray) -> N
     )
 
 
+def update_trade_qualities(graph: TradeGraph, road_quality: np.ndarray) -> None:
+    """
+    Refresh per-route road quality from current infrastructure state.
+
+    Called during the structural tick so that infrastructure decay/repair
+    feeds back into trade transport costs. Only affects road routes (type 0);
+    rail and water routes keep fixed quality.
+
+    Vectorized: processes all routes simultaneously.
+    """
+    edges = graph.edges  # (R, 2)
+    road_mask = graph.route_types == 0  # only road routes
+
+    if road_mask.any():
+        a = edges[road_mask, 0]
+        b = edges[road_mask, 1]
+        # Average quality of the two endpoints
+        avg_quality = (road_quality[a] + road_quality[b]) * 0.5
+        graph.qualities[road_mask] = np.clip(avg_quality, 0.05, 1.0)
+
+
 def _load_centroids(
     geojson_path: Path, lga_data: EconomyLGAData,
 ) -> np.ndarray:
