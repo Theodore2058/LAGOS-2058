@@ -51,6 +51,7 @@ _SCALAR_FIELDS: Dict[str, type] = {
     "price_history_cursor": int,
     "wafta_active": bool,
     "n_buildings": int,
+    "alsahid_tax_diversion": float,
 }
 
 # Every numpy array field we persist directly in the .npz.
@@ -84,6 +85,7 @@ _ARRAY_FIELDS: List[str] = [
     "desertification_loss",
     "alsahid_control",
     "alsahid_service_provision",
+    "alsahid_trade_surcharges",
     "enhancement_adoption",
     "population",
     "voter_welfare",
@@ -121,6 +123,8 @@ _ARRAY_FIELDS: List[str] = [
     "_pop_lga_ids",
     "_pop_livelihood_ids",
     "_pop_income_ids",
+    # --- Capacity investment cap ---
+    "_initial_production_capacity",
 ]
 
 
@@ -156,6 +160,7 @@ def _construction_project_to_dict(cp: ConstructionProject) -> Dict[str, Any]:
         "monthly_labor_demand": {str(k): v for k, v in cp.monthly_labor_demand.items()},
         "completion_effect": cp.completion_effect,
         "funded": cp.funded,
+        "stall_months": cp.stall_months,
     }
 
 
@@ -169,6 +174,7 @@ def _dict_to_construction_project(d: Dict[str, Any]) -> ConstructionProject:
         monthly_labor_demand={int(k): v for k, v in d["monthly_labor_demand"].items()},
         completion_effect=d["completion_effect"],
         funded=d.get("funded", True),
+        stall_months=d.get("stall_months", 0),
     )
 
 
