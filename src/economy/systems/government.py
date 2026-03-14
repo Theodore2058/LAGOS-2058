@@ -202,6 +202,13 @@ def _tick_construction(state: EconomicState, config: SimConfig) -> None:
         if materials_available < materials_needed * 0.1:
             # Not enough materials — project stalls
             project.funded = False
+            project.stall_months += 1
+            if project.stall_months >= 12:
+                logger.info(
+                    "Auto-cancelling stalled project: %s LGA %d (stalled %d months)",
+                    project.project_type, lga, project.stall_months,
+                )
+                continue  # drop from remaining — auto-cancel
             remaining.append(project)
             logger.debug(
                 "Construction stalled (no materials): %s LGA %d (need %.0f, have %.0f)",
@@ -229,6 +236,13 @@ def _tick_construction(state: EconomicState, config: SimConfig) -> None:
 
         if not labor_ok:
             project.funded = False
+            project.stall_months += 1
+            if project.stall_months >= 12:
+                logger.info(
+                    "Auto-cancelling stalled project: %s LGA %d (stalled %d months)",
+                    project.project_type, lga, project.stall_months,
+                )
+                continue  # auto-cancel
             remaining.append(project)
             logger.debug(
                 "Construction stalled (no labor): %s LGA %d",
@@ -245,6 +259,7 @@ def _tick_construction(state: EconomicState, config: SimConfig) -> None:
 
         # --- Advance project ---
         project.funded = True
+        project.stall_months = 0  # reset on successful funding
         project.months_remaining -= 1
 
         if project.months_remaining <= 0:

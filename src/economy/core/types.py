@@ -229,6 +229,7 @@ class ConstructionProject:
     monthly_labor_demand: Dict[int, int]
     completion_effect: Dict
     funded: bool = True
+    stall_months: int = 0  # months unfunded; auto-cancel after 12
 
 
 @dataclass

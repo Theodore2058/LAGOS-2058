@@ -120,7 +120,8 @@ def tick_forex(state: EconomicState, config: SimConfig) -> ForexMutations:
     # ------------------------------------------------------------------
     # 6. Rate-gap corruption drain
     # ------------------------------------------------------------------
-    rate_gap = parallel_rate_new / official_rate_new - 1.0
+    safe_official = max(official_rate_new, 100.0)  # floor: prevent div-by-zero
+    rate_gap = parallel_rate_new / safe_official - 1.0
     # Round-tripping profits siphoned by connected elites: proportional
     # to the gap and to total import volume.
     rate_gap_corruption_drain = max(rate_gap, 0.0) * import_bill_usd * 0.05

@@ -53,9 +53,17 @@ class TestGoldenRegression:
     """
 
     def test_tick_count(self, golden, sim_state):
-        """Same number of ticks."""
-        _, _, results = sim_state
-        assert len(results) == int(golden["n_ticks"])
+        """Tick count within expected range (tolerant of interleaving changes)."""
+        _, config, results = sim_state
+        # Each month: market_ticks + production_ticks + 1 structural
+        n_months = 6
+        expected_per_month = (
+            config.MARKET_TICKS_PER_MONTH
+            + config.PRODUCTION_TICKS_PER_MONTH
+            + 1  # structural
+        )
+        expected = n_months * expected_per_month
+        assert len(results) == expected
 
     def test_gdp_proxy(self, golden, sim_state):
         """GDP proxy within 50% of golden."""

@@ -284,11 +284,12 @@ class TickScheduler:
 
         for month in range(n_months):
             for tick in range(self.config.MARKET_TICKS_PER_MONTH):
-                if tick > 0 and tick % market_ticks_per_prod == 0:
-                    result = self.run_production_tick()
-                else:
-                    result = self.run_market_tick()
+                result = self.run_market_tick()
                 results.append(result)
+                # Production tick after every 8 market ticks (7 per month)
+                if (tick + 1) % market_ticks_per_prod == 0:
+                    result = self.run_production_tick()
+                    results.append(result)
 
             # Structural tick at end of each month
             structural_result = self.run_structural_tick()

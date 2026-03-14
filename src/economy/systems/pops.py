@@ -248,7 +248,9 @@ def update_standard_of_living(state: EconomicState, config: SimConfig) -> None:
 
     # Income component: log-scaled relative to median
     income = state.pop_income
-    median_inc = max(np.median(income[income > 0]), 1.0)
+    positive_income = income[income > 0]
+    median_inc = float(np.median(positive_income)) if len(positive_income) > 0 else 1.0
+    median_inc = max(median_inc, 1.0)
     income_ratio = income / median_inc
     income_sol = 5.0 + 2.0 * np.log(np.maximum(income_ratio, 0.01))
 

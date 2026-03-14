@@ -184,8 +184,10 @@ def _convert_land(
 
     # Enforce conservation: renormalize so sum matches land_total
     row_sums = area_new.sum(axis=1, keepdims=True)  # (N, 1)
-    safe_sums = np.maximum(row_sums, 1e-10)
+    safe_sums = np.maximum(row_sums, 1.0)  # prevent amplification from near-zero sums
     area_new = area_new * (land_total[:, np.newaxis] / safe_sums)
+    # Cap individual land types to total (prevents renormalization overshoot)
+    area_new = np.minimum(area_new, land_total[:, np.newaxis])
 
     return area_new
 
