@@ -201,13 +201,15 @@ def adjust_wages(
     """
     safe_supply = np.maximum(labor_supply, 1.0)
     excess_demand_ratio = (labor_demand - labor_supply) / safe_supply
+    # Cap excess ratio to prevent extreme spikes from tiny LGAs
+    excess_demand_ratio = np.clip(excess_demand_ratio, -1.0, 2.0)
     wage_change = adjustment_speed * excess_demand_ratio
 
     # Sticky downward: negative adjustments halved
     wage_change = np.where(wage_change < 0, wage_change * 0.5, wage_change)
 
-    # Clamp changes
-    wage_change = np.clip(wage_change, -0.10, 0.15)
+    # Clamp changes: ±5% per production tick ≈ ±35% per month at 7 ticks
+    wage_change = np.clip(wage_change, -0.05, 0.05)
 
     new_wages = current_wages * (1.0 + wage_change)
     new_wages = np.maximum(new_wages, minimum_wage)

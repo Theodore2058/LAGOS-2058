@@ -305,23 +305,27 @@ def _adjust_labor_for_migration(
     inflow_mask = net_migration > 0
     outflow_mask = net_migration < 0
 
-    # --- Outflows: remove proportionally ---
+    # --- Outflows: remove proportionally, capped to prevent negative pool ---
+    total_removed = np.zeros(S, dtype=np.float64)
     if outflow_mask.any():
         out_lgas = np.where(outflow_mask)[0]
         totals = pool[out_lgas].sum(axis=1)
         safe_totals = np.maximum(totals, 1.0)
+        # Cap outflow to 90% of available pool per LGA
+        capped_outflow = np.minimum(-net_migration[out_lgas], totals * 0.9)
         fracs = pool[out_lgas] / safe_totals[:, np.newaxis]
-        removals = (-net_migration[out_lgas])[:, np.newaxis] * fracs
+        removals = capped_outflow[:, np.newaxis] * fracs
         pool[out_lgas] -= removals
+        total_removed = removals.sum(axis=0)  # (S,) actually removed
 
-    # --- Inflows: bias toward high-wage tiers at destination ---
-    if inflow_mask.any():
+    # --- Inflows: redistribute exactly what was removed (strict conservation) ---
+    if inflow_mask.any() and total_removed.sum() > 0:
         in_lgas = np.where(inflow_mask)[0]
-        dest_wages = wages[in_lgas]  # (n_in, S)
-        wage_sum = dest_wages.sum(axis=1, keepdims=True)
-        safe_wage_sum = np.maximum(wage_sum, 1.0)
-        wage_weights = dest_wages / safe_wage_sum  # (n_in, S)
-        additions = net_migration[in_lgas][:, np.newaxis] * wage_weights
+        inflows = net_migration[in_lgas]
+        safe_inflow_total = max(inflows.sum(), 1.0)
+        inflow_fracs = inflows / safe_inflow_total  # (n_in,)
+        # Each destination gets its share of the removed workers by skill
+        additions = inflow_fracs[:, np.newaxis] * total_removed[np.newaxis, :]
         pool[in_lgas] += additions
 
     return pool
