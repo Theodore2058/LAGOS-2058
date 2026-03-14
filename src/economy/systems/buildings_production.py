@@ -189,7 +189,7 @@ def tick_building_production(
         if bt.inputs:
             for inp_id, inp_per_unit in bt.inputs.items():
                 if 0 <= inp_id < C:
-                    consumed = output * inp_per_unit * min(bottleneck, 1.0)
+                    consumed = output * inp_per_unit
                     consumed = min(consumed, tier_inv[lga, inp_id])
                     inventory_deltas[lga, inp_id] -= consumed
                     tier_inv[lga, inp_id] -= consumed
