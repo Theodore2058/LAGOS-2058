@@ -260,6 +260,8 @@ def _init_production(
     # Ensure no negative capacity, small floor for all producing LGAs
     cap = np.maximum(cap, 0.0)
     state.production_capacity = cap
+    # Store initial capacity for investment cap (5x max growth)
+    state._initial_production_capacity = cap.copy()
 
 
 def _init_labor(

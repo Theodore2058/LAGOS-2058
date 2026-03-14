@@ -443,3 +443,8 @@ def tick_capacity_investment(state: EconomicState, config: SimConfig) -> None:
 
     state.production_capacity *= (1.0 + adjustment)
     state.production_capacity = np.maximum(state.production_capacity, 0.0)
+
+    # Cap at 5x initial capacity to prevent unbounded exponential growth
+    if hasattr(state, '_initial_production_capacity'):
+        max_cap = state._initial_production_capacity * 5.0
+        state.production_capacity = np.minimum(state.production_capacity, max_cap)

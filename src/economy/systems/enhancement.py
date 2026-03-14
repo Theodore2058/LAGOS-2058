@@ -61,7 +61,7 @@ def tick_enhancement(
     # Al-Shahid resistance: controlled areas resist enhancement adoption
     alsahid_mult = np.ones(N, dtype=np.float64)
     if state.alsahid_control is not None:
-        alsahid_mult = 1.0 - _ALSAHID_RESISTANCE * state.alsahid_control
+        alsahid_mult = np.clip(1.0 - _ALSAHID_RESISTANCE * state.alsahid_control, 0.0, 1.0)
 
     # Logistic dampening: adoption slows as it approaches saturation
     headroom = 1.0 - current
