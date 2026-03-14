@@ -98,6 +98,7 @@ def check_all_invariants(state: EconomicState, strict: bool = False) -> list[str
     for attr_name in [
         "prices", "inventories", "production_capacity", "wages",
         "labor_pool", "land_area", "bank_deposits",
+        "pop_income", "pop_sentiment", "pop_standard_of_living",
     ]:
         arr = getattr(state, attr_name, None)
         if arr is not None:
