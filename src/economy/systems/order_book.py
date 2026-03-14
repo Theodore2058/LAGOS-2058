@@ -63,7 +63,8 @@ def compute_building_sell_orders(
     lga_ids = state.building_lga_ids.astype(np.intp)
 
     # --- Vectorized operational check ---
-    operational = state.building_operational.copy()
+    # Start from all-True each tick; previous non-operational status doesn't persist
+    operational = np.ones(B, dtype=bool)
 
     # Power check: buildings requiring power in LGAs with low reliability
     if state.infra_power_reliability is not None:
