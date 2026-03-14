@@ -108,7 +108,7 @@ def compute_building_sell_orders(
 
     # Rainfall
     rain_sensitive = BT_RAINFALL_SENSITIVE[bt_ids]
-    rain_mult = np.where(rain_sensitive, max(state.rainfall_modifier, 0.1), 1.0)
+    rain_mult = np.where(rain_sensitive, np.clip(state.rainfall_modifier, 0.1, 1.5), 1.0)
 
     # Al-Shahid disruption
     alsahid_mult = np.ones(B, dtype=np.float64)
@@ -446,6 +446,13 @@ def compute_background_supply(
         power = np.clip(state.infra_power_reliability, 0.5, 1.0)
         power_factor = 0.7 + 0.3 * power
         bg_output *= power_factor[:, np.newaxis]
+
+    # Rainfall: agricultural commodities scale with rainfall
+    # IDs: 5=timber, 6=grains, 7=rice, 8=cassava, 9=cocoa, 10=palm,
+    #       11=cotton, 12=livestock, 13=fish
+    _AGRI_IDS = [5, 6, 7, 8, 9, 10, 11, 12, 13]
+    rain = np.clip(state.rainfall_modifier, 0.1, 1.5)  # floor 10%, cap 150%
+    bg_output[:, _AGRI_IDS] *= rain
 
     # Al-Shahid disruption
     if state.alsahid_control is not None:

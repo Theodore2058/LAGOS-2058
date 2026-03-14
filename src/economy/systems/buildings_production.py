@@ -125,7 +125,7 @@ def tick_building_production(
         # Rainfall (agricultural)
         rain_mult = 1.0
         if bt.rainfall_sensitive:
-            rain_mult = max(state.rainfall_modifier, 0.1)
+            rain_mult = max(min(state.rainfall_modifier, 1.5), 0.1)
 
         # Enhancement
         enh_mult = 1.0

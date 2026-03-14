@@ -99,7 +99,7 @@ def tick_production(state: EconomicState, config: SimConfig) -> ProductionMutati
                 factory_owner=state.factory_owner[:, c],
                 enhancement_adoption=state.enhancement_adoption,
                 automation_level=state.automation_level[:, c],
-                rainfall_modifier=state.rainfall_modifier if cdef.tier == CommodityTier.RAW and c in (6,7,8,9,10,11,12,13) else 1.0,
+                rainfall_modifier=max(min(state.rainfall_modifier, 1.5), 0.1) if cdef.tier == CommodityTier.RAW and c in (6,7,8,9,10,11,12,13) else 1.0,
                 production_type=cdef.production_type,
                 waste_factor=config.LEONTIEF_WASTE_FACTOR,
                 alpha_labor=config.COBB_DOUGLAS_LABOR_SHARE,

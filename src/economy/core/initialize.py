@@ -110,7 +110,7 @@ def initialize_state(
     # --- Climate ---
     state.current_month_of_year = 1
     state.is_rainy_season = False
-    state.rainfall_modifier = 0.2  # dry season start
+    state.rainfall_modifier = 0.60  # dry season baseline (rainy = 1.25)
     state.desertification_loss = np.zeros(N, dtype=np.float64)
 
     # --- Al-Shahid ---
