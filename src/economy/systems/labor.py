@@ -229,20 +229,21 @@ def evaluate_strikes(
     # Decrement active strikes
     strikes = np.maximum(strikes - 1, 0)
 
-    # Compute cost of living: mean food price × Q1 food weight
-    # This represents the minimum food cost for the poorest quintile
-    food_ids = [6, 7, 8, 13, 18, 21]
-    food_weight = CONSUMPTION_WEIGHTS_BY_QUINTILE[0, 0]  # Q1 food weight (0.55)
+    # Compute cost of living: weighted food basket for the poorest quintile
+    # Weights reflect actual consumption patterns — poor households eat
+    # mainly grains, cassava, and some processed food; not much fish/meat
+    # IDs: 6=grains, 7=rice, 8=cassava, 13=fish, 18=processed_food, 21=meat
+    food_ids =     [6,    7,    8,     13,   18,   21]
+    food_weights = [0.30, 0.20, 0.25,  0.05, 0.15, 0.05]  # sum=1.0
+    q1_food_share = CONSUMPTION_WEIGHTS_BY_QUINTILE[0, 0]  # Q1 food weight (0.55)
 
-    # Average price across food commodities in each LGA
-    mean_food_price = np.zeros(N, dtype=np.float64)
-    for c_id in food_ids:
-        mean_food_price += state.prices[:, c_id]
-    mean_food_price /= len(food_ids)
+    # Weighted average food price — emphasizes staples over proteins
+    weighted_food_price = np.zeros(N, dtype=np.float64)
+    for c_id, w in zip(food_ids, food_weights):
+        weighted_food_price += state.prices[:, c_id] * w
 
-    # Cost of living = food spending share × average food price
-    # This gives a monthly cost proxy that scales with local food prices
-    cost_of_living = mean_food_price * food_weight
+    # Cost of living = food spending share × weighted food price
+    cost_of_living = weighted_food_price * q1_food_share
     cost_of_living = np.maximum(cost_of_living, 1.0)
 
     # Wage adequacy
