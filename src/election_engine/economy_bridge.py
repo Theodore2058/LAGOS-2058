@@ -149,7 +149,27 @@ def update_lga_data_from_economy(
         lga_data["Conflict History"] = econ_state.alsahid_control * 5.0
 
     # ------------------------------------------------------------------
-    # 6. Gini proxy from income distribution
+    # 6. Food inflation per LGA (drives voter discontent)
+    # ------------------------------------------------------------------
+    if econ_state.prices is not None:
+        from src.economy.data.commodities import BASE_PRICES
+        from src.economy.diagnostics.dashboard import _build_cpi_weights
+
+        _, food_w = _build_cpi_weights()  # (C,) food-only weights
+        # Per-LGA food CPI: weighted price ratio for food commodities
+        ratios = econ_state.prices / BASE_PRICES[np.newaxis, :]  # (N, C)
+        lga_food_cpi = (ratios * food_w[np.newaxis, :]).sum(axis=1) - 1.0  # (N,)
+
+        # Store as percentage for the election engine (0 = no change, 50 = 50% spike)
+        lga_data["Food Inflation Pct"] = lga_food_cpi * 100.0
+
+        # Also compute overall CPI per LGA
+        cpi_w, _ = _build_cpi_weights()
+        lga_cpi = (ratios * cpi_w[np.newaxis, :]).sum(axis=1) - 1.0
+        lga_data["CPI Pct"] = lga_cpi * 100.0
+
+    # ------------------------------------------------------------------
+    # 7. Gini proxy from income distribution
     # ------------------------------------------------------------------
     if econ_state.pop_income is not None:
         pop_lga = getattr(econ_state, "_pop_lga_ids", None)
@@ -175,7 +195,7 @@ def update_lga_data_from_economy(
                 lga_data["Gini Proxy"] = gini_proxy
 
     # ------------------------------------------------------------------
-    # 7. Salience shift injection (if campaign modifiers provided)
+    # 8. Salience shift injection (if campaign modifiers provided)
     # ------------------------------------------------------------------
     if campaign_modifiers is not None:
         _inject_economic_salience(econ_state, econ_config, campaign_modifiers)

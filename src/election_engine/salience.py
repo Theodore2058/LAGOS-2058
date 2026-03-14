@@ -1035,6 +1035,7 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Gini Proxy": 1.0,
             "Poverty Rate Pct": 0.5 / 100.0,
             "GDP Per Capita Est": 0.3 / 10000.0,
+            "CPI Pct": 1.0 / 100.0,               # Inflation makes tax policy salient
             "Urban Pct": 0.2 / 100.0,             # Urban areas more tax-aware
             "Pct Livelihood Informal": 0.3 / 100.0,  # Informal economy = tax evasion debates
             "Extraction Intensity": 0.2 / 5.0,    # Extraction → "where do our taxes go?"
@@ -1050,6 +1051,7 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Pct Livelihood Agriculture": 2.5 / 100.0,
             "rural_pct": 0.5 / 100.0,
             "Poverty Rate Pct": 0.5 / 100.0,
+            "Food Inflation Pct": 1.5 / 100.0,    # Food price spikes politicize agriculture
             "Fertility Rate Est": 0.2,             # High-fertility rural areas = food security
             "Market Access Index": -0.3 / 10.0,   # Poor market access raises ag salience
             "% Hausa": 0.15 / 100.0,              # Hausa: agrarian heartland

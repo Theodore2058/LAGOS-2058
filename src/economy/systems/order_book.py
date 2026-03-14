@@ -171,11 +171,13 @@ def compute_building_sell_orders(
         consumed = output[:, np.newaxis] * input_recipes  # (B, C) — output already includes bottleneck
         consumed = np.minimum(consumed, state.inventories[lga_ids])
         consumed *= op_mask[:, np.newaxis]
-        # Aggregate consumption per LGA and subtract
+        # Aggregate consumption per LGA using bincount (faster than np.add.at loop)
+        # Flatten building→LGA mapping to use bincount on each commodity
         for c in range(C):
             col = consumed[:, c]
             if col.any():
-                np.add.at(state.inventories[:, c], lga_ids, -col)
+                lga_consumed = np.bincount(lga_ids, weights=col, minlength=N)
+                state.inventories[:, c] -= lga_consumed
         state.inventories[:] = np.maximum(state.inventories, 0.0)
 
     # --- Update building employees based on utilization ---
