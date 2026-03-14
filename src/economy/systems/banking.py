@@ -87,6 +87,11 @@ def tick_banking(state: EconomicState, config: SimConfig) -> BankingMutations:
     new_lending = credit_available * 0.05  # 5% of available per tick
     loans_new = loans_new + new_lending
 
+    # Loan contraction: if loans exceed reserve-ratio cap, shrink gradually
+    excess_loans = loans_new - max_loans
+    contraction = np.where(excess_loans > 0, excess_loans * 0.10, 0.0)
+    loans_new = np.maximum(loans_new - contraction, 0.0)
+
     # 6. Lending rates
     lending_rate_new = config.BASE_INTEREST_RATE * (
         2.0 - confidence_new  # low confidence = high rates
