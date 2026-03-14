@@ -416,6 +416,21 @@ def compute_background_supply(
     bg_output = lga_budget[:, np.newaxis] * commodity_share  # (N, C)
 
     # --- Modifiers ---
+    # Inventory-to-demand ratio: cut production when warehouses are full.
+    # If inventory >> demand, firms scale back (realistic supply response).
+    # Only dampen commodities with no unfilled demand — commodities with
+    # shortfalls should maintain full production.
+    if state.buy_orders is not None:
+        safe_demand = np.maximum(state.buy_orders, 1.0)
+        inv_ratio = state.inventories / safe_demand  # ticks of stock (N, C)
+        # Scale: 1.0 when ratio<=4, tapering to 0.3 when ratio>=24
+        inv_damper = np.clip(1.0 - (inv_ratio - 4.0) / 28.0, 0.3, 1.0)
+        # Don't dampen commodities that have unfilled demand anywhere
+        if state.unfilled_buy is not None:
+            has_shortage = state.unfilled_buy.sum(axis=0) > 0  # (C,)
+            inv_damper[:, has_shortage] = 1.0
+        bg_output *= inv_damper
+
     # Employment (gentle — informal economy resilient)
     if state.labor_employed is not None and state.labor_pool is not None:
         safe_pool = np.maximum(state.labor_pool.sum(axis=1), 1.0)
@@ -457,7 +472,7 @@ def tick_market_orderbook(
     # 1. Spoilage — commodity-specific rates + universal storage depreciation
     # The universal rate (0.1%/tick ≈ 5.5%/month) prevents unbounded inventory
     # accumulation for zero-spoilage goods (steel, cement, ore, etc.)
-    effective_spoilage = np.maximum(SPOILAGE_RATES, 0.001)  # min 0.1% per tick
+    effective_spoilage = np.maximum(SPOILAGE_RATES, 0.002)  # min 0.2% per tick
     spoilage = state.inventories * effective_spoilage[np.newaxis, :]
     state.inventories -= spoilage
     state.inventories = np.maximum(state.inventories, 0.0)
