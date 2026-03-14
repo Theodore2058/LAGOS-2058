@@ -295,6 +295,15 @@ def clear_order_book(
         trade_fraction = (base_trade_fraction * road_q)[:, np.newaxis]  # (N, 1)
     else:
         trade_fraction = base_trade_fraction
+    # Al-Shahid trade disruption: insurgent checkpoints reduce trade flows.
+    # LGAs with high control contribute less to the national trade pool
+    # and receive less from it (goods can't get through easily).
+    if state.alsahid_trade_surcharges is not None:
+        # Reduce trade fraction by up to 60% at max surcharge (0.5)
+        trade_disruption = 1.0 - state.alsahid_trade_surcharges * 1.2
+        trade_disruption = np.clip(trade_disruption, 0.2, 1.0)[:, np.newaxis]  # (N, 1)
+        trade_fraction = trade_fraction * trade_disruption
+
     trade_pool = total_supply * trade_fraction  # (N, C) contributed to pool
     local_supply = total_supply - trade_pool     # (N, C) kept locally
 
@@ -372,6 +381,18 @@ def clear_order_book(
         has_buildings = cost_push > 0
         cost_adj = np.where(has_buildings, 1.0 + 0.01 * excess_cost, 1.0)
         state.prices *= cost_adj
+
+    # Al-Shahid price markup: insurgent-controlled areas impose informal
+    # "taxes" (checkpoint extortion, protection rackets) that raise local
+    # prices.  This uses the per-LGA surcharge array computed monthly.
+    # Effect: up to +15% price markup at full control (0.5 surcharge * 0.30).
+    if state.alsahid_trade_surcharges is not None:
+        surcharge = state.alsahid_trade_surcharges  # (N,)
+        has_surcharge = surcharge > 0
+        if has_surcharge.any():
+            # Gentle per-tick markup: surcharge * 0.30 spread over month
+            markup = 1.0 + surcharge * 0.30 / config.MARKET_TICKS_PER_MONTH
+            state.prices[has_surcharge] *= markup[has_surcharge, np.newaxis]
 
     # Mean reversion toward base prices (5% per tick — stronger anchor)
     log_ratio = np.log(np.maximum(state.prices, 1.0) / BASE_PRICES[np.newaxis, :])

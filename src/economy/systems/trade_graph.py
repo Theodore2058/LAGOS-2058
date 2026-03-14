@@ -245,14 +245,20 @@ def update_trade_surcharges(graph: TradeGraph, alsahid_control: np.ndarray) -> N
 
     Called during the structural tick after al-Shahid mutations are applied,
     so trade costs reflect territorial changes.
+
+    Vectorized: processes all routes simultaneously instead of Python loop.
     """
-    for idx in range(graph.n_routes):
-        a, b = graph.edges[idx]
-        max_control = max(float(alsahid_control[a]), float(alsahid_control[b]))
-        if max_control > 0.05:
-            graph.surcharges[idx] = 0.3 + 0.2 * max_control
-        else:
-            graph.surcharges[idx] = 0.0
+    edges = graph.edges  # (R, 2)
+    control_a = alsahid_control[edges[:, 0]]  # (R,)
+    control_b = alsahid_control[edges[:, 1]]  # (R,)
+    max_control = np.maximum(control_a, control_b)  # (R,)
+
+    # Surcharge: 0.3 + 0.2 * max_control where control > 0.05, else 0
+    graph.surcharges[:] = np.where(
+        max_control > 0.05,
+        0.3 + 0.2 * max_control,
+        0.0,
+    )
 
 
 def _load_centroids(
