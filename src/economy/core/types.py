@@ -535,6 +535,34 @@ class EconomicState:
     # --- Zone Mapping ---
     admin_zone: Optional[np.ndarray] = None           # (774,) int32, 0-indexed zone IDs
 
+    # --- Buildings (structure-of-arrays for all building instances) ---
+    n_buildings: int = 0
+    building_type_ids: Optional[np.ndarray] = None      # (B,) int16 — building type ID
+    building_lga_ids: Optional[np.ndarray] = None        # (B,) int16 — which LGA
+    building_owners: Optional[np.ndarray] = None         # (B,) int8  — zaibatsu ID or -1
+    building_throughput: Optional[np.ndarray] = None     # (B,) float64 — current max output
+    building_tech_level: Optional[np.ndarray] = None     # (B,) float64 — technology (0-1)
+    building_employees: Optional[np.ndarray] = None      # (B, 4) float64 — workers per skill
+    building_operational: Optional[np.ndarray] = None    # (B,) bool — currently producing
+    building_age: Optional[np.ndarray] = None            # (B,) int32 — months since built
+
+    # --- Pop Economic State (per voter type = 174,960 pops) ---
+    pop_count: Optional[np.ndarray] = None               # (174960,) float64 — real people
+    pop_income: Optional[np.ndarray] = None              # (174960,) float64 — monthly income
+    pop_savings: Optional[np.ndarray] = None             # (174960,) float64 — accumulated
+    pop_standard_of_living: Optional[np.ndarray] = None  # (174960,) float64 — SoL (0-10)
+    pop_employed_formal: Optional[np.ndarray] = None     # (174960,) float64 — fraction formal
+    pop_employed_informal: Optional[np.ndarray] = None   # (174960,) float64 — fraction informal
+    pop_consumption_fulfilled: Optional[np.ndarray] = None  # (174960,) float64 — % demand met
+    pop_sentiment: Optional[np.ndarray] = None           # (174960,) float64 — [-1, 1]
+
+    # --- Order Book State ---
+    # Aggregated buy/sell orders per LGA per commodity from the last market tick
+    buy_orders: Optional[np.ndarray] = None              # (774, 36) float64 — units demanded
+    sell_orders: Optional[np.ndarray] = None             # (774, 36) float64 — units offered
+    unfilled_buy: Optional[np.ndarray] = None            # (774, 36) float64 — unmet demand
+    unfilled_sell: Optional[np.ndarray] = None           # (774, 36) float64 — unsold supply
+
     # --- RNG ---
     rng: np.random.Generator = field(
         default_factory=lambda: np.random.default_rng(42),

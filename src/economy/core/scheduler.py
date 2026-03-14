@@ -22,6 +22,14 @@ from src.economy.systems.production import (
     tick_production,
 )
 from src.economy.systems.trade import assert_market_valid, tick_market
+from src.economy.systems.order_book import tick_market_orderbook
+from src.economy.systems.buildings_production import tick_building_production
+from src.economy.systems.pops import (
+    tick_pop_income,
+    update_pop_employment,
+    update_standard_of_living,
+)
+from src.economy.systems.sentiment import tick_sentiment
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +64,15 @@ class TickScheduler:
     history: List[TickResult] = field(default_factory=list)
     on_tick: Optional[Callable[[TickResult], None]] = None
 
+    @property
+    def _use_order_book(self) -> bool:
+        """True when buildings and pops are initialized — use order-book clearing."""
+        return (
+            self.state.n_buildings > 0
+            and self.state.building_type_ids is not None
+            and self.state.pop_income is not None
+        )
+
     def run_market_tick(self) -> TickResult:
         """Execute one market clock tick."""
         t0 = time.time()
@@ -68,8 +85,17 @@ class TickScheduler:
                 self.state, self.config, self.traders, self.trade_graph,
             )
 
-        # Run market systems
-        mkt_mut = tick_market(self.state, self.config, trader_net_supply)
+        # Run market systems — order-book or legacy
+        if self._use_order_book:
+            mkt_mut = tick_market_orderbook(
+                self.state, self.config, trader_net_supply,
+            )
+        else:
+            mkt_mut = tick_market(self.state, self.config, trader_net_supply)
+
+        # Lightweight per-tick sentiment update
+        if self.state.pop_sentiment is not None:
+            tick_sentiment(self.state, self.config)
 
         # Advance game time
         self.state.game_day += 1
@@ -102,8 +128,11 @@ class TickScheduler:
         """Execute one production tick (includes labor + market afterward)."""
         t0 = time.time()
 
-        # Production
-        prod_mut = tick_production(self.state, self.config)
+        # Production — building-based or legacy
+        if self._use_order_book:
+            prod_mut = tick_building_production(self.state, self.config)
+        else:
+            prod_mut = tick_production(self.state, self.config)
         assert_production_valid(self.state, prod_mut)
         apply_production_mutations(self.state, prod_mut)
 
@@ -117,6 +146,12 @@ class TickScheduler:
         from src.economy.systems.banking import tick_banking, apply_banking_mutations
         bank_mut = tick_banking(self.state, self.config)
         apply_banking_mutations(self.state, bank_mut)
+
+        # Pop economic updates (when pops are initialized)
+        if self.state.pop_income is not None:
+            update_pop_employment(self.state, self.config)
+            tick_pop_income(self.state, self.config)
+            update_standard_of_living(self.state, self.config)
 
         # Advance game week
         self.state.game_week += 1

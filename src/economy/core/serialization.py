@@ -50,6 +50,7 @@ _SCALAR_FIELDS: Dict[str, type] = {
     "rainfall_modifier": float,
     "price_history_cursor": int,
     "wafta_active": bool,
+    "n_buildings": int,
 }
 
 # Every numpy array field we persist directly in the .npz.
@@ -93,6 +94,33 @@ _ARRAY_FIELDS: List[str] = [
     "infra_power_reliability",
     "infra_telecom_quality",
     "admin_zone",
+    # --- Building arrays ---
+    "building_type_ids",
+    "building_lga_ids",
+    "building_owners",
+    "building_throughput",
+    "building_tech_level",
+    "building_employees",
+    "building_operational",
+    "building_age",
+    # --- Pop economic state ---
+    "pop_count",
+    "pop_income",
+    "pop_savings",
+    "pop_standard_of_living",
+    "pop_employed_formal",
+    "pop_employed_informal",
+    "pop_consumption_fulfilled",
+    "pop_sentiment",
+    # --- Order book state ---
+    "buy_orders",
+    "sell_orders",
+    "unfilled_buy",
+    "unfilled_sell",
+    # --- Pop index arrays (needed by pop systems) ---
+    "_pop_lga_ids",
+    "_pop_livelihood_ids",
+    "_pop_income_ids",
 ]
 
 
