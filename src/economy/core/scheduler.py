@@ -185,6 +185,13 @@ class TickScheduler:
         new_adoption = tick_enhancement(self.state, self.config)
         apply_enhancement_diffusion(self.state, new_adoption)
 
+        # Cache election feedback on state (lazy: only computed at structural tick)
+        from src.economy.systems.election_feedback import compute_election_feedback
+        fb = compute_election_feedback(self.state, self.config)
+        self.state.voter_welfare = fb.welfare_scores
+        self.state.voter_salience = fb.salience_shifts
+        self.state.voter_positions = fb.position_shifts
+
         elapsed = time.time() - t0
         self.structural_tick_count += 1
         self.tick_count += 1

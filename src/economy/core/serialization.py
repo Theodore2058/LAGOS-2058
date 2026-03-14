@@ -49,6 +49,7 @@ _SCALAR_FIELDS: Dict[str, type] = {
     "is_rainy_season": bool,
     "rainfall_modifier": float,
     "price_history_cursor": int,
+    "wafta_active": bool,
 }
 
 # Every numpy array field we persist directly in the .npz.
@@ -173,6 +174,13 @@ def save_state(state: EconomicState, path: str) -> None:
         scalars[name] = getattr(state, name)
     arrays["__scalars__"] = np.array([json.dumps(scalars)], dtype=object)
 
+    # Dict fields → JSON.
+    dict_fields = {
+        "import_fulfillment": state.import_fulfillment,
+        "platform_signals": state.platform_signals,
+    }
+    arrays["__dict_fields__"] = np.array([json.dumps(dict_fields)], dtype=object)
+
     # Policy queue → JSON.
     pq = [_policy_action_to_dict(pa) for pa in state.policy_queue]
     arrays["__policy_queue__"] = np.array([json.dumps(pq)], dtype=object)
@@ -229,6 +237,14 @@ def load_state(path: str, config: SimConfig) -> EconomicState:
     for name in _ARRAY_FIELDS:
         if name in data:
             setattr(state, name, data[name])
+
+    # --- Dict fields ---
+    if "__dict_fields__" in data:
+        dict_fields = json.loads(str(data["__dict_fields__"][0]))
+        if "import_fulfillment" in dict_fields:
+            state.import_fulfillment = dict_fields["import_fulfillment"]
+        if "platform_signals" in dict_fields:
+            state.platform_signals = dict_fields["platform_signals"]
 
     # --- Policy queue ---
     if "__policy_queue__" in data:
