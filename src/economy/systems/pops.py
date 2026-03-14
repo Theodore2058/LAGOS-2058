@@ -185,6 +185,20 @@ def compute_pop_buy_orders(
         state.pop_savings -= per_capita_extra * state.pop_count
         state.pop_savings = np.maximum(state.pop_savings, 0.0)
 
+    # Sentiment-consumption feedback: low sentiment → reduced discretionary
+    # spending.  When sentiment is negative (economic pessimism), consumers
+    # cut back on non-essential purchases.  This creates a demand-side
+    # feedback loop: economic stress → low sentiment → reduced spending →
+    # lower output → further stress.
+    # The effect is modest (up to ±10%) and only applies to sentiment
+    # extremes to avoid over-damping normal fluctuations.
+    if state.pop_sentiment is not None:
+        # Sentiment [-1, 1] → consumption multiplier [0.90, 1.10]
+        # Centered at 0 (neutral), with 10% swing at extremes
+        sentiment_mult = 1.0 + 0.10 * state.pop_sentiment
+        sentiment_mult = np.clip(sentiment_mult, 0.90, 1.10)
+        total_budget *= sentiment_mult
+
     # --- Aggregate total_budget to (LGA, income_bracket) groups ---
     # Composite key: lga * 3 + income_bracket
     group_key = pop_lga * N_INC + pop_income_bracket  # (NVT,)
