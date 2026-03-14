@@ -26,7 +26,10 @@ def _tick_to_json(state, scheduler, tick_result) -> str:
     prices = state.prices
     mean_price = float(prices.mean())
     inflation = float((prices.mean(axis=0) / BASE_PRICES).mean() - 1.0)
-    gdp = float((state.production_capacity * prices).sum())
+    if hasattr(state, 'sell_orders') and state.sell_orders is not None and state.sell_orders.sum() > 0:
+        gdp = float((state.sell_orders * prices).sum())
+    else:
+        gdp = float((state.production_capacity * prices).sum())
 
     payload = {
         "type": "tick",

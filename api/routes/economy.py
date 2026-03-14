@@ -52,7 +52,11 @@ def _build_status(
     mean_prices = float(prices.mean())
     inflation_proxy = float((prices.mean(axis=0) / BASE_PRICES).mean() - 1.0)
 
-    gdp_proxy = float((state.production_capacity * prices).sum())
+    # V3 mode: use sell_orders for GDP; legacy: production_capacity
+    if hasattr(state, 'sell_orders') and state.sell_orders is not None and state.sell_orders.sum() > 0:
+        gdp_proxy = float((state.sell_orders * prices).sum())
+    else:
+        gdp_proxy = float((state.production_capacity * prices).sum())
     total_employment = float(state.labor_employed.sum())
     total_population = float(state.population.sum())
 
