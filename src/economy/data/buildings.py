@@ -551,3 +551,41 @@ BUILDING_FOR_COMMODITY: Dict[int, int] = {bt.output_commodity: bt.id for bt in B
 # 3 = IDA Corporation (Yoruba, drones/arms)
 # 4 = Deltel (Naijin-adjacent, telecom)
 ZAIBATSU_NAMES = {0: "Igwe", 1: "Danjuma", 2: "BUA", 3: "IDA", 4: "Deltel"}
+
+
+# ---------------------------------------------------------------------------
+# Precomputed NumPy arrays for vectorized building operations
+# ---------------------------------------------------------------------------
+import numpy as np
+from src.economy.data.zaibatsu import ZAIBATSU_BY_ID
+
+_N_BT = 36   # number of building types
+_N_C = 36    # number of commodities
+_N_S = 4     # number of skill tiers
+
+# Per building-type arrays (indexed by building type id)
+BT_OUTPUT_COMMODITY = np.array([BUILDING_TYPE_BY_ID[i].output_commodity for i in range(_N_BT)], dtype=np.int32)
+BT_TIER = np.array([BUILDING_TYPE_BY_ID[i].tier for i in range(_N_BT)], dtype=np.int32)
+BT_REQUIRES_POWER = np.array([BUILDING_TYPE_BY_ID[i].requires_power for i in range(_N_BT)], dtype=bool)
+BT_MIN_POWER = np.array([BUILDING_TYPE_BY_ID[i].min_power_reliability for i in range(_N_BT)], dtype=np.float64)
+BT_RAINFALL_SENSITIVE = np.array([BUILDING_TYPE_BY_ID[i].rainfall_sensitive for i in range(_N_BT)], dtype=bool)
+
+# Input recipe matrix: (36, 36) — bt_input_matrix[bt_id, commodity_id] = units per output
+BT_INPUT_MATRIX = np.zeros((_N_BT, _N_C), dtype=np.float64)
+for _bt in BUILDING_TYPES:
+    for _inp_id, _inp_per in _bt.inputs.items():
+        BT_INPUT_MATRIX[_bt.id, int(_inp_id)] = _inp_per
+
+# Labor matrix: (36, 4) — bt_labor_matrix[bt_id, skill_tier] = workers
+BT_LABOR_MATRIX = np.zeros((_N_BT, _N_S), dtype=np.float64)
+for _bt in BUILDING_TYPES:
+    for _sk, _cnt in _bt.labor.items():
+        BT_LABOR_MATRIX[_bt.id, int(_sk)] = _cnt
+
+# Zaibatsu efficiency bonus per building type
+BT_ZAIBATSU_BONUS = np.ones(_N_BT, dtype=np.float64)
+for _bt in BUILDING_TYPES:
+    if _bt.zaibatsu_affinity is not None:
+        _z = ZAIBATSU_BY_ID.get(_bt.zaibatsu_affinity)
+        if _z:
+            BT_ZAIBATSU_BONUS[_bt.id] = 1.0 + _z.efficiency_bonus

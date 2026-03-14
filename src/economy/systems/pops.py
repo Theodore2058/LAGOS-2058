@@ -139,17 +139,16 @@ def compute_pop_buy_orders(
     """
     Compute aggregate buy orders per LGA per commodity from all pop types.
 
-    Each pop type posts buy orders based on:
-      1. Available budget (income - savings rate)
-      2. Consumption basket weights for their income quintile
-      3. Local prices and price elasticity
-      4. Standard of living target (underfulfilled needs get priority)
+    Optimized: aggregates pop budgets to (LGA, income_bracket) groups first
+    (774 × 3 = 2,322 groups) before computing commodity demand, avoiding
+    per-pop operations on 174,960 elements in the inner loop.
 
     Returns: (N, C) array of total units demanded per LGA per commodity.
     """
     N = config.N_LGAS
     C = config.N_COMMODITIES
     NVT = config.N_VOTER_TYPES
+    N_INC = 3  # income brackets
 
     if state.pop_income is None or state.prices is None:
         return np.zeros((N, C), dtype=np.float64)
@@ -175,14 +174,20 @@ def compute_pop_buy_orders(
         desperation_mult = np.where(low_sol, 1.3, 1.0)
         total_budget *= desperation_mult
 
-    # Compute consumption weights per pop type (blended quintile weights)
-    # Each income bracket maps to a blend of quintiles
-    # Result: (NVT, 9) consumption category weights
-    quintile_blend = INCOME_TO_QUINTILE_WEIGHTS[pop_income_bracket]  # (NVT, 5)
-    category_weights = quintile_blend @ CONSUMPTION_WEIGHTS_BY_QUINTILE  # (NVT, 9)
+    # --- Aggregate total_budget to (LGA, income_bracket) groups ---
+    # Composite key: lga * 3 + income_bracket
+    group_key = pop_lga * N_INC + pop_income_bracket  # (NVT,)
+    n_groups = N * N_INC
 
-    # Now distribute spending across commodities
-    # Aggregate at LGA level for efficiency
+    # Precompute consumption weights per income bracket (only 3 unique sets)
+    # INCOME_TO_QUINTILE_WEIGHTS is (3, 5), CONSUMPTION_WEIGHTS_BY_QUINTILE is (5, 9)
+    bracket_cat_weights = INCOME_TO_QUINTILE_WEIGHTS @ CONSUMPTION_WEIGHTS_BY_QUINTILE  # (3, 9)
+
+    # Aggregate budget per group
+    group_budget = np.bincount(group_key, weights=total_budget, minlength=n_groups)  # (N*3,)
+    group_budget = group_budget.reshape(N, N_INC)  # (N, 3)
+
+    # --- Compute demand per commodity using groups ---
     categories = list(CONSUMPTION_BASKET_COMMODITY_MAP.keys())
     demand = np.zeros((N, C), dtype=np.float64)
 
@@ -191,26 +196,25 @@ def compute_pop_buy_orders(
         if not commodity_ids:
             continue
 
-        # Per-pop spending on this category
-        cat_spending = total_budget * category_weights[:, cat_idx]  # (NVT,)
-        per_commodity = cat_spending / len(commodity_ids)
+        # Per-bracket category spending at each LGA: (N, 3)
+        cat_spending = group_budget * bracket_cat_weights[np.newaxis, :, cat_idx]  # (N, 3)
+        per_commodity_spending = cat_spending / len(commodity_ids)  # (N, 3)
 
         for c_id in commodity_ids:
-            # Local price for each pop's LGA
-            local_price = state.prices[pop_lga, c_id]  # (NVT,)
-            safe_price = np.maximum(local_price, 1.0)
+            # Local price at each LGA
+            local_price = state.prices[:, c_id]  # (N,)
+            safe_price = np.maximum(local_price, 1.0)  # (N,)
 
-            # Base quantity demand
-            qty_demand = per_commodity / safe_price  # (NVT,)
-
-            # Apply price elasticity
+            # Price elasticity
             price_ratio = local_price / BASE_PRICES[c_id]
             safe_ratio = np.maximum(price_ratio, 0.01)
-            elastic_factor = safe_ratio ** DEMAND_ELASTICITIES[c_id]
-            qty_demand *= elastic_factor
+            elastic_factor = safe_ratio ** DEMAND_ELASTICITIES[c_id]  # (N,)
 
-            # Aggregate to LGA level
-            np.add.at(demand[:, c_id], pop_lga, qty_demand)
+            # Quantity demand per LGA = sum across income brackets
+            qty_per_bracket = per_commodity_spending / safe_price[:, np.newaxis]  # (N, 3)
+            qty_demand = (qty_per_bracket * elastic_factor[:, np.newaxis]).sum(axis=1)  # (N,)
+
+            demand[:, c_id] += qty_demand
 
     demand = np.maximum(demand, 0.0)
     return demand

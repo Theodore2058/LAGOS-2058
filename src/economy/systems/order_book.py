@@ -22,7 +22,16 @@ import numpy as np
 
 from src.economy.core.types import EconomicState, MarketMutations, SimConfig
 from src.economy.data.commodities import BASE_PRICES, SPOILAGE_RATES, DEMAND_ELASTICITIES
-from src.economy.data.buildings import BUILDING_TYPE_BY_ID
+from src.economy.data.buildings import (
+    BUILDING_TYPE_BY_ID,
+    BT_OUTPUT_COMMODITY,
+    BT_REQUIRES_POWER,
+    BT_MIN_POWER,
+    BT_RAINFALL_SENSITIVE,
+    BT_INPUT_MATRIX,
+    BT_LABOR_MATRIX,
+    BT_ZAIBATSU_BONUS,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -37,9 +46,8 @@ def compute_building_sell_orders(
     """
     Compute aggregate sell orders per LGA per commodity from all buildings.
 
-    Each operational building offers its output at the local market.
-    Output depends on throughput, technology level, input availability,
-    labor, and infrastructure.
+    Vectorized: computes all building outputs simultaneously using precomputed
+    building-type arrays, then aggregates to LGA level.
 
     Returns: (N, C) array of units offered for sale.
     """
@@ -51,102 +59,113 @@ def compute_building_sell_orders(
         return sell
 
     B = state.n_buildings
+    bt_ids = state.building_type_ids.astype(np.intp)
+    lga_ids = state.building_lga_ids.astype(np.intp)
 
-    for i in range(B):
-        if not state.building_operational[i]:
-            continue
+    # --- Vectorized operational check ---
+    operational = state.building_operational.copy()
 
-        bt = BUILDING_TYPE_BY_ID.get(int(state.building_type_ids[i]))
-        if bt is None:
-            continue
+    # Power check: buildings requiring power in LGAs with low reliability
+    if state.infra_power_reliability is not None:
+        needs_power = BT_REQUIRES_POWER[bt_ids]  # (B,)
+        min_power = BT_MIN_POWER[bt_ids]  # (B,)
+        lga_power = state.infra_power_reliability[lga_ids]  # (B,)
+        power_fail = needs_power & (lga_power < min_power)
+        operational[power_fail] = False
 
-        lga = int(state.building_lga_ids[i])
-        throughput = state.building_throughput[i]
-        tech = state.building_tech_level[i]
+    # Strike check
+    if state.strikes_active is not None:
+        on_strike = state.strikes_active[lga_ids] > 0
+        operational[on_strike] = False
 
-        # Technology bonus: 0.3 tech -> 0.85x, 1.0 tech -> 1.15x
-        tech_mult = 0.7 + 0.45 * tech
+    state.building_operational[:] = operational
 
-        # Infrastructure check
-        if bt.requires_power and state.infra_power_reliability is not None:
-            power = state.infra_power_reliability[lga]
-            if power < bt.min_power_reliability:
-                state.building_operational[i] = False
-                continue
-            # Power reliability scales output
-            tech_mult *= max(power, 0.3)
+    # Only process operational buildings
+    op_mask = operational
+    if not op_mask.any():
+        return sell
 
-        # Input bottleneck: check if inputs are available in LGA inventory
-        bottleneck = 1.0
-        if bt.inputs and state.inventories is not None:
-            for inp_id, inp_per_unit in bt.inputs.items():
-                if 0 <= inp_id < C:
-                    available = state.inventories[lga, inp_id]
-                    needed = throughput * inp_per_unit
-                    if needed > 0:
-                        ratio = available / needed
-                        bottleneck = min(bottleneck, max(ratio, 0.0))
+    # --- Vectorized modifier computation for all operational buildings ---
+    throughput = state.building_throughput  # (B,)
+    tech = state.building_tech_level  # (B,)
 
-        # Labor bottleneck: check employee availability
-        labor_bottleneck = 1.0
-        if bt.labor:
-            total_needed = sum(bt.labor.values())
-            total_employed = state.building_employees[i].sum()
-            if total_needed > 0:
-                labor_bottleneck = min(total_employed / total_needed, 1.0)
+    # Tech multiplier
+    tech_mult = 0.7 + 0.45 * tech  # (B,)
 
-        # Zaibatsu efficiency bonus
-        zaibatsu_mult = 1.0
-        if state.building_owners[i] >= 0:
-            from src.economy.data.zaibatsu import ZAIBATSU_BY_ID
-            z = ZAIBATSU_BY_ID.get(int(state.building_owners[i]))
-            if z:
-                zaibatsu_mult = 1.0 + z.efficiency_bonus
+    # Power reliability factor (for powered buildings)
+    if state.infra_power_reliability is not None:
+        needs_power = BT_REQUIRES_POWER[bt_ids]
+        lga_power = state.infra_power_reliability[lga_ids]
+        power_factor = np.where(needs_power, np.maximum(lga_power, 0.3), 1.0)
+        tech_mult *= power_factor
 
-        # Rainfall for agricultural buildings
-        rain_mult = 1.0
-        if bt.rainfall_sensitive:
-            rain_mult = max(state.rainfall_modifier, 0.1)
+    # Zaibatsu bonus (from precomputed per-type array)
+    zaibatsu_mult = BT_ZAIBATSU_BONUS[bt_ids]  # (B,)
+    # Only apply if building has an owner
+    no_owner = state.building_owners < 0
+    zaibatsu_mult = np.where(no_owner, 1.0, zaibatsu_mult)
 
-        # Al-Shahid disruption
-        alsahid_mult = 1.0
-        if state.alsahid_control is not None:
-            control = state.alsahid_control[lga]
-            # High control disrupts production (10-40% penalty)
-            alsahid_mult = 1.0 - control * 0.4
+    # Rainfall
+    rain_sensitive = BT_RAINFALL_SENSITIVE[bt_ids]
+    rain_mult = np.where(rain_sensitive, max(state.rainfall_modifier, 0.1), 1.0)
 
-        # Enhancement bonus
-        enh_mult = 1.0
-        if state.enhancement_adoption is not None:
-            enh_mult = 1.0 + state.enhancement_adoption[lga] * config.ENHANCEMENT_PRODUCTIVITY_BONUS
+    # Al-Shahid disruption
+    alsahid_mult = np.ones(B, dtype=np.float64)
+    if state.alsahid_control is not None:
+        alsahid_mult = 1.0 - state.alsahid_control[lga_ids] * 0.4
 
-        # Strikes check
-        if state.strikes_active is not None and state.strikes_active[lga] > 0:
-            bottleneck = 0.0  # no production during strikes
+    # Enhancement
+    enh_mult = np.ones(B, dtype=np.float64)
+    if state.enhancement_adoption is not None:
+        enh_mult = 1.0 + state.enhancement_adoption[lga_ids] * config.ENHANCEMENT_PRODUCTIVITY_BONUS
 
-        # Final output
-        output = (
-            throughput
-            * tech_mult
-            * bottleneck
-            * labor_bottleneck
-            * zaibatsu_mult
-            * rain_mult
-            * alsahid_mult
-            * enh_mult
-        )
-        output = max(output, 0.0)
+    # --- Input bottleneck (vectorized per building) ---
+    # For each building, compute min(available / needed) across its inputs
+    # Using the precomputed input matrix: BT_INPUT_MATRIX[bt_id, commodity] = per_unit
+    input_recipes = BT_INPUT_MATRIX[bt_ids]  # (B, C) input requirements per unit
+    needed = throughput[:, np.newaxis] * input_recipes  # (B, C) total needed
+    has_inputs = needed > 0  # (B, C)
 
-        # Consume inputs from inventory
-        if bt.inputs and state.inventories is not None and output > 0:
-            for inp_id, inp_per_unit in bt.inputs.items():
-                if 0 <= inp_id < C:
-                    consumed = output * inp_per_unit * bottleneck
-                    consumed = min(consumed, state.inventories[lga, inp_id])
-                    state.inventories[lga, inp_id] -= consumed
+    if state.inventories is not None and has_inputs.any():
+        available = state.inventories[lga_ids]  # (B, C) available in each building's LGA
+        safe_needed = np.where(has_inputs, needed, 1.0)
+        ratios = np.where(has_inputs, available / safe_needed, 999.0)  # (B, C)
+        bottleneck = np.minimum(ratios.min(axis=1), 1.0)  # (B,)
+        bottleneck = np.maximum(bottleneck, 0.0)
+    else:
+        bottleneck = np.ones(B, dtype=np.float64)
 
-        # Add output to LGA sell orders
-        sell[lga, bt.output_commodity] += output
+    # --- Labor bottleneck (vectorized) ---
+    labor_needed = BT_LABOR_MATRIX[bt_ids]  # (B, 4)
+    total_labor_needed = labor_needed.sum(axis=1)  # (B,)
+    total_employed = state.building_employees.sum(axis=1)  # (B,)
+    safe_labor = np.maximum(total_labor_needed, 1.0)
+    labor_bottleneck = np.minimum(total_employed / safe_labor, 1.0)
+    labor_bottleneck = np.where(total_labor_needed > 0, labor_bottleneck, 1.0)
+
+    # --- Final output per building ---
+    output = (
+        throughput * tech_mult * bottleneck * labor_bottleneck
+        * zaibatsu_mult * rain_mult * alsahid_mult * enh_mult
+    )
+    output = np.maximum(output, 0.0)
+    output *= op_mask  # zero out non-operational
+
+    # --- Consume inputs from inventory ---
+    if state.inventories is not None:
+        consumed = output[:, np.newaxis] * input_recipes * bottleneck[:, np.newaxis]  # (B, C)
+        consumed = np.minimum(consumed, state.inventories[lga_ids])
+        consumed *= op_mask[:, np.newaxis]
+        # Aggregate consumption per LGA and subtract
+        for c in range(C):
+            col = consumed[:, c]
+            if col.any():
+                np.add.at(state.inventories[:, c], lga_ids, -col)
+        state.inventories[:] = np.maximum(state.inventories, 0.0)
+
+    # --- Aggregate output to LGA sell orders ---
+    out_commodities = BT_OUTPUT_COMMODITY[bt_ids]  # (B,)
+    np.add.at(sell, (lga_ids, out_commodities), output)
 
     return sell
 
