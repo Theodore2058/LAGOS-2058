@@ -357,9 +357,8 @@ def update_consumption_fulfillment(
     # Map to pop types
     pop_fulfill = lga_fulfillment[pop_lga]  # (NVT,)
 
-    # EMA smoothing
+    # EMA smoothing (in-place to avoid temporary allocation)
     alpha = 0.3
-    state.pop_consumption_fulfilled = np.clip(
-        (1.0 - alpha) * state.pop_consumption_fulfilled + alpha * pop_fulfill,
-        0.0, 1.0,
-    )
+    state.pop_consumption_fulfilled *= (1.0 - alpha)
+    state.pop_consumption_fulfilled += alpha * pop_fulfill
+    np.clip(state.pop_consumption_fulfilled, 0.0, 1.0, out=state.pop_consumption_fulfilled)
