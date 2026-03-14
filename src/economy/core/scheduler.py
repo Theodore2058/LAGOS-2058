@@ -152,6 +152,7 @@ class TickScheduler:
         from src.economy.systems.land import tick_land, apply_land_mutations
         from src.economy.systems.government import tick_government
         from src.economy.systems.alsahid import tick_alsahid, apply_alsahid_mutations
+        from src.economy.systems.enhancement import tick_enhancement, apply_enhancement_diffusion
 
         # Government (policy queue, budget, corruption, infrastructure)
         tick_government(self.state, self.config)
@@ -175,6 +176,10 @@ class TickScheduler:
         # Land market
         land_mut = tick_land(self.state, self.config)
         apply_land_mutations(self.state, land_mut)
+
+        # Enhancement technology diffusion
+        new_adoption = tick_enhancement(self.state, self.config)
+        apply_enhancement_diffusion(self.state, new_adoption)
 
         elapsed = time.time() - t0
         self.structural_tick_count += 1
