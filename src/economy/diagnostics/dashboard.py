@@ -158,13 +158,18 @@ def compute_sector_output(state: EconomicState, config: SimConfig) -> list[dict]
     Returns a list of dicts (one per commodity) with keys:
         id, name, total_output, total_inventory, mean_price
     """
+    # Use sell_orders in V3 mode for output (actual_output is zero)
+    output_source = state.actual_output
+    if hasattr(state, 'sell_orders') and state.sell_orders is not None and state.sell_orders.sum() > 0:
+        output_source = state.sell_orders
+
     results: list[dict] = []
     for c in COMMODITIES:
         cid = c.id
         results.append({
             "id": cid,
             "name": c.name,
-            "total_output": float(np.sum(state.actual_output[:, cid])),
+            "total_output": float(np.sum(output_source[:, cid])),
             "total_inventory": float(np.sum(state.inventories[:, cid])),
             "mean_price": float(np.mean(state.prices[:, cid])),
         })
