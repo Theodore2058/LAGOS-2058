@@ -165,6 +165,12 @@ def _process_speculation_vec(
             hoard_frac = np.clip(hoard_frac, 0, 0.8)
             hoard_amount = state.inventories[hoard_mask, c] * hoard_frac * 0.01
             state.hoarded[hoard_mask, c] += hoard_amount
+            # Cap: hoarded cannot exceed inventory
+            np.minimum(
+                state.hoarded[hoard_mask, c],
+                state.inventories[hoard_mask, c],
+                out=state.hoarded[hoard_mask, c],
+            )
 
         # Release where price > threshold * base
         release_mask = state.prices[:, c] > config.HOARD_RELEASE_THRESHOLD * BASE_PRICES[c]
