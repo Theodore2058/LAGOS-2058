@@ -454,8 +454,11 @@ def tick_market_orderbook(
     N = config.N_LGAS
     C = config.N_COMMODITIES
 
-    # 1. Spoilage
-    spoilage = state.inventories * SPOILAGE_RATES[np.newaxis, :]
+    # 1. Spoilage — commodity-specific rates + universal storage depreciation
+    # The universal rate (0.1%/tick ≈ 5.5%/month) prevents unbounded inventory
+    # accumulation for zero-spoilage goods (steel, cement, ore, etc.)
+    effective_spoilage = np.maximum(SPOILAGE_RATES, 0.001)  # min 0.1% per tick
+    spoilage = state.inventories * effective_spoilage[np.newaxis, :]
     state.inventories -= spoilage
     state.inventories = np.maximum(state.inventories, 0.0)
 
