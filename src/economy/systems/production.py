@@ -420,10 +420,23 @@ def tick_capacity_investment(state: EconomicState, config: SimConfig) -> None:
     else:
         utilization = np.full((N, C), 0.7)
 
+    # Credit multiplier: available credit in the zone boosts investment capacity
+    credit_mult = np.ones(N, dtype=np.float64)
+    if state.bank_confidence is not None and state.admin_zone is not None:
+        Z = config.N_ADMIN_ZONES
+        zone_ids = state.admin_zone.astype(np.intp)
+        # Bank confidence (0.05-1.0) → credit multiplier (0.5-1.5)
+        zone_confidence = np.clip(state.bank_confidence, 0.05, 1.0)
+        credit_mult = 0.5 + zone_confidence[zone_ids]
+
     # Investment signal: high prices AND high utilization → expand
     # Low prices OR low utilization → contract
     expand_signal = (price_ratio - 1.0) * utilization  # positive when profitable + busy
-    adjustment = np.clip(expand_signal * 0.02, -0.01, 0.02)  # ±1-2% per month
+    base_rate = 0.02
+    adjustment = np.clip(
+        expand_signal * base_rate * credit_mult[:, np.newaxis],
+        -0.01, 0.03,
+    )
 
     # Sticky downward: contraction is slower (firms reluctant to close)
     adjustment = np.where(adjustment < 0, adjustment * 0.5, adjustment)
