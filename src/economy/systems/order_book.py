@@ -59,8 +59,8 @@ def compute_building_sell_orders(
         return sell
 
     B = state.n_buildings
-    bt_ids = state.building_type_ids.astype(np.intp)
-    lga_ids = state.building_lga_ids.astype(np.intp)
+    bt_ids = np.clip(state.building_type_ids.astype(np.intp), 0, len(BT_OUTPUT_COMMODITY) - 1)
+    lga_ids = np.clip(state.building_lga_ids.astype(np.intp), 0, config.N_LGAS - 1)
 
     # --- Vectorized operational check ---
     # Start from all-True each tick; previous non-operational status doesn't persist
