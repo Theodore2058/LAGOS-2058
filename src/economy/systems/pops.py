@@ -168,11 +168,22 @@ def compute_pop_buy_orders(
     # Scale by population count to get total spending
     total_budget = consumption_budget * state.pop_count  # (NVT,)
 
-    # Desperation spending: if SoL is low, dip into savings
-    if state.pop_standard_of_living is not None:
+    # Desperation spending: if SoL is low, dip into savings to cover shortfall.
+    # The extra 30% spending comes from savings drawdown, not thin air.
+    if state.pop_standard_of_living is not None and state.pop_savings is not None:
         low_sol = state.pop_standard_of_living < 3.0
-        desperation_mult = np.where(low_sol, 1.3, 1.0)
-        total_budget *= desperation_mult
+        # Extra spending = 30% of base budget, capped by available savings
+        extra_spending = np.where(low_sol, total_budget * 0.30, 0.0)
+        # Per-capita savings available this tick
+        safe_count = np.maximum(state.pop_count, 1.0)
+        per_capita_savings = state.pop_savings / safe_count
+        # Can't spend more savings than we have (per-capita per-tick)
+        per_capita_extra = np.minimum(extra_spending / safe_count, per_capita_savings)
+        actual_extra = per_capita_extra * state.pop_count
+        total_budget += actual_extra
+        # Debit savings (aggregate: will be applied at end of tick)
+        state.pop_savings -= per_capita_extra * state.pop_count
+        state.pop_savings = np.maximum(state.pop_savings, 0.0)
 
     # --- Aggregate total_budget to (LGA, income_bracket) groups ---
     # Composite key: lga * 3 + income_bracket

@@ -29,10 +29,13 @@ def tick_banking(state: EconomicState, config: SimConfig) -> BankingMutations:
     """
     Z = config.N_ADMIN_ZONES
 
-    # 1. Deposits: fraction of total income in each zone
-    zone_income = _compute_zone_income(state, config)
-    savings_rate = 0.10  # 10% of income saved
-    deposit_inflow = zone_income * savings_rate / config.PRODUCTION_TICKS_PER_MONTH
+    # 1. Deposits: derived from actual pop savings (not a flat rate).
+    # When pops save money (tick_pop_income), a fraction goes into banks.
+    # Banking fraction: ~70% of savings enter formal banking (rest is
+    # mattress savings, ajo/esusu, mobile money outside formal sector).
+    BANKING_FRACTION = 0.70
+    zone_savings_flow = _compute_zone_savings_inflow(state, config)
+    deposit_inflow = zone_savings_flow * BANKING_FRACTION / config.PRODUCTION_TICKS_PER_MONTH
     # Withdrawal: households draw down deposits for consumption (~8% outflow)
     deposit_outflow = state.bank_deposits * 0.08 / config.PRODUCTION_TICKS_PER_MONTH
     deposits_new = state.bank_deposits + deposit_inflow - deposit_outflow
@@ -194,6 +197,30 @@ def apply_banking_mutations(
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+def _compute_zone_savings_inflow(
+    state: EconomicState, config: SimConfig,
+) -> np.ndarray:
+    """
+    Compute monthly savings inflow per zone from pop savings behaviour.
+
+    Uses actual pop savings rates (2% for bottom 40%, 8% middle, 18% top)
+    applied to wage income, then aggregated to zone level. This replaces
+    the old flat 10% rate with income-bracket-aware savings.
+    """
+    from src.economy.core.types import aggregate_by_zone
+
+    # Bracket-weighted savings rate per LGA:
+    # Unskilled (Q1/Q2) → 2%, Skilled (Q3) → 8%, Highly_skilled (Q4) → 18%, Elite → 18%
+    TIER_SAVINGS = np.array([0.02, 0.08, 0.18, 0.18], dtype=np.float64)
+
+    # Income per tier per LGA
+    tier_income = state.wages * state.labor_employed  # (N, 4)
+    tier_savings = tier_income * TIER_SAVINGS[np.newaxis, :]  # (N, 4)
+    total_savings_per_lga = tier_savings.sum(axis=1)  # (N,)
+
+    return aggregate_by_zone(state, total_savings_per_lga, config.N_ADMIN_ZONES)
+
 
 def _compute_zone_income(
     state: EconomicState, config: SimConfig,
