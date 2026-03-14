@@ -448,6 +448,16 @@ def compute_background_supply(
         disruption = 1.0 - state.alsahid_control * 0.3
         bg_output *= disruption[:, np.newaxis]
 
+    # Import fulfillment: reduce background supply for import-dependent goods
+    # when forex reserves are low or WAFTA is cancelled
+    if state.import_fulfillment:
+        from src.economy.core.types import IMPORT_DEPENDENCIES
+        for dep_name, dep in IMPORT_DEPENDENCIES.items():
+            fulfillment = state.import_fulfillment.get(dep_name, 1.0)
+            if fulfillment < 1.0:
+                for c_id in dep.get("required_by", []):
+                    bg_output[:, c_id] *= fulfillment
+
     return np.maximum(bg_output, 0.0)
 
 

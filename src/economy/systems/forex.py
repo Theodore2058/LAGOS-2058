@@ -18,7 +18,7 @@ from src.economy.core.types import (
     SimConfig,
 )
 
-from src.economy.data.commodity_ids import CRUDE_OIL, COBALT_ORE
+from src.economy.data.commodity_ids import CRUDE_OIL, NATURAL_GAS, COBALT_ORE
 
 logger = logging.getLogger(__name__)
 
@@ -62,14 +62,20 @@ def tick_forex(state: EconomicState, config: SimConfig) -> ForexMutations:
     )
 
     # ------------------------------------------------------------------
-    # 2. Export revenue (oil + cobalt, summed across all 774 LGAs)
+    # 2. Export revenue (oil + gas + cobalt, summed across all 774 LGAs)
     # ------------------------------------------------------------------
     # production_capacity[:, id] is the per-LGA monthly output proxy.
     oil_output = state.production_capacity[:, CRUDE_OIL].sum()
+    gas_output = state.production_capacity[:, NATURAL_GAS].sum()
     cobalt_output = state.production_capacity[:, COBALT_ORE].sum()
+
+    # LNG price tracks oil with a lag (~$12/MMBtu equivalent, scaled to
+    # match production_capacity units). Nigeria exports ~25 MT/year LNG.
+    lng_price_usd = oil_price_new * 0.15  # rough oil-gas price linkage
 
     export_revenue_usd = (
         oil_output * oil_price_new
+        + gas_output * lng_price_usd
         + cobalt_output * cobalt_price_new
     )
 
@@ -264,6 +270,10 @@ def _compute_import_bill(
                 )
 
         total_usd += volume * price_usd
+
+    # Apply import tariff (increases naira cost, reducing effective volume)
+    # Tariff revenue goes to government, but the forex cost remains
+    total_usd *= (1.0 + state.tax_rate_import_tariff)
 
     return total_usd
 
