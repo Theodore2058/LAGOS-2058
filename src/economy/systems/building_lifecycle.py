@@ -244,6 +244,16 @@ def _zaibatsu_investment(state: EconomicState, config: SimConfig) -> None:
 
     N = config.N_LGAS
 
+    # Pre-compute per-zone credit availability: zaibatsu can only invest
+    # where banks are willing to lend.  High lending rates or low confidence
+    # suppress private construction, creating the credit-investment channel.
+    zone_credit_ok = np.ones(config.N_ADMIN_ZONES, dtype=bool)
+    if state.bank_confidence is not None and state.lending_rate is not None:
+        # Suppress investment where confidence < 0.3 OR rate > 20%
+        zone_credit_ok = (
+            (state.bank_confidence > 0.3) & (state.lending_rate < 0.20)
+        )
+
     for z_id, z in ZAIBATSU_BY_ID.items():
         # Find building types this zaibatsu builds
         affiliated_types = [
@@ -279,6 +289,12 @@ def _zaibatsu_investment(state: EconomicState, config: SimConfig) -> None:
             best_lga = int(np.argmax(score))
             if score[best_lga] < bt.base_throughput:
                 continue
+
+            # Credit check: LGA's zone must have viable banking
+            if state.admin_zone is not None:
+                zone = int(state.admin_zone[best_lga])
+                if zone < len(zone_credit_ok) and not zone_credit_ok[zone]:
+                    continue
 
             # Check if already building same type in this LGA
             already_building = any(
