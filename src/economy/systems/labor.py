@@ -53,6 +53,11 @@ def tick_labor(state: EconomicState, config: SimConfig) -> LaborMutations:
         config.BASE_WAGES[0], config.WAGE_ADJUSTMENT_SPEED,
     )
 
+    # Mean reversion toward base wages (2% per tick) — prevents unbounded
+    # wage drift when demand/supply imbalances persist
+    log_ratio = np.log(np.maximum(wages_new, 1.0) / config.BASE_WAGES[np.newaxis, :])
+    wages_new *= np.exp(-0.02 * log_ratio)
+
     # 4. Check strikes
     strikes_active, strikes_triggered = evaluate_strikes(state, config)
 
