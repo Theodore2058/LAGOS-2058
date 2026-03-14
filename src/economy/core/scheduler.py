@@ -128,13 +128,14 @@ class TickScheduler:
         """Execute one production tick (includes labor + market afterward)."""
         t0 = time.time()
 
-        # Production — building-based or legacy
-        if self._use_order_book:
-            prod_mut = tick_building_production(self.state, self.config)
-        else:
+        # Production
+        # When using order-book system, building production happens every market
+        # tick via compute_building_sell_orders. The production tick only runs
+        # the legacy aggregate production if order-book is not active.
+        if not self._use_order_book:
             prod_mut = tick_production(self.state, self.config)
-        assert_production_valid(self.state, prod_mut)
-        apply_production_mutations(self.state, prod_mut)
+            assert_production_valid(self.state, prod_mut)
+            apply_production_mutations(self.state, prod_mut)
 
         # Labor market
         from src.economy.systems.labor import tick_labor, apply_labor_mutations, evaluate_strikes

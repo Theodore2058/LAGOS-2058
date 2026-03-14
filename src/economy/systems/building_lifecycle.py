@@ -61,6 +61,7 @@ def tick_building_lifecycle(state: EconomicState, config: SimConfig) -> None:
 
     # 5. Investment decisions (zaibatsu + government)
     _zaibatsu_investment(state, config)
+    _government_investment(state, config)
 
 
 # ---------------------------------------------------------------------------
@@ -303,3 +304,125 @@ def _zaibatsu_investment(state: EconomicState, config: SimConfig) -> None:
                 "Zaibatsu %s starting %s in LGA %d (%d months)",
                 z.name, bt.display_name, best_lga, bt.construction_months,
             )
+
+
+# ---------------------------------------------------------------------------
+# Government investment
+# ---------------------------------------------------------------------------
+
+# Building types the government invests in (IDs for power, food processing, housing)
+_GOV_INFRASTRUCTURE_BT_IDS = [20, 18, 34]  # power_plant, food_processor, housing_developer
+
+
+def _government_investment(state: EconomicState, config: SimConfig) -> None:
+    """
+    Government invests in infrastructure buildings in underserved areas.
+
+    Priorities:
+    1. Power plants in LGAs with low power reliability
+    2. Food processing in LGAs with high food prices
+    3. Housing in LGAs with high population and few housing buildings
+
+    Funded by government budget (budget_released). Limited to 2 projects/month.
+    """
+    if state.budget_released is None or state.prices is None:
+        return
+
+    N = config.N_LGAS
+    bt_ids = state.building_type_ids.astype(np.intp) if state.building_type_ids is not None else np.array([], dtype=np.intp)
+
+    # Available government infrastructure budget (10% of released budget)
+    total_released = state.budget_released.sum() if state.budget_released is not None else 0
+    infra_budget = total_released * 0.10
+    if infra_budget < 1e9:  # minimum 1 billion naira
+        return
+
+    projects_started = 0
+    max_projects = 2  # cap per month
+
+    # 1. Power plants in low-reliability areas
+    if state.infra_power_reliability is not None and projects_started < max_projects:
+        bt = BUILDING_TYPE_BY_ID[20]  # power_plant
+        low_power = state.infra_power_reliability < 0.4
+        # Count existing power plants per LGA
+        power_plants = np.zeros(N, dtype=np.int32)
+        if len(bt_ids) > 0:
+            pp_mask = state.building_type_ids == 20
+            if pp_mask.any():
+                pp_lgas = state.building_lga_ids[pp_mask].astype(np.intp)
+                np.add.at(power_plants, pp_lgas, 1)
+
+        # Score: low power + population - existing plants
+        score = np.where(low_power, 1.0, 0.0)
+        if state.population is not None:
+            score *= state.population / np.maximum(state.population.max(), 1.0)
+        score -= power_plants * 0.5
+        score = np.maximum(score, 0.0)
+
+        # Penalize al-Shahid areas
+        if state.alsahid_control is not None:
+            score *= (1.0 - state.alsahid_control * 0.8)
+
+        best_lga = int(np.argmax(score))
+        if score[best_lga] > 0.1:
+            already = any(
+                p.completion_effect.get("building_type_id") == 20 and p.lga_id == best_lga
+                for p in state.construction_projects
+            )
+            if not already:
+                project = ConstructionProject(
+                    project_type="government_infrastructure",
+                    lga_id=best_lga,
+                    commodity_id=bt.output_commodity,
+                    months_remaining=bt.construction_months,
+                    monthly_cost_naira=bt.construction_cost_naira / bt.construction_months,
+                    monthly_labor_demand={0: 30, 1: 10},
+                    completion_effect={"building_type_id": 20, "owner": -1},
+                    funded=True,
+                )
+                state.construction_projects.append(project)
+                projects_started += 1
+                logger.info(
+                    "Government starting Power Plant in LGA %d (%d months)",
+                    best_lga, bt.construction_months,
+                )
+
+    # 2. Food processing in high food price areas
+    if projects_started < max_projects:
+        bt = BUILDING_TYPE_BY_ID[18]  # food_processor
+        food_ids = [6, 7, 8, 13]
+        mean_food = state.prices[:, food_ids].mean(axis=1)
+        median_food = np.median(mean_food)
+
+        high_price = mean_food > median_food * 1.5
+        score = np.where(high_price, mean_food / np.maximum(median_food, 1.0), 0.0)
+
+        if state.population is not None:
+            score *= state.population / np.maximum(state.population.max(), 1.0)
+
+        if state.alsahid_control is not None:
+            score *= (1.0 - state.alsahid_control * 0.8)
+
+        best_lga = int(np.argmax(score))
+        if score[best_lga] > 0.1:
+            already = any(
+                p.completion_effect.get("building_type_id") == 18 and p.lga_id == best_lga
+                for p in state.construction_projects
+            )
+            if not already:
+                project = ConstructionProject(
+                    project_type="government_infrastructure",
+                    lga_id=best_lga,
+                    commodity_id=bt.output_commodity,
+                    months_remaining=bt.construction_months,
+                    monthly_cost_naira=bt.construction_cost_naira / bt.construction_months,
+                    monthly_labor_demand={0: 15, 1: 5},
+                    completion_effect={"building_type_id": 18, "owner": -1},
+                    funded=True,
+                )
+                state.construction_projects.append(project)
+                projects_started += 1
+                logger.info(
+                    "Government starting Food Processor in LGA %d (%d months)",
+                    best_lga, bt.construction_months,
+                )
