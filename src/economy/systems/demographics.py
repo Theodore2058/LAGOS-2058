@@ -236,7 +236,7 @@ def _gravity_migration(
 
     # Normalise per source so fractions sum to <= 1
     row_sum = pull_diff.sum(axis=1, keepdims=True)
-    safe_row_sum = np.maximum(row_sum, 1e-12)
+    safe_row_sum = np.maximum(row_sum, 1.0)
     fractions = pull_diff / safe_row_sum  # (N, K)
 
     # Actual outflow
@@ -248,7 +248,7 @@ def _gravity_migration(
 
     # Don't let a source send more than friction * population total
     outflow_total = outflow.sum(axis=1, keepdims=True)
-    safe_outflow_total = np.maximum(outflow_total, 1e-12)
+    safe_outflow_total = np.maximum(outflow_total, 1.0)
     scale = np.minimum(max_outflow[:, np.newaxis] / safe_outflow_total, 1.0)
     outflow *= scale
 

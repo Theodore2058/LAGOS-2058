@@ -217,7 +217,7 @@ def _compute_welfare(
     sensitivity = _welfare_sensitivity(skill_ids, config)
     weighted = raw_welfare * sensitivity
 
-    abs_max = np.maximum(np.max(np.abs(weighted)), 1e-12)
+    abs_max = np.maximum(np.max(np.abs(weighted)), 1.0)
     welfare = np.clip(weighted / abs_max, -1.0, 1.0)
 
     return welfare

@@ -372,7 +372,7 @@ def compute_background_supply(
 
     # --- Distribution: blend capacity structure + demand weights ---
     # Capacity share: production_capacity normalized per LGA
-    cap_total = np.maximum(cap.sum(axis=1, keepdims=True), 1e-10)
+    cap_total = np.maximum(cap.sum(axis=1, keepdims=True), 1.0)
     cap_share = cap / cap_total  # (N, C) — how LGA's economy is structured
 
     # Demand share: from previous tick's buy orders
@@ -398,7 +398,7 @@ def compute_background_supply(
     else:
         effective_capacity = has_capacity
     constrained_demand = demand_share * effective_capacity
-    row_sum = np.maximum(constrained_demand.sum(axis=1, keepdims=True), 1e-10)
+    row_sum = np.maximum(constrained_demand.sum(axis=1, keepdims=True), 1.0)
     constrained_demand /= row_sum
 
     # Suppress capacity path for zero-demand commodities
@@ -407,7 +407,7 @@ def compute_background_supply(
         global_demand = state.buy_orders.sum(axis=0)
         has_demand = np.where(global_demand > 0, 1.0, 0.01)
     cap_share_adj = cap_share * has_demand[np.newaxis, :]
-    adj_sum = np.maximum(cap_share_adj.sum(axis=1, keepdims=True), 1e-10)
+    adj_sum = np.maximum(cap_share_adj.sum(axis=1, keepdims=True), 1.0)
     cap_share_adj /= adj_sum
 
     # Blend: 30% capacity-based + 70% demand-weighted
