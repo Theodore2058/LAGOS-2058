@@ -20,8 +20,15 @@ _FOOD_COMMODITY_IDS = [6, 7, 8, 13, 18, 21]
 # ---------------------------------------------------------------------------
 
 def compute_gdp_proxy(state: EconomicState, config: SimConfig) -> float:
-    """Sum of production_capacity * prices across all LGAs and commodities."""
-    # production_capacity: (774, 36), prices: (774, 36)
+    """GDP proxy: total production value per month.
+
+    Uses sell_orders (V3 order-book) if available, otherwise falls back
+    to production_capacity * prices (legacy).
+    """
+    # V3 mode: sell_orders represents actual monthly production
+    if hasattr(state, 'sell_orders') and state.sell_orders is not None and state.sell_orders.sum() > 0:
+        return float(np.sum(state.sell_orders * state.prices))
+    # Legacy: production_capacity * prices
     return float(np.sum(state.production_capacity * state.prices))
 
 
