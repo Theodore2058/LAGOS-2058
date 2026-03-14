@@ -214,7 +214,7 @@ def clear_market(
     log_ratio = np.log(np.maximum(prices, 1.0) / _BP[np.newaxis, :])
     mean_reversion = -0.02 * log_ratio  # 2% pull toward base per tick (~67%/month)
     prices *= np.exp(mean_reversion)
-    prices[:] = np.maximum(prices, price_floor)
+    prices[:] = np.maximum(prices, _BP[np.newaxis, :] * 0.10)
 
     # Actual consumption
     actual_consumption = np.minimum(consumer_demand, total_supply)

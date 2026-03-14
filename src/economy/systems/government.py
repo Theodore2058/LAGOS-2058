@@ -330,8 +330,14 @@ def compute_tax_revenue(state: EconomicState, config: SimConfig) -> float:
         total_wage_bill = float(np.sum(state.wages * state.labor_employed))
         revenue += total_wage_bill * state.tax_rate_income
 
-    # Corporate tax: sum(actual_output * prices) * tax_rate_corporate
-    output_arr = state.actual_output if state.actual_output is not None else state.production_capacity
+    # Corporate tax: sum(output * prices) * tax_rate_corporate
+    # V3 mode: sell_orders represents actual output; actual_output is zero
+    if hasattr(state, 'sell_orders') and state.sell_orders is not None and state.sell_orders.sum() > 0:
+        output_arr = state.sell_orders
+    elif state.actual_output is not None and state.actual_output.sum() > 0:
+        output_arr = state.actual_output
+    else:
+        output_arr = state.production_capacity
     if output_arr is not None and state.prices is not None:
         gross_output_value = float(
             np.sum(output_arr * state.prices),

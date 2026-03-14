@@ -59,7 +59,10 @@ def compute_dutch_disease_index(
     C = config.N_COMMODITIES
 
     # Total production value by commodity
-    if state.actual_output is not None:
+    # V3 mode: sell_orders represents actual output; actual_output is zero
+    if hasattr(state, 'sell_orders') and state.sell_orders is not None and state.sell_orders.sum() > 0:
+        output = state.sell_orders  # (N, C)
+    elif state.actual_output is not None and state.actual_output.sum() > 0:
         output = state.actual_output  # (N, C)
     else:
         output = state.inventories * 0.1  # rough proxy
