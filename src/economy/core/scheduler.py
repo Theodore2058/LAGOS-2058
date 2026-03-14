@@ -211,6 +211,11 @@ class TickScheduler:
         alsahid_mut = tick_alsahid(self.state, self.config)
         apply_alsahid_mutations(self.state, alsahid_mut)
 
+        # Update trade graph surcharges to reflect new al-Shahid control
+        if self.trade_graph is not None and self.state.alsahid_control is not None:
+            from src.economy.systems.trade_graph import update_trade_surcharges
+            update_trade_surcharges(self.trade_graph, self.state.alsahid_control)
+
         # Demographics
         demo_mut = tick_demographics(self.state, self.config)
         apply_demographic_mutations(self.state, demo_mut)

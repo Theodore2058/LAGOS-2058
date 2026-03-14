@@ -33,7 +33,10 @@ def tick_banking(state: EconomicState, config: SimConfig) -> BankingMutations:
     zone_income = _compute_zone_income(state, config)
     savings_rate = 0.10  # 10% of income saved
     deposit_inflow = zone_income * savings_rate / config.PRODUCTION_TICKS_PER_MONTH
-    deposits_new = state.bank_deposits + deposit_inflow
+    # Withdrawal: households draw down deposits for consumption (~8% outflow)
+    deposit_outflow = state.bank_deposits * 0.08 / config.PRODUCTION_TICKS_PER_MONTH
+    deposits_new = state.bank_deposits + deposit_inflow - deposit_outflow
+    deposits_new = np.maximum(deposits_new, 0.0)
 
     # 2. Loan defaults
     defaults = np.zeros(Z, dtype=np.float64)
@@ -202,5 +205,13 @@ def _compute_zone_revenue(
     """Total business revenue per zone using real admin zone mapping."""
     from src.economy.core.types import aggregate_by_zone
 
-    production_value = (state.production_capacity * state.prices).sum(axis=1)
+    # Use sell_orders (V3) or production_capacity (legacy) for revenue proxy
+    if (
+        hasattr(state, 'sell_orders')
+        and state.sell_orders is not None
+        and state.sell_orders.sum() > 0
+    ):
+        production_value = (state.sell_orders * state.prices).sum(axis=1)
+    else:
+        production_value = (state.production_capacity * state.prices).sum(axis=1)
     return aggregate_by_zone(state, production_value, config.N_ADMIN_ZONES)

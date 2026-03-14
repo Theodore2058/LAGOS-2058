@@ -239,6 +239,22 @@ def build_trade_graph(
     )
 
 
+def update_trade_surcharges(graph: TradeGraph, alsahid_control: np.ndarray) -> None:
+    """
+    Refresh per-route surcharges from current al-Shahid control levels.
+
+    Called during the structural tick after al-Shahid mutations are applied,
+    so trade costs reflect territorial changes.
+    """
+    for idx in range(graph.n_routes):
+        a, b = graph.edges[idx]
+        max_control = max(float(alsahid_control[a]), float(alsahid_control[b]))
+        if max_control > 0.05:
+            graph.surcharges[idx] = 0.3 + 0.2 * max_control
+        else:
+            graph.surcharges[idx] = 0.0
+
+
 def _load_centroids(
     geojson_path: Path, lga_data: EconomyLGAData,
 ) -> np.ndarray:
