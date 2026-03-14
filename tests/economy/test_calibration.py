@@ -147,10 +147,11 @@ class TestScenarioNarratives:
         state = initialize_state(config)
         initial_reserves = state.forex_reserves_usd
 
-        # Crash oil prices
+        # Crash oil prices (domestic and global)
         from src.economy.data.commodity_ids import CRUDE_OIL, NATURAL_GAS
         state.prices[:, CRUDE_OIL] *= 0.3
         state.prices[:, NATURAL_GAS] *= 0.3
+        state.global_oil_price_usd *= 0.3
 
         scheduler = TickScheduler(state=state, config=config)
         scheduler.run_mixed_ticks(n_months=3)

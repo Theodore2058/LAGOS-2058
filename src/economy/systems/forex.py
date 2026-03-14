@@ -62,21 +62,39 @@ def tick_forex(state: EconomicState, config: SimConfig) -> ForexMutations:
     )
 
     # ------------------------------------------------------------------
-    # 2. Export revenue (oil + gas + cobalt, summed across all 774 LGAs)
+    # 2. Export revenue (oil + gas + cobalt)
     # ------------------------------------------------------------------
-    # production_capacity[:, id] is the per-LGA monthly output proxy.
-    oil_output = state.production_capacity[:, CRUDE_OIL].sum()
-    gas_output = state.production_capacity[:, NATURAL_GAS].sum()
-    cobalt_output = state.production_capacity[:, COBALT_ORE].sum()
+    # Capacity units are abstract (~368 oil, ~295 gas, ~8 cobalt).
+    # Per-commodity multipliers convert to real output volumes:
+    #   Oil: 368 cap * 160K = 58.9M bbl/month ≈ 2M bbl/day
+    #   Gas: 295 cap * 130K = 38.3M units (LNG exports ≈ $490M/mo)
+    #   Cobalt: 8 cap * 600 = 4,920 tonnes/month
+    # Normal: oil $5.0B + gas $0.49B + cobalt $0.17B ≈ $5.7B/month
+    # Oil crash ($20): oil $1.2B + gas $0.12B + cobalt $0.17B ≈ $1.5B
+    _OIL_OUTPUT_MULT = 160_000.0
+    _GAS_OUTPUT_MULT = 130_000.0
+    _COBALT_OUTPUT_MULT = 600.0
 
-    # LNG price tracks oil with a lag (~$12/MMBtu equivalent, scaled to
-    # match production_capacity units). Nigeria exports ~25 MT/year LNG.
-    lng_price_usd = oil_price_new * 0.15  # rough oil-gas price linkage
+    if (
+        hasattr(state, 'sell_orders')
+        and state.sell_orders is not None
+        and state.sell_orders.sum() > 0
+    ):
+        oil_output = state.sell_orders[:, CRUDE_OIL].sum()
+        gas_output = state.sell_orders[:, NATURAL_GAS].sum()
+        cobalt_output = state.sell_orders[:, COBALT_ORE].sum()
+    else:
+        oil_output = state.production_capacity[:, CRUDE_OIL].sum()
+        gas_output = state.production_capacity[:, NATURAL_GAS].sum()
+        cobalt_output = state.production_capacity[:, COBALT_ORE].sum()
+
+    # LNG price tracks oil (~15% of oil price per unit)
+    lng_price_usd = oil_price_new * 0.15
 
     export_revenue_usd = (
-        oil_output * oil_price_new
-        + gas_output * lng_price_usd
-        + cobalt_output * cobalt_price_new
+        oil_output * _OIL_OUTPUT_MULT * oil_price_new
+        + gas_output * _GAS_OUTPUT_MULT * lng_price_usd
+        + cobalt_output * _COBALT_OUTPUT_MULT * cobalt_price_new
     )
 
     # ------------------------------------------------------------------
@@ -275,6 +293,12 @@ def _compute_import_bill(
     # Apply import tariff (increases naira cost, reducing effective volume)
     # Tariff revenue goes to government, but the forex cost remains
     total_usd *= (1.0 + state.tax_rate_import_tariff)
+
+    # Scale abstract capacity-based volumes to real-world import costs.
+    # Nigeria-2058 target: ~$3.5B/month imports (machinery, chemicals,
+    # consumer goods, refined products).
+    _IMPORT_MULTIPLIER = 120.0
+    total_usd *= _IMPORT_MULTIPLIER
 
     return total_usd
 
