@@ -405,7 +405,7 @@ def compute_background_supply(
     has_demand = np.ones(C, dtype=np.float64)
     if state.buy_orders is not None:
         global_demand = state.buy_orders.sum(axis=0)
-        has_demand = np.where(global_demand > 0, 1.0, 0.1)
+        has_demand = np.where(global_demand > 0, 1.0, 0.01)
     cap_share_adj = cap_share * has_demand[np.newaxis, :]
     adj_sum = np.maximum(cap_share_adj.sum(axis=1, keepdims=True), 1e-10)
     cap_share_adj /= adj_sum
@@ -421,10 +421,14 @@ def compute_background_supply(
     # Only dampen commodities with no unfilled demand — commodities with
     # shortfalls should maintain full production.
     if state.buy_orders is not None:
+        global_buy = state.buy_orders.sum(axis=0)  # (C,)
         safe_demand = np.maximum(state.buy_orders, 1.0)
         inv_ratio = state.inventories / safe_demand  # ticks of stock (N, C)
         # Scale: 1.0 when ratio<=4, tapering to 0.3 when ratio>=24
         inv_damper = np.clip(1.0 - (inv_ratio - 4.0) / 28.0, 0.3, 1.0)
+        # Zero-demand goods: fully suppress (nobody buys them)
+        no_demand = global_buy <= 0
+        inv_damper[:, no_demand] = 0.0
         # Don't dampen commodities that have unfilled demand anywhere
         if state.unfilled_buy is not None:
             has_shortage = state.unfilled_buy.sum(axis=0) > 0  # (C,)
