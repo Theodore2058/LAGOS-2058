@@ -129,7 +129,7 @@ def tick_traders(
         avail = state.inventories[:, c]
         excess_mask = outflow > avail
         if excess_mask.any():
-            scale = np.where(outflow > 0, avail / np.maximum(outflow, 1e-10), 1.0)
+            scale = np.where(outflow > 0, avail / np.maximum(outflow, 1.0), 1.0)
             net_supply[excess_mask, c] *= scale[excess_mask]
 
     return net_supply
