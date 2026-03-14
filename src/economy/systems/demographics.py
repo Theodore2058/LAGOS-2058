@@ -126,6 +126,9 @@ def apply_demographic_mutations(
     """Write demographic mutations back to state."""
     state.population = mutations.population_new
     state.labor_pool = mutations.labor_pool_new
+    # Clamp employment to new pool (pool may have shrunk from migration/mortality)
+    if state.labor_employed is not None:
+        state.labor_employed = np.minimum(state.labor_employed, state.labor_pool)
     if mutations.voter_type_populations_new is not None:
         # future: propagate to voter model
         pass

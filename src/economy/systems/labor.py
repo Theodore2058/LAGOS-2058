@@ -22,8 +22,8 @@ def tick_labor(state: EconomicState, config: SimConfig) -> LaborMutations:
     """
     Full labor market tick.
 
-    1. Compute labor demand from production capacity
-    2. Match workers to jobs (highest-wage first)
+    1. Compute labor demand from production capacity (or macro conditions in V3)
+    2. Match workers to jobs
     3. Adjust wages based on supply/demand
     4. Check strike conditions
     5. Process automation
@@ -32,11 +32,20 @@ def tick_labor(state: EconomicState, config: SimConfig) -> LaborMutations:
     N = config.N_LGAS
     S = config.N_SKILL_TIERS
 
-    # 1. Compute labor demand
-    labor_demand = _compute_labor_demand(state, config)
+    # Detect V3 (order-book) mode
+    use_v3 = (
+        state.n_buildings > 0
+        and state.building_type_ids is not None
+        and state.pop_income is not None
+    )
 
-    # 2. Match workers
-    employment = np.minimum(labor_demand, state.labor_pool)
+    if use_v3:
+        labor_demand, employment = _compute_v3_employment(state, config)
+    else:
+        # 1. Compute labor demand from legacy production capacity
+        labor_demand = _compute_labor_demand(state, config)
+        # 2. Match workers
+        employment = np.minimum(labor_demand, state.labor_pool)
 
     # 3. Adjust wages
     wages_new = adjust_wages(
@@ -64,11 +73,100 @@ def tick_labor(state: EconomicState, config: SimConfig) -> LaborMutations:
     )
 
 
+def _compute_v3_employment(
+    state: EconomicState, config: SimConfig,
+) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Compute labor demand and employment for V3 (order-book) mode.
+
+    In V3, buildings represent specific enterprises (~2K) employing ~70K workers,
+    but the macro economy has 84M+ workers. Employment adjusts gradually based
+    on economic conditions rather than snapping to building-level demand.
+
+    Returns: (labor_demand, employment) both (N, S).
+    """
+    N = config.N_LGAS
+    S = config.N_SKILL_TIERS
+
+    # --- Aggregate building labor demand to LGA level ---
+    building_demand = np.zeros((N, S), dtype=np.float64)
+    if state.building_employees is not None and state.n_buildings > 0:
+        from src.economy.data.buildings import BT_LABOR_MATRIX
+        bt_ids = state.building_type_ids.astype(np.intp)
+        lga_ids = state.building_lga_ids.astype(np.intp)
+        labor_needed = BT_LABOR_MATRIX[bt_ids]  # (B, 4)
+        for s in range(min(S, labor_needed.shape[1])):
+            np.add.at(building_demand[:, s], lga_ids, labor_needed[:, s])
+
+    # --- Macro labor demand based on economic conditions ---
+    # Target employment rate adjusts based on:
+    # 1. Consumption fulfillment (proxy for economic activity)
+    # 2. Building operational rate (proxy for industrial health)
+    # 3. Al-Shahid control (security disruption)
+
+    # Base target: current employment rate (maintains continuity)
+    safe_pool = np.maximum(state.labor_pool, 1.0)
+    current_emp_rate = np.clip(state.labor_employed / safe_pool, 0.0, 1.0)  # (N, S)
+
+    # Economic signal: average consumption fulfillment in each LGA
+    econ_signal = np.zeros(N, dtype=np.float64)
+    if state.pop_consumption_fulfilled is not None:
+        pop_lga = getattr(state, "_pop_lga_ids", None)
+        if pop_lga is not None:
+            # Mean fulfillment per LGA
+            fulfill_sum = np.bincount(pop_lga, weights=state.pop_consumption_fulfilled,
+                                       minlength=N)
+            pop_count = np.bincount(pop_lga, minlength=N).astype(np.float64)
+            safe_count = np.maximum(pop_count, 1.0)
+            econ_signal = np.clip(fulfill_sum / safe_count, 0.0, 1.0)
+        else:
+            econ_signal[:] = 0.7
+    else:
+        econ_signal[:] = 0.7  # default
+
+    # Building health signal
+    bldg_signal = np.ones(N, dtype=np.float64)
+    if state.building_operational is not None and state.n_buildings > 0:
+        lga_ids = state.building_lga_ids.astype(np.intp)
+        op_count = np.bincount(lga_ids, weights=state.building_operational.astype(float),
+                                minlength=N)
+        total_count = np.bincount(lga_ids, minlength=N).astype(np.float64)
+        safe_total = np.maximum(total_count, 1.0)
+        bldg_signal = np.where(total_count > 0, op_count / safe_total, 1.0)
+
+    # Security signal
+    security_signal = np.ones(N, dtype=np.float64)
+    if state.alsahid_control is not None:
+        security_signal = 1.0 - state.alsahid_control * 0.3
+
+    # Target employment rate: gradual adjustment
+    # econ_signal (0-1) maps to employment target (0.3-0.85)
+    target_emp_rate = (0.3 + 0.55 * econ_signal) * bldg_signal * security_signal
+    target_emp_rate = np.clip(target_emp_rate, 0.15, 0.90)
+
+    # Gradual convergence toward target (10% per production tick)
+    adjustment_speed = 0.10
+    new_emp_rate = current_emp_rate + adjustment_speed * (
+        target_emp_rate[:, np.newaxis] - current_emp_rate
+    )
+    new_emp_rate = np.clip(new_emp_rate, 0.0, 1.0)
+
+    # Macro demand and employment
+    macro_demand = state.labor_pool * target_emp_rate[:, np.newaxis]
+    employment = state.labor_pool * new_emp_rate
+
+    # Total demand = macro + building (building is a subset, already counted)
+    labor_demand = np.maximum(macro_demand, building_demand)
+    employment = np.minimum(employment, state.labor_pool)
+
+    return labor_demand, employment
+
+
 def _compute_labor_demand(
     state: EconomicState, config: SimConfig,
 ) -> np.ndarray:
     """
-    Compute total labor demand from production capacity and utilization.
+    Compute total labor demand from production capacity and utilization (legacy).
     Returns: (N, S) workers demanded.
     """
     N = config.N_LGAS
@@ -235,7 +333,7 @@ def apply_labor_mutations(
 ) -> None:
     """Apply labor tick results to state."""
     state.wages = mutations.wages_new
-    state.labor_employed = mutations.employment_new
+    state.labor_employed = np.minimum(mutations.employment_new, state.labor_pool)
     state.labor_informal = mutations.informal_new
     if strikes_active is not None:
         state.strikes_active = strikes_active

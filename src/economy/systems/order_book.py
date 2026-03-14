@@ -120,6 +120,19 @@ def compute_building_sell_orders(
     if state.enhancement_adoption is not None:
         enh_mult = 1.0 + state.enhancement_adoption[lga_ids] * config.ENHANCEMENT_PRODUCTIVITY_BONUS
 
+    # Import fulfillment constraint
+    import_mult = np.ones(B, dtype=np.float64)
+    if state.import_fulfillment:
+        from src.economy.core.types import IMPORT_DEPENDENCIES
+        out_commodities = BT_OUTPUT_COMMODITY[bt_ids]
+        for dep_name, dep in IMPORT_DEPENDENCIES.items():
+            fulfillment = state.import_fulfillment.get(dep_name, 1.0)
+            if fulfillment < 1.0:
+                required_by = dep.get("required_by", [])
+                for c_id in required_by:
+                    affected = out_commodities == c_id
+                    import_mult[affected] = np.minimum(import_mult[affected], fulfillment)
+
     # --- Input bottleneck (vectorized per building) ---
     # For each building, compute min(available / needed) across its inputs
     # Using the precomputed input matrix: BT_INPUT_MATRIX[bt_id, commodity] = per_unit
@@ -148,6 +161,7 @@ def compute_building_sell_orders(
     output = (
         throughput * tech_mult * bottleneck * labor_bottleneck
         * zaibatsu_mult * rain_mult * alsahid_mult * enh_mult
+        * import_mult
     )
     output = np.maximum(output, 0.0)
     output *= op_mask  # zero out non-operational
@@ -163,6 +177,14 @@ def compute_building_sell_orders(
             if col.any():
                 np.add.at(state.inventories[:, c], lga_ids, -col)
         state.inventories[:] = np.maximum(state.inventories, 0.0)
+
+    # --- Update building employees based on utilization ---
+    # Cap ratio = min(input bottleneck, labor bottleneck)
+    cap_ratio = np.minimum(bottleneck, labor_bottleneck)
+    cap_ratio *= op_mask  # zero for non-operational
+    # Employees = labor_needed * cap_ratio, capped at available labor
+    new_employees = labor_needed * cap_ratio[:, np.newaxis]
+    state.building_employees[:] = new_employees
 
     # --- Aggregate output to LGA sell orders ---
     out_commodities = BT_OUTPUT_COMMODITY[bt_ids]  # (B,)
@@ -285,6 +307,73 @@ def clear_order_book(
 
 
 # ---------------------------------------------------------------------------
+# Background economy production
+# ---------------------------------------------------------------------------
+
+def compute_background_supply(
+    state: EconomicState, config: SimConfig,
+) -> np.ndarray:
+    """
+    Compute background economy supply — the vast majority of production that
+    isn't modeled as explicit buildings.
+
+    This represents smallholder farming, informal manufacturing, services,
+    and other economic activity by the ~225M population. Buildings only model
+    ~2K tracked enterprises; background supply fills the gap.
+
+    Calibrated from production_capacity (LGA economic structure) scaled by
+    population and employment conditions.
+
+    Returns: (N, C) units produced per tick.
+    """
+    N = config.N_LGAS
+    C = config.N_COMMODITIES
+
+    # Base: production_capacity encodes per-LGA commodity mix
+    # Scale by population relative to capacity to match economy size
+    # production_capacity ~12K total, pop demand ~5.8M → need ~400x scale
+    # But we want ~80% fulfillment from background, buildings provide marginal
+    cap = state.production_capacity  # (N, C)
+
+    # Population-based scale: each unit of capacity represents many workers
+    if state.population is not None:
+        pop = state.population  # (N,)
+        # Normalize: how many people per unit of capacity in each LGA
+        lga_cap_total = np.maximum(cap.sum(axis=1), 0.01)  # (N,)
+        pop_scale = pop / lga_cap_total  # people per capacity unit
+        # Clamp to prevent extreme outliers
+        pop_scale = np.clip(pop_scale, 100.0, 50000.0)
+        bg_output = cap * pop_scale[:, np.newaxis]
+    else:
+        bg_output = cap * 5000.0  # fallback
+
+    # Per-tick: divide by market ticks per month
+    bg_output /= config.MARKET_TICKS_PER_MONTH
+
+    # Employment modifier: use sqrt for gentler impact — even with low formal
+    # employment, informal economy still produces significantly
+    if state.labor_employed is not None and state.labor_pool is not None:
+        safe_pool = np.maximum(state.labor_pool.sum(axis=1), 1.0)
+        emp_rate = np.clip(state.labor_employed.sum(axis=1) / safe_pool, 0.2, 1.0)
+        bg_output *= np.sqrt(emp_rate[:, np.newaxis])
+
+    # Infrastructure modifier (gentle — most background production is low-tech)
+    if state.infra_power_reliability is not None:
+        power = np.clip(state.infra_power_reliability, 0.5, 1.0)
+        # Only manufacturing/processing commodities affected by power
+        # Food, timber, livestock less affected
+        power_factor = 0.7 + 0.3 * power  # range 0.85-1.0
+        bg_output *= power_factor[:, np.newaxis]
+
+    # Al-Shahid disruption
+    if state.alsahid_control is not None:
+        disruption = 1.0 - state.alsahid_control * 0.3
+        bg_output *= disruption[:, np.newaxis]
+
+    return np.maximum(bg_output, 0.0)
+
+
+# ---------------------------------------------------------------------------
 # Full market tick using order book
 # ---------------------------------------------------------------------------
 
@@ -309,6 +398,10 @@ def tick_market_orderbook(
 
     # 2. Building sell orders
     sell_orders = compute_building_sell_orders(state, config)
+
+    # 2b. Background economy supply (non-building production)
+    bg_supply = compute_background_supply(state, config)
+    sell_orders += bg_supply
 
     # 3. Pop buy orders
     from src.economy.systems.pops import compute_pop_buy_orders
