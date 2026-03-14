@@ -154,6 +154,10 @@ class TickScheduler:
         from src.economy.systems.alsahid import tick_alsahid, apply_alsahid_mutations
         from src.economy.systems.enhancement import tick_enhancement, apply_enhancement_diffusion
 
+        # Snapshot population for migration tracking in election feedback
+        if self.state.population is not None:
+            self.state._prev_population = self.state.population.copy()
+
         # Government (policy queue, budget, corruption, infrastructure)
         tick_government(self.state, self.config)
 

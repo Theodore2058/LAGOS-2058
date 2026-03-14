@@ -15,9 +15,10 @@ from src.economy.core.types import EconomicState, LandMutations, SimConfig, Land
 logger = logging.getLogger(__name__)
 
 # Commodity index ranges used for demand signals
-_AGRI_COMMODITY_IDS = list(range(0, 12))       # agricultural commodities
-_SERVICE_COMMODITY_IDS = list(range(24, 36))    # service-sector commodities
-_MANUFACTURING_COMMODITY_IDS = list(range(12, 24))  # manufacturing commodities
+# Agricultural: staple_grains(6) through fish(13) — excludes crude_oil, gas, minerals
+_AGRI_COMMODITY_IDS = list(range(6, 14))
+_SERVICE_COMMODITY_IDS = list(range(31, 36))    # service-sector commodities
+_MANUFACTURING_COMMODITY_IDS = list(range(14, 31))  # processed + intermediate goods
 
 # Land conversion rate: fraction of price-differential-driven reallocation per month
 _CONVERSION_RATE = 0.01

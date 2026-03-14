@@ -108,8 +108,8 @@ def compute_election_feedback(
     # --- (b) Salience shifts ---------------------------------------------------
     salience = _compute_salience_shifts(state, config, n_vt, n_dim, lga_ids)
 
-    # --- (c) Position shifts (Phase 5: zeros) ----------------------------------
-    positions = np.zeros((n_vt, n_dim), dtype=np.float64)
+    # --- (c) Position shifts: economic stress shifts voter positions ------------
+    positions = _compute_position_shifts(state, config, n_vt, n_dim, lga_ids, skill_ids)
 
     # --- (d) Migration voter changes -------------------------------------------
     migration = _compute_migration_changes(state, config)
@@ -243,6 +243,51 @@ def _compute_salience_shifts(
             shifts[vt_housing_crisis, _ISSUE_HOUSING] += config.SALIENCE_SHIFT_HOUSING_CRISIS
 
     return shifts
+
+
+def _compute_position_shifts(
+    state: EconomicState,
+    config: SimConfig,
+    n_vt: int,
+    n_dim: int,
+    lga_ids: np.ndarray,
+    skill_ids: np.ndarray,
+) -> np.ndarray:
+    """
+    Economic stress shifts voter issue positions.
+
+    - High unemployment/inflation → more interventionist on ECONOMY dimension
+    - High al-Shahid control → more security-focused
+    - Enhancement adoption → shift on TECHNOLOGY dimension
+    """
+    shifts = np.zeros((n_vt, n_dim), dtype=np.float64)
+
+    # Issue dimension indices
+    _ISSUE_SECURITY = 1  # security dimension
+    _ISSUE_TECHNOLOGY = 4  # technology/enhancement dimension
+
+    # Employment stress → economic interventionism
+    if state.labor_employed is not None and state.labor_pool is not None:
+        safe_pool = np.maximum(state.labor_pool, 1.0)
+        unemployment_rate = 1.0 - (state.labor_employed / safe_pool)  # (N, S)
+        # Per voter type: their skill tier's unemployment in their LGA
+        vt_unemp = unemployment_rate[lga_ids, skill_ids]
+        # High unemployment shifts toward interventionism (positive direction)
+        shifts[:, _ISSUE_ECONOMY] += 0.3 * (vt_unemp - 0.15)  # centered on 15% baseline
+
+    # Al-Shahid control → security priority
+    if state.alsahid_control is not None:
+        control_per_vt = state.alsahid_control[lga_ids]
+        # High control shifts toward security hawk position
+        shifts[:, _ISSUE_SECURITY] += 0.4 * control_per_vt
+
+    # Enhancement adoption → technology position
+    if state.enhancement_adoption is not None:
+        enh_per_vt = state.enhancement_adoption[lga_ids]
+        # High adoption normalizes enhancement (shifts toward pro-tech)
+        shifts[:, _ISSUE_TECHNOLOGY] += 0.2 * (enh_per_vt - 0.5)
+
+    return np.clip(shifts, -0.5, 0.5)
 
 
 def _compute_migration_changes(

@@ -310,10 +310,11 @@ def compute_tax_revenue(state: EconomicState, config: SimConfig) -> float:
         total_wage_bill = float(np.sum(state.wages * state.labor_employed))
         revenue += total_wage_bill * state.tax_rate_income
 
-    # Corporate tax: sum(production_capacity * prices) * tax_rate_corporate
-    if state.production_capacity is not None and state.prices is not None:
+    # Corporate tax: sum(actual_output * prices) * tax_rate_corporate
+    output_arr = state.actual_output if state.actual_output is not None else state.production_capacity
+    if output_arr is not None and state.prices is not None:
         gross_output_value = float(
-            np.sum(state.production_capacity * state.prices),
+            np.sum(output_arr * state.prices),
         )
         revenue += gross_output_value * state.tax_rate_corporate
 
@@ -436,22 +437,27 @@ def _repair_infrastructure(state: EconomicState, config: SimConfig) -> None:
     if state.budget_released is None:
         return
 
-    # Road repair from Infrastructure ministry
+    # Population weights for per-LGA budget distribution
+    if state.population is not None:
+        pop_weights = state.population / np.maximum(state.population.sum(), 1.0)
+    else:
+        n_lgas = config.N_LGAS
+        pop_weights = np.full(n_lgas, 1.0 / n_lgas, dtype=np.float64)
+
+    # Road repair from Infrastructure ministry (population-weighted)
     if state.infra_road_quality is not None:
         road_budget = state.budget_released[MINISTRY_INFRASTRUCTURE]
         if road_budget > 0:
-            n_lgas = state.infra_road_quality.shape[0]
-            per_lga = road_budget / n_lgas
+            per_lga = road_budget * pop_weights
             repair = per_lga * _ROAD_REPAIR_EFFICIENCY
             state.infra_road_quality += repair
             np.clip(state.infra_road_quality, 0.0, 1.0, out=state.infra_road_quality)
 
-    # Power repair from Energy ministry
+    # Power repair from Energy ministry (population-weighted)
     if state.infra_power_reliability is not None:
         power_budget = state.budget_released[MINISTRY_ENERGY]
         if power_budget > 0:
-            n_lgas = state.infra_power_reliability.shape[0]
-            per_lga = power_budget / n_lgas
+            per_lga = power_budget * pop_weights
             repair = per_lga * _POWER_REPAIR_EFFICIENCY
             state.infra_power_reliability += repair
             np.clip(

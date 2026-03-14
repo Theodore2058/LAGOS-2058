@@ -131,14 +131,20 @@ def evaluate_strikes(
     # Decrement active strikes
     strikes = np.maximum(strikes - 1, 0)
 
-    # Compute cost of living (food basket at Q1 weights)
+    # Compute cost of living: mean food price × Q1 food weight
+    # This represents the minimum food cost for the poorest quintile
     food_ids = [6, 7, 8, 13, 18, 21]
-    food_weight = CONSUMPTION_WEIGHTS_BY_QUINTILE[0, 0]  # Q1 food weight
+    food_weight = CONSUMPTION_WEIGHTS_BY_QUINTILE[0, 0]  # Q1 food weight (0.55)
 
-    cost_of_living = np.zeros(N, dtype=np.float64)
+    # Average price across food commodities in each LGA
+    mean_food_price = np.zeros(N, dtype=np.float64)
     for c_id in food_ids:
-        cost_of_living += state.prices[:, c_id]
-    cost_of_living *= food_weight / len(food_ids)
+        mean_food_price += state.prices[:, c_id]
+    mean_food_price /= len(food_ids)
+
+    # Cost of living = food spending share × average food price
+    # This gives a monthly cost proxy that scales with local food prices
+    cost_of_living = mean_food_price * food_weight
     cost_of_living = np.maximum(cost_of_living, 1.0)
 
     # Wage adequacy

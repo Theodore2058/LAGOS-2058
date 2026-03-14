@@ -140,13 +140,22 @@ def _northern_mask(state: EconomicState, n: int) -> np.ndarray:
     """
     Determine which LGAs are 'northern' for fertility purposes.
 
-    Uses desertification_loss as a proxy: any LGA with non-zero desertification
-    is classified as northern/sahel.  As a fallback (if desertification data
-    is absent or all-zero), treat the first half of LGA indices as southern.
+    Priority order:
+    1. Admin zone mapping (zones 0-3 = northern: NW, NE, NC, North-Central)
+    2. Desertification data as proxy (non-zero = northern/sahel)
+    3. Fallback: first 4 zones' worth of LGAs (approximate)
     """
+    # Best: use actual admin zone mapping
+    if state.admin_zone is not None:
+        # 8 zones (0-indexed): 0=NW, 1=NE, 2=NC, 3=North-Central,
+        # 4=SW, 5=SE, 6=SS, 7=Lagos
+        return state.admin_zone <= 3
+
+    # Second-best: desertification proxy
     if state.desertification_loss is not None and state.desertification_loss.any():
         return state.desertification_loss > 0.0
-    # Fallback: upper half of indices = northern
+
+    # Fallback: approximate half (pre-zone-mapping data)
     mask = np.zeros(n, dtype=bool)
     mask[n // 2:] = True
     return mask
