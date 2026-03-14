@@ -251,7 +251,7 @@ def compute_crisis_indicators(state: EconomicState, config: SimConfig) -> dict:
 # ---------------------------------------------------------------------------
 
 def compute_price_history_series(state: EconomicState, commodity_id: int) -> dict:
-    """Mean price across LGAs for each of the 56 history slots.
+    """Mean price across LGAs for each of the 56 history slots (chronological).
 
     Parameters
     ----------
@@ -263,9 +263,12 @@ def compute_price_history_series(state: EconomicState, commodity_id: int) -> dic
     -------
     dict with keys: commodity_id (int), prices (list[float])
     """
-    # price_history: (774, 36, 56)
-    hist = state.price_history[:, commodity_id, :]  # (774, 56)
-    mean_prices = np.mean(hist, axis=0)  # (56,)
+    from src.economy.systems.trade import get_recent_prices
+
+    H = state.price_history.shape[2]
+    recent = get_recent_prices(state, H)  # (N, C, H) in chronological order
+    hist = recent[:, commodity_id, :]  # (N, H)
+    mean_prices = np.mean(hist, axis=0)  # (H,)
     return {
         "commodity_id": commodity_id,
         "prices": mean_prices.tolist(),

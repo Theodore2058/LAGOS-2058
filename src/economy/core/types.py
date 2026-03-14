@@ -428,6 +428,7 @@ class EconomicState:
     # --- Prices ---
     prices: Optional[np.ndarray] = None             # (774, 36) float64
     price_history: Optional[np.ndarray] = None      # (774, 36, 56) float64
+    price_history_cursor: int = 0                    # ring buffer write position
     global_oil_price_usd: float = 85.0
     global_cobalt_price_usd: float = 35_000.0
 

@@ -13,6 +13,7 @@ import numpy as np
 
 from src.economy.core.types import EconomicState, SimConfig, TraderAgent
 from src.economy.data.commodities import BASE_PRICES
+from src.economy.systems.trade import get_recent_prices
 from src.economy.systems.trade_graph import TradeGraph, compute_visibility, get_best_visible_prices
 
 logger = logging.getLogger(__name__)
@@ -146,7 +147,7 @@ def _process_speculation_vec(
     if lookback < 2:
         return
 
-    recent = state.price_history[:, :, -lookback:]
+    recent = get_recent_prices(state, lookback)
     safe_start = np.maximum(recent[:, :, 0], 1.0)
     price_trends = (recent[:, :, -1] - recent[:, :, 0]) / safe_start / lookback
 

@@ -48,6 +48,7 @@ _SCALAR_FIELDS: Dict[str, type] = {
     "current_month_of_year": int,
     "is_rainy_season": bool,
     "rainfall_modifier": float,
+    "price_history_cursor": int,
 }
 
 # Every numpy array field we persist directly in the .npz.

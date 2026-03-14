@@ -27,6 +27,20 @@ from src.economy.core.types import (
 logger = logging.getLogger(__name__)
 
 
+def get_recent_prices(state: EconomicState, lookback: int) -> np.ndarray:
+    """
+    Get the last `lookback` price history entries in chronological order.
+
+    Works with the ring buffer cursor. Returns shape (N, C, lookback).
+    """
+    H = state.price_history.shape[2]
+    lookback = min(lookback, H)
+    cursor = state.price_history_cursor
+    # Most recent entry is at cursor-1, oldest at cursor-lookback
+    indices = [(cursor - lookback + i) % H for i in range(lookback)]
+    return state.price_history[:, :, indices]
+
+
 def tick_market(
     state: EconomicState,
     config: SimConfig,
@@ -61,12 +75,13 @@ def tick_market(
         price_adjustment_speed=config.PRICE_ADJUSTMENT_SPEED,
     )
 
-    # 4. Update price history ring buffer
-    state.price_history = np.roll(state.price_history, -1, axis=2)
-    state.price_history[:, :, -1] = state.prices
-
-    # Compute mutations for diagnostics
-    price_changes = state.prices - state.price_history[:, :, -2]
+    # 4. Update price history ring buffer (cursor-based, avoids np.roll copy)
+    H = state.price_history.shape[2]
+    cursor = state.price_history_cursor
+    prev_idx = (cursor - 1) % H
+    price_changes = state.prices - state.price_history[:, :, prev_idx]
+    state.price_history[:, :, cursor] = state.prices
+    state.price_history_cursor = (cursor + 1) % H
 
     return MarketMutations(
         price_changes=price_changes,
