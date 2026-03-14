@@ -208,7 +208,9 @@ def compute_pop_buy_orders(
             # Price elasticity
             price_ratio = local_price / BASE_PRICES[c_id]
             safe_ratio = np.maximum(price_ratio, 0.01)
-            elastic_factor = safe_ratio ** DEMAND_ELASTICITIES[c_id]  # (N,)
+            elastic_factor = np.clip(
+                safe_ratio ** DEMAND_ELASTICITIES[c_id], 0.01, 100.0,
+            )  # (N,)
 
             # Quantity demand per LGA = sum across income brackets
             qty_per_bracket = per_commodity_spending / safe_price[:, np.newaxis]  # (N, 3)

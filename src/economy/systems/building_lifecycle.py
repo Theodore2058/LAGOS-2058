@@ -53,11 +53,12 @@ def tick_building_lifecycle(state: EconomicState, config: SimConfig) -> None:
     # 2. Tech level upgrades (learning by doing + enhancement)
     _upgrade_tech_levels(state, config)
 
-    # 3. Evaluate closures
-    _process_closures(state, config)
-
-    # 4. Complete construction projects → new buildings
+    # 3. Complete construction projects → new buildings (before closures,
+    #    so closure index filtering operates on the final array)
     _complete_construction(state, config)
+
+    # 4. Evaluate closures (after construction, so new buildings are included)
+    _process_closures(state, config)
 
     # 5. Investment decisions (zaibatsu + government)
     _zaibatsu_investment(state, config)
@@ -168,17 +169,21 @@ def _complete_construction(state: EconomicState, config: SimConfig) -> None:
     for project in state.construction_projects:
         project.months_remaining -= 1
 
-        if project.months_remaining <= 0 and project.funded:
-            # Complete: create the building
-            bt_id = project.completion_effect.get("building_type_id")
-            if bt_id is not None and bt_id in BUILDING_TYPE_BY_ID:
-                bt = BUILDING_TYPE_BY_ID[bt_id]
-                owner = project.completion_effect.get("owner", -1)
-                new_buildings.append((bt_id, project.lga_id, owner, bt.base_throughput))
-                logger.info(
-                    "Construction complete: %s in LGA %d",
-                    bt.display_name, project.lga_id,
-                )
+        if project.months_remaining <= 0:
+            if project.funded:
+                # Complete: create the building
+                bt_id = project.completion_effect.get("building_type_id")
+                if bt_id is not None and bt_id in BUILDING_TYPE_BY_ID:
+                    bt = BUILDING_TYPE_BY_ID[bt_id]
+                    owner = project.completion_effect.get("owner", -1)
+                    new_buildings.append((bt_id, project.lga_id, owner, bt.base_throughput))
+                    logger.info(
+                        "Construction complete: %s in LGA %d",
+                        bt.display_name, project.lga_id,
+                    )
+            else:
+                # Unfunded and expired — discard to prevent memory leak
+                logger.debug("Discarding unfunded expired project in LGA %d", project.lga_id)
         else:
             remaining.append(project)
 

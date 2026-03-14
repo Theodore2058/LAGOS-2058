@@ -161,7 +161,7 @@ def compute_consumer_demand(
             elasticity = DEMAND_ELASTICITIES[c_id]
             price_ratio = local_price / BASE_PRICES[c_id]
             safe_ratio = np.maximum(price_ratio, 0.01)
-            elastic_factor = safe_ratio ** elasticity
+            elastic_factor = np.clip(safe_ratio ** elasticity, 0.01, 100.0)
 
             demand[:, c_id] += base_demand * elastic_factor
 

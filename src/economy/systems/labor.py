@@ -251,10 +251,11 @@ def evaluate_strikes(
     wage_adequacy = unskilled_wage / cost_of_living
 
     # Strike probability
-    below_threshold = wage_adequacy < config.STRIKE_THRESHOLD
+    safe_threshold = max(config.STRIKE_THRESHOLD, 1e-6)
+    below_threshold = wage_adequacy < safe_threshold
     strike_prob = np.where(
         below_threshold,
-        config.STRIKE_BASE_PROBABILITY * (config.STRIKE_THRESHOLD - wage_adequacy) / config.STRIKE_THRESHOLD,
+        config.STRIKE_BASE_PROBABILITY * (safe_threshold - wage_adequacy) / safe_threshold,
         0.0,
     )
 
