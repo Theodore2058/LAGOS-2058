@@ -1,0 +1,267 @@
+"""
+Building construction and destruction lifecycle.
+
+Runs at the structural tick (1/month):
+  1. Age all buildings by 1 month
+  2. Evaluate building closures (unprofitable, damaged, obsolete)
+  3. Process construction projects completing into new buildings
+  4. Zaibatsu/government investment decisions (start new construction)
+
+Buildings can be destroyed by:
+  - Al-Shahid attacks (in high-control areas)
+  - Extended unprofitability (no output for 6+ months)
+  - Infrastructure collapse (power/road below minimum for 3+ months)
+"""
+
+from __future__ import annotations
+
+import logging
+
+import numpy as np
+
+from src.economy.core.types import (
+    ConstructionProject,
+    EconomicState,
+    SimConfig,
+)
+from src.economy.data.buildings import (
+    BUILDING_TYPE_BY_ID,
+    BUILDING_TYPES,
+    BT_OUTPUT_COMMODITY,
+    BT_REQUIRES_POWER,
+    BT_MIN_POWER,
+)
+from src.economy.data.zaibatsu import ZAIBATSU_BY_ID
+
+logger = logging.getLogger(__name__)
+
+
+def tick_building_lifecycle(state: EconomicState, config: SimConfig) -> None:
+    """
+    Monthly building lifecycle update.
+
+    Modifies state in-place: ages buildings, removes closures, completes
+    construction projects, and starts new investments.
+    """
+    if state.building_type_ids is None or state.n_buildings == 0:
+        return
+
+    # 1. Age all buildings
+    if state.building_age is not None:
+        state.building_age += 1
+
+    # 2. Evaluate closures
+    _process_closures(state, config)
+
+    # 3. Complete construction projects → new buildings
+    _complete_construction(state, config)
+
+    # 4. Investment decisions (zaibatsu + government)
+    _zaibatsu_investment(state, config)
+
+
+# ---------------------------------------------------------------------------
+# Closures
+# ---------------------------------------------------------------------------
+
+def _process_closures(state: EconomicState, config: SimConfig) -> None:
+    """Remove buildings that have been non-operational too long or destroyed."""
+    B = state.n_buildings
+    if B == 0:
+        return
+
+    keep_mask = np.ones(B, dtype=bool)
+
+    bt_ids = state.building_type_ids.astype(np.intp)
+    lga_ids = state.building_lga_ids.astype(np.intp)
+
+    # Al-Shahid destruction: 2% monthly chance per building in areas with >0.5 control
+    if state.alsahid_control is not None:
+        control = state.alsahid_control[lga_ids]
+        high_control = control > 0.5
+        if high_control.any():
+            destroy_roll = state.rng.random(B)
+            destroy_prob = control * 0.02  # up to 2% per month
+            destroyed = high_control & (destroy_roll < destroy_prob)
+            keep_mask &= ~destroyed
+            n_destroyed = destroyed.sum()
+            if n_destroyed > 0:
+                logger.info("Al-Shahid destroyed %d buildings", n_destroyed)
+
+    # Extended non-operation: buildings non-operational for 6+ months close
+    # Track via building_age: if operational is False and age > 6 months, close
+    # Simplified: if building has near-zero employees and is old, close
+    if state.building_employees is not None and state.building_age is not None:
+        total_employed = state.building_employees.sum(axis=1)
+        idle = (total_employed < 0.1) & (~state.building_operational) & (state.building_age > 6)
+        keep_mask &= ~idle
+        n_idle = idle.sum()
+        if n_idle > 0:
+            logger.info("Closed %d idle buildings", n_idle)
+
+    # Apply closures
+    if not keep_mask.all():
+        _remove_buildings(state, keep_mask)
+
+
+def _remove_buildings(state: EconomicState, keep_mask: np.ndarray) -> None:
+    """Remove buildings where keep_mask is False."""
+    state.building_type_ids = state.building_type_ids[keep_mask]
+    state.building_lga_ids = state.building_lga_ids[keep_mask]
+    state.building_owners = state.building_owners[keep_mask]
+    state.building_throughput = state.building_throughput[keep_mask]
+    state.building_tech_level = state.building_tech_level[keep_mask]
+    state.building_employees = state.building_employees[keep_mask]
+    state.building_operational = state.building_operational[keep_mask]
+    state.building_age = state.building_age[keep_mask]
+    state.n_buildings = int(keep_mask.sum())
+
+
+# ---------------------------------------------------------------------------
+# Construction completion
+# ---------------------------------------------------------------------------
+
+def _complete_construction(state: EconomicState, config: SimConfig) -> None:
+    """Check construction projects; complete any that are finished."""
+    remaining = []
+    new_buildings = []
+
+    for project in state.construction_projects:
+        project.months_remaining -= 1
+
+        if project.months_remaining <= 0 and project.funded:
+            # Complete: create the building
+            bt_id = project.completion_effect.get("building_type_id")
+            if bt_id is not None and bt_id in BUILDING_TYPE_BY_ID:
+                bt = BUILDING_TYPE_BY_ID[bt_id]
+                owner = project.completion_effect.get("owner", -1)
+                new_buildings.append((bt_id, project.lga_id, owner, bt.base_throughput))
+                logger.info(
+                    "Construction complete: %s in LGA %d",
+                    bt.display_name, project.lga_id,
+                )
+        else:
+            remaining.append(project)
+
+    state.construction_projects = remaining
+
+    # Add new buildings to arrays
+    if new_buildings:
+        _add_buildings(state, new_buildings)
+
+
+def _add_buildings(
+    state: EconomicState,
+    new_buildings: list[tuple[int, int, int, float]],
+) -> None:
+    """Append new buildings to the structure-of-arrays."""
+    n_new = len(new_buildings)
+    if n_new == 0:
+        return
+
+    bt_ids = np.array([b[0] for b in new_buildings], dtype=np.int16)
+    lga_ids = np.array([b[1] for b in new_buildings], dtype=np.int16)
+    owners = np.array([b[2] for b in new_buildings], dtype=np.int8)
+    throughputs = np.array([b[3] for b in new_buildings], dtype=np.float64)
+
+    S = state.building_employees.shape[1] if state.building_employees is not None else 4
+
+    state.building_type_ids = np.concatenate([state.building_type_ids, bt_ids])
+    state.building_lga_ids = np.concatenate([state.building_lga_ids, lga_ids])
+    state.building_owners = np.concatenate([state.building_owners, owners])
+    state.building_throughput = np.concatenate([state.building_throughput, throughputs])
+    state.building_tech_level = np.concatenate([
+        state.building_tech_level, np.full(n_new, 0.7, dtype=np.float64),
+    ])
+    state.building_employees = np.concatenate([
+        state.building_employees, np.zeros((n_new, S), dtype=np.float64),
+    ])
+    state.building_operational = np.concatenate([
+        state.building_operational, np.ones(n_new, dtype=bool),
+    ])
+    state.building_age = np.concatenate([
+        state.building_age, np.zeros(n_new, dtype=np.int32),
+    ])
+    state.n_buildings += n_new
+
+
+# ---------------------------------------------------------------------------
+# Zaibatsu investment
+# ---------------------------------------------------------------------------
+
+def _zaibatsu_investment(state: EconomicState, config: SimConfig) -> None:
+    """
+    Zaibatsu invest in new buildings based on profitability signals.
+
+    Each zaibatsu checks demand vs supply for their affiliated commodities
+    and starts construction if there's sustained unfilled demand.
+    """
+    if state.unfilled_buy is None or state.prices is None:
+        return
+
+    N = config.N_LGAS
+
+    for z_id, z in ZAIBATSU_BY_ID.items():
+        # Find building types this zaibatsu builds
+        affiliated_types = [
+            bt for bt in BUILDING_TYPES if bt.zaibatsu_affinity == z_id
+        ]
+        if not affiliated_types:
+            continue
+
+        for bt in affiliated_types:
+            c_id = bt.output_commodity
+
+            # Check if there's sustained unfilled demand for this commodity
+            unfilled = state.unfilled_buy[:, c_id]  # (N,)
+            total_unfilled = unfilled.sum()
+
+            # Investment threshold: unfilled demand > 5% of prices suggest opportunity
+            if total_unfilled < bt.base_throughput * 2:
+                continue
+
+            # Find best LGA for investment: high unfilled demand + good infrastructure
+            score = unfilled.copy()
+
+            # Penalize areas with poor infrastructure
+            if bt.requires_power and state.infra_power_reliability is not None:
+                power_ok = state.infra_power_reliability >= bt.min_power_reliability
+                score *= power_ok.astype(np.float64)
+
+            # Penalize al-Shahid controlled areas
+            if state.alsahid_control is not None:
+                score *= (1.0 - state.alsahid_control)
+
+            # Cap at 1 new project per zaibatsu per building type per month
+            best_lga = int(np.argmax(score))
+            if score[best_lga] < bt.base_throughput:
+                continue
+
+            # Check if already building same type in this LGA
+            already_building = any(
+                p.completion_effect.get("building_type_id") == bt.id
+                and p.lga_id == best_lga
+                for p in state.construction_projects
+            )
+            if already_building:
+                continue
+
+            # Start construction
+            project = ConstructionProject(
+                project_type="zaibatsu_expansion",
+                lga_id=best_lga,
+                commodity_id=c_id,
+                months_remaining=bt.construction_months,
+                monthly_cost_naira=bt.construction_cost_naira / bt.construction_months,
+                monthly_labor_demand={0: 20, 1: 5},
+                completion_effect={
+                    "building_type_id": bt.id,
+                    "owner": z_id,
+                },
+                funded=True,
+            )
+            state.construction_projects.append(project)
+            logger.info(
+                "Zaibatsu %s starting %s in LGA %d (%d months)",
+                z.name, bt.display_name, best_lga, bt.construction_months,
+            )

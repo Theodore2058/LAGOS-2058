@@ -139,65 +139,84 @@ def _compute_welfare(
     lga_ids: np.ndarray,
     skill_ids: np.ndarray,
 ) -> np.ndarray:
-    """welfare = (wages * employment_rate - cost_of_living) * sensitivity, normalised."""
+    """
+    Welfare score per voter type.
+
+    When per-pop SoL and sentiment are available (V3 systems), blends them
+    for a richer signal. Falls back to aggregate wages/employment otherwise.
+    """
     n_vt = config.N_VOTER_TYPES
 
-    # Wages per LGA per skill tier — shape (774, 4)
+    # --- V3 path: use per-pop standard-of-living + sentiment ---
+    if (
+        state.pop_standard_of_living is not None
+        and state.pop_sentiment is not None
+        and state.pop_standard_of_living.shape[0] == n_vt
+    ):
+        # SoL is 0-10, normalise to [-1, 1]: (sol - 5) / 5
+        sol_signal = (state.pop_standard_of_living - 5.0) / 5.0  # (NVT,)
+        # Sentiment is already [-1, 1]
+        sentiment_signal = state.pop_sentiment  # (NVT,)
+
+        # Blend: 60% SoL (slow-moving), 40% sentiment (fast-moving)
+        raw_welfare = 0.6 * sol_signal + 0.4 * sentiment_signal
+
+        # Al-Shahid service bonus
+        pop_lga = getattr(state, "_pop_lga_ids", None)
+        if (
+            pop_lga is not None
+            and state.alsahid_service_provision is not None
+            and state.alsahid_control is not None
+        ):
+            control = state.alsahid_control[pop_lga]
+            service = state.alsahid_service_provision[pop_lga]
+            # Better al-Shahid services in controlled areas modestly boost welfare
+            raw_welfare += control * service * 0.15
+
+        welfare = np.clip(raw_welfare, -1.0, 1.0)
+        return welfare
+
+    # --- Legacy fallback: aggregate wages/employment ---
     if state.wages is not None:
         wages = state.wages
     else:
         wages = np.tile(config.BASE_WAGES, (config.N_LGAS, 1))
 
-    # Employment rate per LGA per skill tier
     if state.labor_employed is not None and state.labor_pool is not None:
         safe_pool = np.maximum(state.labor_pool, 1.0)
         emp_rate = state.labor_employed / safe_pool
     else:
         emp_rate = np.ones((config.N_LGAS, config.N_SKILL_TIERS), dtype=np.float64)
 
-    # Cost of living proxy: mean food prices in each LGA
     if state.prices is not None:
         food_ids = [6, 7, 8, 13, 18, 21]
-        col = np.mean(state.prices[:, food_ids], axis=1)  # (774,)
+        col = np.mean(state.prices[:, food_ids], axis=1)
     else:
         col = np.zeros(config.N_LGAS, dtype=np.float64)
 
-    # Map to voter types
     vt_wages = wages[lga_ids, skill_ids]
     vt_emp = emp_rate[lga_ids, skill_ids]
     vt_col = col[lga_ids]
 
     raw_welfare = vt_wages * vt_emp - vt_col
 
-    # Al-Shahid service provision bonus: in controlled areas, al-Shahid services
-    # partially compensate for poor government service delivery.
-    # This creates a "who governs better?" welfare signal.
     if state.alsahid_service_provision is not None and state.alsahid_control is not None:
-        # Government service level: budget execution quality (0-1)
         if state.budget_released is not None and state.budget_allocation is not None:
             safe_alloc = np.maximum(state.budget_allocation.sum(), 1.0)
             gov_service = float(np.sum(state.budget_released) / safe_alloc)
         else:
             gov_service = 0.5
 
-        # Per-LGA: effective service = max(gov, alsahid_service) weighted by control
-        # Where al-Shahid controls, their services substitute for government
-        alsahid_svc = state.alsahid_service_provision  # (774,)
-        control = state.alsahid_control  # (774,)
-        # Blend: (1 - control) * gov_service + control * alsahid_svc
+        alsahid_svc = state.alsahid_service_provision
+        control = state.alsahid_control
         effective_service = (1.0 - control) * gov_service + control * alsahid_svc
-
-        # Service bonus scales cost-of-living relief (better services = lower effective CoL)
-        # Max bonus: 20% cost-of-living reduction
-        service_bonus = effective_service * 0.2 * col  # (774,)
+        service_bonus = effective_service * 0.2 * col
         vt_service_bonus = service_bonus[lga_ids]
         raw_welfare += vt_service_bonus
 
-    # Apply sensitivity weighting
     sensitivity = _welfare_sensitivity(skill_ids, config)
     weighted = raw_welfare * sensitivity
 
-    # Normalise to [-1, 1]
     abs_max = np.maximum(np.max(np.abs(weighted)), 1e-12)
     welfare = np.clip(weighted / abs_max, -1.0, 1.0)
 

@@ -188,6 +188,7 @@ class TickScheduler:
         from src.economy.systems.government import tick_government
         from src.economy.systems.alsahid import tick_alsahid, apply_alsahid_mutations
         from src.economy.systems.enhancement import tick_enhancement, apply_enhancement_diffusion
+        from src.economy.systems.building_lifecycle import tick_building_lifecycle
 
         # Snapshot population for migration tracking in election feedback
         if self.state.population is not None:
@@ -219,6 +220,10 @@ class TickScheduler:
         # Enhancement technology diffusion
         new_adoption = tick_enhancement(self.state, self.config)
         apply_enhancement_diffusion(self.state, new_adoption)
+
+        # Building lifecycle (construction, closures, zaibatsu investment)
+        if self.state.n_buildings > 0:
+            tick_building_lifecycle(self.state, self.config)
 
         # Cache election feedback on state (lazy: only computed at structural tick)
         from src.economy.systems.election_feedback import compute_election_feedback
