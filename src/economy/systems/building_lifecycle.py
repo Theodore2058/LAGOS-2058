@@ -41,7 +41,7 @@ def tick_building_lifecycle(state: EconomicState, config: SimConfig) -> None:
     Monthly building lifecycle update.
 
     Modifies state in-place: ages buildings, removes closures, completes
-    construction projects, and starts new investments.
+    construction projects, starts new investments, and upgrades tech levels.
     """
     if state.building_type_ids is None or state.n_buildings == 0:
         return
@@ -50,14 +50,52 @@ def tick_building_lifecycle(state: EconomicState, config: SimConfig) -> None:
     if state.building_age is not None:
         state.building_age += 1
 
-    # 2. Evaluate closures
+    # 2. Tech level upgrades (learning by doing + enhancement)
+    _upgrade_tech_levels(state, config)
+
+    # 3. Evaluate closures
     _process_closures(state, config)
 
-    # 3. Complete construction projects → new buildings
+    # 4. Complete construction projects → new buildings
     _complete_construction(state, config)
 
-    # 4. Investment decisions (zaibatsu + government)
+    # 5. Investment decisions (zaibatsu + government)
     _zaibatsu_investment(state, config)
+
+
+# ---------------------------------------------------------------------------
+# Tech level upgrades
+# ---------------------------------------------------------------------------
+
+def _upgrade_tech_levels(state: EconomicState, config: SimConfig) -> None:
+    """
+    Buildings improve tech level over time through:
+    1. Learning-by-doing: operational buildings gain +0.005/month (capped at 1.0)
+    2. Enhancement adoption: local enhancement boosts tech growth
+    3. Zaibatsu-owned buildings have faster learning (+50%)
+    """
+    if state.building_tech_level is None:
+        return
+
+    B = state.n_buildings
+    lga_ids = state.building_lga_ids.astype(np.intp)
+
+    # Base learning rate for operational buildings
+    base_rate = 0.005  # +0.5% per month
+    learning = np.where(state.building_operational, base_rate, 0.0)
+
+    # Zaibatsu bonus: 50% faster learning
+    owned = state.building_owners >= 0
+    learning = np.where(owned, learning * 1.5, learning)
+
+    # Enhancement adoption bonus
+    if state.enhancement_adoption is not None:
+        enh = state.enhancement_adoption[lga_ids]
+        learning *= (1.0 + enh * 0.5)  # up to 50% faster with full enhancement
+
+    state.building_tech_level = np.minimum(
+        state.building_tech_level + learning, 1.0,
+    )
 
 
 # ---------------------------------------------------------------------------
