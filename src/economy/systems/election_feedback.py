@@ -169,6 +169,30 @@ def _compute_welfare(
 
     raw_welfare = vt_wages * vt_emp - vt_col
 
+    # Al-Shahid service provision bonus: in controlled areas, al-Shahid services
+    # partially compensate for poor government service delivery.
+    # This creates a "who governs better?" welfare signal.
+    if state.alsahid_service_provision is not None and state.alsahid_control is not None:
+        # Government service level: budget execution quality (0-1)
+        if state.budget_released is not None and state.budget_allocation is not None:
+            safe_alloc = np.maximum(state.budget_allocation.sum(), 1.0)
+            gov_service = float(np.sum(state.budget_released) / safe_alloc)
+        else:
+            gov_service = 0.5
+
+        # Per-LGA: effective service = max(gov, alsahid_service) weighted by control
+        # Where al-Shahid controls, their services substitute for government
+        alsahid_svc = state.alsahid_service_provision  # (774,)
+        control = state.alsahid_control  # (774,)
+        # Blend: (1 - control) * gov_service + control * alsahid_svc
+        effective_service = (1.0 - control) * gov_service + control * alsahid_svc
+
+        # Service bonus scales cost-of-living relief (better services = lower effective CoL)
+        # Max bonus: 20% cost-of-living reduction
+        service_bonus = effective_service * 0.2 * col  # (774,)
+        vt_service_bonus = service_bonus[lga_ids]
+        raw_welfare += vt_service_bonus
+
     # Apply sensitivity weighting
     sensitivity = _welfare_sensitivity(skill_ids, config)
     weighted = raw_welfare * sensitivity
@@ -251,6 +275,13 @@ def _compute_governance_satisfaction(
         corruption = 0.2  # moderate default
 
     raw = execution_rate * (1.0 - corruption)
+
+    # Al-Shahid governance penalty: high al-Shahid control signals government failure
+    if state.alsahid_control is not None:
+        mean_control = float(state.alsahid_control.mean())
+        # Each 10% average control penalises satisfaction by ~5%
+        raw *= (1.0 - 0.5 * mean_control)
+
     return float(np.clip(raw * config.GOVERNANCE_REWARD_MULTIPLIER, -1.0, 1.0))
 
 
@@ -279,25 +310,42 @@ def tick_anticipation(
     """
     proximity = float(np.clip(election_proximity, 0.0, 1.0))
 
+    # --- Platform-driven modifiers ---
+    # Leading party's policy signals amplify or dampen anticipation effects.
+    signals = state.platform_signals
+    nationalization = signals.get("nationalization_risk", 0.0)
+    liberalization = signals.get("liberalization_signal", 0.0)
+    capital_controls = signals.get("capital_controls_risk", 0.0)
+
+    # Nationalization risk amplifies capital flight and investment withdrawal.
+    # Liberalization reduces both (investors welcome market-friendly platforms).
+    policy_fear = 1.0 + 0.5 * nationalization - 0.3 * liberalization
+    policy_fear = max(policy_fear, 0.2)  # floor
+
     # Investment modifier: firms reduce investment as election nears
-    inv_modifier_scalar = 1.0 - config.ANTICIPATION_INVESTMENT_SENSITIVITY * proximity
+    inv_sensitivity = config.ANTICIPATION_INVESTMENT_SENSITIVITY * policy_fear
+    inv_modifier_scalar = 1.0 - inv_sensitivity * proximity
     investment_modifier = np.full(
         config.N_LGAS, inv_modifier_scalar, dtype=np.float64,
     )
 
     # Capital flight: outflows from admin zones when proximity exceeds threshold
     capital_flight = np.zeros(config.N_ADMIN_ZONES, dtype=np.float64)
-    if proximity > config.ANTICIPATION_CAPITAL_FLIGHT_THRESHOLD:
-        excess = proximity - config.ANTICIPATION_CAPITAL_FLIGHT_THRESHOLD
+    flight_threshold = config.ANTICIPATION_CAPITAL_FLIGHT_THRESHOLD
+    # Capital controls risk lowers the threshold (flight starts earlier)
+    flight_threshold = max(flight_threshold - 0.2 * capital_controls, 0.3)
+    if proximity > flight_threshold:
+        excess = proximity - flight_threshold
+        flight_multiplier = policy_fear * (1.0 + capital_controls)
         if state.bank_deposits is not None:
-            capital_flight = state.bank_deposits * excess * 0.1
+            capital_flight = state.bank_deposits * excess * 0.1 * flight_multiplier
         else:
             capital_flight = np.full(
-                config.N_ADMIN_ZONES, excess * 1e9, dtype=np.float64,
+                config.N_ADMIN_ZONES, excess * 1e9 * flight_multiplier, dtype=np.float64,
             )
 
     # Automation acceleration: firms automate faster to hedge against policy change
-    accel = config.ANTICIPATION_AUTOMATION_ACCELERATION * proximity
+    accel = config.ANTICIPATION_AUTOMATION_ACCELERATION * proximity * policy_fear
     if state.automation_level is not None:
         automation_acceleration = state.automation_level * accel
     else:

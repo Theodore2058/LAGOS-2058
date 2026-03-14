@@ -20,6 +20,7 @@ from src.economy.core.types import (
     PolicyAction,
     SimConfig,
 )
+from src.economy.data.commodity_ids import CONSTRUCTION_MATERIALS
 from src.economy.data.ministries import MINISTRIES, N_MINISTRIES
 
 logger = logging.getLogger(__name__)
@@ -156,6 +157,21 @@ def process_policy(
                 "Zoning restriction LGA %d set to %.2f", lga_id, restriction,
             )
 
+    elif action == "cancel_wafta":
+        state.wafta_active = False
+        # WAFTA-sourced imports drop to 50% availability
+        state.import_fulfillment["silicon"] = 0.5
+        state.import_fulfillment["heavy_machinery"] = 0.5
+        # Triple tariff on WAFTA goods
+        state.tax_rate_import_tariff = min(state.tax_rate_import_tariff * 3.0, 0.60)
+        logger.info("WAFTA cancelled: silicon/machinery imports at 50%%, tariff tripled")
+
+    elif action == "restore_wafta":
+        state.wafta_active = True
+        state.import_fulfillment["silicon"] = 1.0
+        state.import_fulfillment["heavy_machinery"] = 1.0
+        logger.info("WAFTA restored: imports at full capacity")
+
     else:
         logger.warning("Unknown policy action: %s", action)
 
@@ -165,10 +181,70 @@ def process_policy(
 # ---------------------------------------------------------------------------
 
 def _tick_construction(state: EconomicState, config: SimConfig) -> None:
-    """Decrement construction timers and apply completion effects."""
+    """Decrement construction timers, consume materials/labor, apply completions."""
 
     remaining: List[ConstructionProject] = []
     for project in state.construction_projects:
+        lga = project.lga_id
+
+        # --- Material consumption check ---
+        # Convert monthly_cost_naira into construction_materials units
+        # using current LGA price for that commodity.
+        mat_price = state.prices[lga, CONSTRUCTION_MATERIALS] if state.prices is not None else 1.0
+        mat_price = max(mat_price, 1.0)  # avoid division by zero
+        materials_needed = project.monthly_cost_naira / mat_price
+
+        materials_available = (
+            state.inventories[lga, CONSTRUCTION_MATERIALS]
+            if state.inventories is not None else 0.0
+        )
+
+        if materials_available < materials_needed * 0.1:
+            # Not enough materials — project stalls
+            project.funded = False
+            remaining.append(project)
+            logger.debug(
+                "Construction stalled (no materials): %s LGA %d (need %.0f, have %.0f)",
+                project.project_type, lga, materials_needed, materials_available,
+            )
+            continue
+
+        # Consume whatever is available, up to what's needed
+        consumed = min(materials_needed, materials_available)
+        if state.inventories is not None:
+            state.inventories[lga, CONSTRUCTION_MATERIALS] -= consumed
+
+        # --- Labor consumption check ---
+        labor_ok = True
+        if project.monthly_labor_demand and state.labor_pool is not None:
+            for skill_tier, demand in project.monthly_labor_demand.items():
+                s = int(skill_tier)
+                if s < state.labor_pool.shape[1]:
+                    avail = state.labor_pool[lga, s] - (
+                        state.labor_employed[lga, s] if state.labor_employed is not None else 0.0
+                    )
+                    if avail < demand * 0.25:
+                        labor_ok = False
+                        break
+
+        if not labor_ok:
+            project.funded = False
+            remaining.append(project)
+            logger.debug(
+                "Construction stalled (no labor): %s LGA %d",
+                project.project_type, lga,
+            )
+            continue
+
+        # Reserve labor (add to employed)
+        if project.monthly_labor_demand and state.labor_employed is not None:
+            for skill_tier, demand in project.monthly_labor_demand.items():
+                s = int(skill_tier)
+                if s < state.labor_employed.shape[1]:
+                    state.labor_employed[lga, s] += demand
+
+        # --- Advance project ---
+        project.funded = True
         project.months_remaining -= 1
 
         if project.months_remaining <= 0:

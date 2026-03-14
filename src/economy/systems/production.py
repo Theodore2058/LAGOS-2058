@@ -13,6 +13,7 @@ import numpy as np
 
 from src.economy.core.types import (
     EconomicState,
+    IMPORT_DEPENDENCIES,
     ProductionMutations,
     SimConfig,
     SkillTier,
@@ -47,6 +48,16 @@ def tick_production(state: EconomicState, config: SimConfig) -> ProductionMutati
     capacity_util = np.zeros((N, C), dtype=np.float64)
     output_total = np.zeros((N, C), dtype=np.float64)
 
+    # Build import fulfillment constraint per commodity
+    import_cap = np.ones(C, dtype=np.float64)
+    if state.import_fulfillment:
+        for dep_name, dep in IMPORT_DEPENDENCIES.items():
+            fulfillment = state.import_fulfillment.get(dep_name, 1.0)
+            if fulfillment < 1.0:
+                for cid in dep.get("required_by", []):
+                    if 0 <= cid < C:
+                        import_cap[cid] = min(import_cap[cid], fulfillment)
+
     # Process tiers in order
     for tier in sorted(COMMODITIES_BY_TIER.keys()):
         tier_commodities = COMMODITIES_BY_TIER[tier]
@@ -60,7 +71,10 @@ def tick_production(state: EconomicState, config: SimConfig) -> ProductionMutati
             c = cdef.id
 
             # Skip commodities with zero capacity everywhere
-            cap = state.production_capacity[:, c]
+            cap = state.production_capacity[:, c].copy()
+            # Apply import fulfillment constraint (reduces effective capacity)
+            if import_cap[c] < 1.0:
+                cap = cap * import_cap[c]
             if cap.max() <= 0:
                 continue
 

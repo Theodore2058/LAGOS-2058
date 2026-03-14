@@ -208,6 +208,32 @@ class TestAnticipation:
         apply_anticipation_mutations(state, mut)
         assert state.forex_reserves_usd <= initial_reserves
 
+    def test_nationalization_amplifies_flight(self, state, config):
+        """Nationalization risk should amplify capital flight."""
+        # Baseline: neutral platform
+        state.platform_signals = {"nationalization_risk": 0.0, "liberalization_signal": 0.0,
+                                   "fiscal_expansion": 0.0, "capital_controls_risk": 0.0}
+        mut_neutral = tick_anticipation(state, config, election_proximity=0.8)
+
+        # High nationalization risk
+        state.platform_signals["nationalization_risk"] = 0.8
+        mut_nation = tick_anticipation(state, config, election_proximity=0.8)
+
+        assert mut_nation.capital_flight.sum() >= mut_neutral.capital_flight.sum(), \
+            "Nationalization risk should amplify capital flight"
+
+    def test_liberalization_reduces_investment_drag(self, state, config):
+        """Liberalization signal should reduce investment withdrawal."""
+        state.platform_signals = {"nationalization_risk": 0.0, "liberalization_signal": 0.0,
+                                   "fiscal_expansion": 0.0, "capital_controls_risk": 0.0}
+        mut_neutral = tick_anticipation(state, config, election_proximity=0.8)
+
+        state.platform_signals["liberalization_signal"] = 0.8
+        mut_liberal = tick_anticipation(state, config, election_proximity=0.8)
+
+        # Investment modifier should be higher (less drag) with liberalization
+        assert mut_liberal.investment_modifier.mean() >= mut_neutral.investment_modifier.mean()
+
 
 # ---------------------------------------------------------------------------
 # Full integration with Phase 5 systems
@@ -243,3 +269,46 @@ class TestPhase5Integration:
         scheduler.run_mixed_ticks(n_months=3)
         assert np.all(state.alsahid_control >= 0)
         assert np.all(state.alsahid_control <= 1)
+
+
+# ---------------------------------------------------------------------------
+# Al-Shahid welfare integration (Priority 1C)
+# ---------------------------------------------------------------------------
+
+class TestAlShahidWelfare:
+    def test_alsahid_service_affects_welfare(self, state, config):
+        """High al-Shahid service provision should affect voter welfare scores."""
+        # Baseline: no al-Shahid presence
+        state.alsahid_control[:] = 0.0
+        state.alsahid_service_provision[:] = 0.0
+        fb_baseline = compute_election_feedback(state, config)
+
+        # Now set high al-Shahid control and service in some LGAs
+        state.alsahid_control[:100] = 0.8
+        state.alsahid_service_provision[:100] = 0.6
+        fb_alsahid = compute_election_feedback(state, config)
+
+        # Welfare scores should differ
+        assert not np.allclose(fb_baseline.welfare_scores, fb_alsahid.welfare_scores), \
+            "Al-Shahid service provision should change welfare scores"
+
+    def test_alsahid_reduces_governance_satisfaction(self, state, config):
+        """High al-Shahid control should reduce governance satisfaction."""
+        state.alsahid_control[:] = 0.0
+        fb_low = compute_election_feedback(state, config)
+
+        state.alsahid_control[:] = 0.8
+        fb_high = compute_election_feedback(state, config)
+
+        assert fb_high.governance_satisfaction <= fb_low.governance_satisfaction, (
+            f"High al-Shahid control should reduce governance satisfaction: "
+            f"{fb_low.governance_satisfaction:.4f} -> {fb_high.governance_satisfaction:.4f}"
+        )
+
+    def test_alsahid_welfare_bounded(self, state, config):
+        """Welfare scores stay in [-1, 1] even with extreme al-Shahid values."""
+        state.alsahid_control[:] = 1.0
+        state.alsahid_service_provision[:] = 1.0
+        fb = compute_election_feedback(state, config)
+        assert np.all(fb.welfare_scores >= -1.0)
+        assert np.all(fb.welfare_scores <= 1.0)

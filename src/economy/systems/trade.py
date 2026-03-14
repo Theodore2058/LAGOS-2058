@@ -122,8 +122,19 @@ def compute_consumer_demand(
     # Per-market-tick income (monthly income / 56 ticks per month)
     tick_income = total_income / config.MARKET_TICKS_PER_MONTH
 
-    # For simplicity, use Q3 (median) consumption weights
-    weights = CONSUMPTION_WEIGHTS_BY_QUINTILE[2]  # Q3
+    # Quintile-differentiated demand: weight consumption baskets by
+    # population share in each income quintile.
+    # Skill tier mapping: UNSKILLED→Q1+Q2 (split 50/50), SKILLED→Q3,
+    # HIGHLY_SKILLED→Q4, CHINESE_ELITE→Q5
+    total_pop = np.maximum(state.labor_pool.sum(axis=1), 1.0)  # (N,)
+    q_shares = np.zeros((N, 5), dtype=np.float64)
+    q_shares[:, 0] = state.labor_pool[:, 0] * 0.5 / total_pop  # Q1: half of unskilled
+    q_shares[:, 1] = state.labor_pool[:, 0] * 0.5 / total_pop  # Q2: half of unskilled
+    q_shares[:, 2] = state.labor_pool[:, 1] / total_pop        # Q3: skilled
+    q_shares[:, 3] = state.labor_pool[:, 2] / total_pop        # Q4: highly skilled
+    q_shares[:, 4] = state.labor_pool[:, 3] / total_pop        # Q5: elite
+    # Blended weights: (N, 9) = (N,5) @ (5,9)
+    weights = q_shares @ CONSUMPTION_WEIGHTS_BY_QUINTILE  # (N, 9)
 
     demand = np.zeros((N, C), dtype=np.float64)
 
@@ -134,8 +145,8 @@ def compute_consumer_demand(
         if not commodity_ids:
             continue
 
-        # Total spending on this category
-        spending = tick_income * weights[cat_idx]
+        # Total spending on this category (per-LGA weights)
+        spending = tick_income * weights[:, cat_idx]
 
         # Split equally among commodities in category
         per_commodity_spending = spending / len(commodity_ids)

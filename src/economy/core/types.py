@@ -468,6 +468,13 @@ class EconomicState:
     forex_reserves_usd: float = 0.0
     monthly_import_bill_usd: float = 0.0
     monthly_export_revenue_usd: float = 0.0
+    wafta_active: bool = True
+    import_fulfillment: Dict[str, float] = field(default_factory=lambda: {
+        "silicon": 1.0,
+        "chemical_feedstock": 1.0,
+        "heavy_machinery": 1.0,
+        "luxury_consumer_goods": 1.0,
+    })
 
     # --- Government ---
     budget_allocation: Optional[np.ndarray] = None    # (12,) float64
@@ -508,6 +515,17 @@ class EconomicState:
     voter_welfare_delta: Optional[np.ndarray] = None    # (174960,) float64
     voter_salience: Optional[np.ndarray] = None         # (174960, 28) float64
     voter_positions: Optional[np.ndarray] = None        # (174960, 28) float64
+
+    # --- Election Platform Signals ---
+    # Set by campaign layer to inform anticipation effects.
+    # Keys: "nationalization_risk" (0-1), "liberalization_signal" (0-1),
+    #        "fiscal_expansion" (0-1), "capital_controls_risk" (0-1)
+    platform_signals: Dict[str, float] = field(default_factory=lambda: {
+        "nationalization_risk": 0.0,
+        "liberalization_signal": 0.0,
+        "fiscal_expansion": 0.0,
+        "capital_controls_risk": 0.0,
+    })
 
     # --- Infrastructure Quality ---
     infra_road_quality: Optional[np.ndarray] = None     # (774,) float64

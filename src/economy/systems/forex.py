@@ -157,6 +157,40 @@ def apply_forex_mutations(
     state.global_oil_price_usd = mutations.oil_price_new
     state.global_cobalt_price_usd = mutations.cobalt_price_new
 
+    # Update import fulfillment based on reserves and WAFTA status
+    _update_import_fulfillment(state)
+
+
+def _update_import_fulfillment(state: EconomicState) -> None:
+    """
+    Compute import fulfillment ratios based on forex reserves and policy.
+
+    When reserves are low, imports are rationed. WAFTA cancellation
+    directly reduces fulfillment of china_wafta-sourced imports.
+    """
+    # Reserve adequacy: ratio of reserves to monthly import bill
+    if state.monthly_import_bill_usd > 0:
+        reserve_months = state.forex_reserves_usd / state.monthly_import_bill_usd
+    else:
+        reserve_months = 12.0
+
+    # Base fulfillment from reserves: full above 6 months, linear decline below
+    reserve_ratio = min(reserve_months / 6.0, 1.0)
+    reserve_ratio = max(reserve_ratio, 0.1)  # minimum 10% even in crisis
+
+    for name, dep in IMPORT_DEPENDENCIES.items():
+        base = reserve_ratio
+
+        # WAFTA-vulnerable imports: if WAFTA cancelled, cap at 50%
+        if dep.get("vulnerability") == "wafta_cancellation" and not state.wafta_active:
+            base = min(base, 0.5)
+
+        # Forex-crisis-vulnerable imports: reduce more aggressively
+        if dep.get("vulnerability") == "forex_crisis":
+            base *= reserve_ratio  # double penalty
+
+        state.import_fulfillment[name] = float(np.clip(base, 0.05, 1.0))
+
 
 # ---------------------------------------------------------------------------
 # Internal helpers
