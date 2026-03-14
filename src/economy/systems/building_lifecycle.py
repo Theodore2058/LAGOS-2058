@@ -167,8 +167,7 @@ def _complete_construction(state: EconomicState, config: SimConfig) -> None:
     new_buildings = []
 
     for project in state.construction_projects:
-        project.months_remaining -= 1
-
+        # Note: months_remaining is already decremented by government._tick_construction
         if project.months_remaining <= 0:
             if project.funded:
                 # Complete: create the building

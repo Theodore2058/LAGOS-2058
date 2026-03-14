@@ -75,14 +75,19 @@ def tick_government(state: EconomicState, config: SimConfig) -> None:
 # ---------------------------------------------------------------------------
 
 def _process_policy_queue(state: EconomicState, config: SimConfig) -> None:
-    """Apply policies whose implementation delay has elapsed."""
+    """Apply policies whose implementation delay has elapsed.
+
+    Delay is decremented each structural tick (monthly). When it reaches 0
+    the policy fires.  (game_day resets every month, so elapsed-time
+    comparison doesn't work across month boundaries.)
+    """
 
     remaining: List[PolicyAction] = []
     for policy in state.policy_queue:
-        days_elapsed = state.game_day - policy.enacted_game_day
-        if days_elapsed >= policy.implementation_delay:
+        if policy.implementation_delay <= 0:
             process_policy(state, policy, config)
         else:
+            policy.implementation_delay -= 1
             remaining.append(policy)
     state.policy_queue = remaining
 
@@ -268,11 +273,17 @@ def _tick_construction(state: EconomicState, config: SimConfig) -> None:
         project.months_remaining -= 1
 
         if project.months_remaining <= 0:
-            _apply_completion_effect(state, project, config)
-            logger.info(
-                "Construction complete: %s in LGA %d",
-                project.project_type, project.lga_id,
-            )
+            # Projects with building_type_id are completed by building_lifecycle
+            # (which creates the actual building). Only handle non-building
+            # completions here (infrastructure effects like capacity, roads, power).
+            if "building_type_id" in project.completion_effect:
+                remaining.append(project)  # leave for building_lifecycle
+            else:
+                _apply_completion_effect(state, project, config)
+                logger.info(
+                    "Construction complete: %s in LGA %d",
+                    project.project_type, project.lga_id,
+                )
         else:
             remaining.append(project)
 

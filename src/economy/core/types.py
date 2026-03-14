@@ -323,6 +323,7 @@ class LaborMutations:
     informal_new: np.ndarray       # (774, 4)
     unemployment: np.ndarray       # (774, 4)
     strikes_triggered: List[int]
+    strikes_active: np.ndarray     # (774,) int — remaining strike duration per LGA
     automation_changes: np.ndarray  # (774, 36)
 
 

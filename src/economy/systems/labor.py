@@ -74,6 +74,7 @@ def tick_labor(state: EconomicState, config: SimConfig) -> LaborMutations:
         informal_new=informal,
         unemployment=unemployment,
         strikes_triggered=strikes_triggered,
+        strikes_active=strikes_active,
         automation_changes=automation_new,
     )
 

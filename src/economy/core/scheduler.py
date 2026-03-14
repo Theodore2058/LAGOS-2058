@@ -138,10 +138,9 @@ class TickScheduler:
             apply_production_mutations(self.state, prod_mut)
 
         # Labor market
-        from src.economy.systems.labor import tick_labor, apply_labor_mutations, evaluate_strikes
+        from src.economy.systems.labor import tick_labor, apply_labor_mutations
         labor_mut = tick_labor(self.state, self.config)
-        strikes_active, _ = evaluate_strikes(self.state, self.config)
-        apply_labor_mutations(self.state, labor_mut, strikes_active)
+        apply_labor_mutations(self.state, labor_mut, labor_mut.strikes_active)
 
         # Banking
         from src.economy.systems.banking import tick_banking, apply_banking_mutations

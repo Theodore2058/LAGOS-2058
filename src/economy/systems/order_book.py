@@ -168,7 +168,7 @@ def compute_building_sell_orders(
 
     # --- Consume inputs from inventory ---
     if state.inventories is not None:
-        consumed = output[:, np.newaxis] * input_recipes * bottleneck[:, np.newaxis]  # (B, C)
+        consumed = output[:, np.newaxis] * input_recipes  # (B, C) — output already includes bottleneck
         consumed = np.minimum(consumed, state.inventories[lga_ids])
         consumed *= op_mask[:, np.newaxis]
         # Aggregate consumption per LGA and subtract
