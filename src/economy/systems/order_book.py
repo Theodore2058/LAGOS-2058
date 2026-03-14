@@ -242,7 +242,14 @@ def clear_order_book(
     # --- Inter-LGA trade equalization ---
     # Pool a fraction of supply nationally and redistribute to deficit LGAs.
     # This represents Nigeria's internal trade network (roads, markets).
-    trade_fraction = 0.25  # 25% of supply enters national trade pool
+    # Trade fraction scales with road quality: better roads → more trade
+    base_trade_fraction = 0.25
+    if state.infra_road_quality is not None:
+        road_q = np.clip(state.infra_road_quality, 0.1, 1.0)
+        # Roads range 0.1-1.0 → trade fraction 0.10-0.30
+        trade_fraction = (base_trade_fraction * road_q)[:, np.newaxis]  # (N, 1)
+    else:
+        trade_fraction = base_trade_fraction
     trade_pool = total_supply * trade_fraction  # (N, C) contributed to pool
     local_supply = total_supply - trade_pool     # (N, C) kept locally
 

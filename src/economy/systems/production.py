@@ -386,3 +386,47 @@ def apply_production_mutations(
     state.inventories = np.maximum(state.inventories + mutations.inventory_deltas, 0.0)
     state.labor_employed = mutations.labor_employed_new
     state.actual_output = mutations.inventory_deltas.clip(min=0.0)  # actual production output
+
+
+def tick_capacity_investment(state: EconomicState, config: SimConfig) -> None:
+    """
+    Monthly capacity adjustment driven by profit signals.
+
+    Firms expand capacity where price > marginal cost (profitable).
+    Firms contract capacity where utilization is persistently low.
+    Rate: ±2% per month — slow enough for meaningful business cycles.
+    """
+    N = config.N_LGAS
+    C = config.N_COMMODITIES
+
+    if state.production_capacity is None or state.prices is None:
+        return
+
+    # Profit signal: price relative to base price (proxy for cost)
+    from src.economy.data.commodities import BASE_PRICES
+    price_ratio = state.prices / BASE_PRICES[np.newaxis, :]  # (N, C)
+
+    # Utilization signal: how much of capacity is being used
+    # In V3 mode, sell_orders represents production output; in legacy, actual_output
+    output_proxy = None
+    if state.actual_output is not None and state.actual_output.sum() > 0:
+        output_proxy = state.actual_output
+    elif hasattr(state, 'sell_orders') and state.sell_orders is not None:
+        output_proxy = state.sell_orders
+
+    if output_proxy is not None:
+        safe_cap = np.maximum(state.production_capacity, 1.0)
+        utilization = np.clip(output_proxy / safe_cap, 0.0, 1.0)
+    else:
+        utilization = np.full((N, C), 0.7)
+
+    # Investment signal: high prices AND high utilization → expand
+    # Low prices OR low utilization → contract
+    expand_signal = (price_ratio - 1.0) * utilization  # positive when profitable + busy
+    adjustment = np.clip(expand_signal * 0.02, -0.01, 0.02)  # ±1-2% per month
+
+    # Sticky downward: contraction is slower (firms reluctant to close)
+    adjustment = np.where(adjustment < 0, adjustment * 0.5, adjustment)
+
+    state.production_capacity *= (1.0 + adjustment)
+    state.production_capacity = np.maximum(state.production_capacity, 0.0)
