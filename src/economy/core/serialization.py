@@ -52,6 +52,7 @@ _SCALAR_FIELDS: Dict[str, type] = {
     "wafta_active": bool,
     "n_buildings": int,
     "alsahid_tax_diversion": float,
+    "months_to_election": int,
 }
 
 # Every numpy array field we persist directly in the .npz.

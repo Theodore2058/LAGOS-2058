@@ -520,6 +520,12 @@ class EconomicState:
     voter_salience: Optional[np.ndarray] = None         # (174960, 28) float64
     voter_positions: Optional[np.ndarray] = None        # (174960, 28) float64
 
+    # --- Election Proximity ---
+    # Months until the next election. Set by the campaign/integration layer.
+    # 0 = election this month, >0 = future, -1 = no election scheduled.
+    # Used by tick_anticipation to model pre-election economic effects.
+    months_to_election: int = -1
+
     # --- Election Platform Signals ---
     # Set by campaign layer to inform anticipation effects.
     # Keys: "nationalization_risk" (0-1), "liberalization_signal" (0-1),

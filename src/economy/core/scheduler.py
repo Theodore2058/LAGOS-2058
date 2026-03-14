@@ -235,11 +235,26 @@ class TickScheduler:
         tick_capacity_investment(self.state, self.config)
 
         # Cache election feedback on state (lazy: only computed at structural tick)
-        from src.economy.systems.election_feedback import compute_election_feedback
+        from src.economy.systems.election_feedback import (
+            compute_election_feedback,
+            tick_anticipation,
+            apply_anticipation_mutations,
+        )
         fb = compute_election_feedback(self.state, self.config)
         self.state.voter_welfare = fb.welfare_scores
         self.state.voter_salience = fb.salience_shifts
         self.state.voter_positions = fb.position_shifts
+
+        # Election anticipation: investment withdrawal, capital flight, etc.
+        # Activates when months_to_election is set (>= 0) by the integration layer.
+        if self.state.months_to_election >= 0:
+            # Proximity: 0.0 = 12+ months away, 1.0 = election this month
+            proximity = max(0.0, 1.0 - self.state.months_to_election / 12.0)
+            ant_mut = tick_anticipation(self.state, self.config, proximity)
+            apply_anticipation_mutations(self.state, ant_mut)
+            # Decrement election countdown
+            if self.state.months_to_election > 0:
+                self.state.months_to_election -= 1
 
         elapsed = time.time() - t0
         self.structural_tick_count += 1
