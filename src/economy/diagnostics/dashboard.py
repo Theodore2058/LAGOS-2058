@@ -7,12 +7,62 @@ from __future__ import annotations
 
 import numpy as np
 
-from src.economy.core.types import EconomicState, SimConfig
+from src.economy.core.types import (
+    EconomicState,
+    SimConfig,
+    CONSUMPTION_BASKET_COMMODITY_MAP,
+    CONSUMPTION_WEIGHTS_BY_QUINTILE,
+)
 from src.economy.data.commodities import COMMODITIES, BASE_PRICES
 
 
 # ── Food commodity IDs (from CONSUMPTION_BASKET_COMMODITY_MAP) ───────────
 _FOOD_COMMODITY_IDS = [6, 7, 8, 13, 18, 21]
+
+# ── CPI basket: weighted commodity indices for consumer price tracking ────
+# Build a (C,) weight vector that maps commodity → consumption share.
+# Combines all quintile weights uniformly (population-weighted average is
+# roughly equal across quintiles at the national level).
+_CPI_WEIGHTS: np.ndarray | None = None
+_FOOD_CPI_WEIGHTS: np.ndarray | None = None
+
+
+def _build_cpi_weights() -> tuple[np.ndarray, np.ndarray]:
+    """Lazily build CPI commodity weight vectors."""
+    global _CPI_WEIGHTS, _FOOD_CPI_WEIGHTS
+    if _CPI_WEIGHTS is not None:
+        return _CPI_WEIGHTS, _FOOD_CPI_WEIGHTS  # type: ignore[return-value]
+
+    C = len(COMMODITIES)
+    # Average consumption weights across quintiles (equal population per quintile)
+    avg_quintile_weights = CONSUMPTION_WEIGHTS_BY_QUINTILE.mean(axis=0)  # (9,)
+
+    cpi_w = np.zeros(C, dtype=np.float64)
+    food_w = np.zeros(C, dtype=np.float64)
+
+    categories = list(CONSUMPTION_BASKET_COMMODITY_MAP.keys())
+    for cat_idx, cat_name in enumerate(categories):
+        commodity_ids = CONSUMPTION_BASKET_COMMODITY_MAP[cat_name]
+        if not commodity_ids:
+            continue
+        cat_weight = avg_quintile_weights[cat_idx]
+        per_commodity = cat_weight / len(commodity_ids)
+        for c_id in commodity_ids:
+            cpi_w[c_id] += per_commodity
+            if cat_name == "food":
+                food_w[c_id] += per_commodity
+
+    # Normalise so weights sum to 1
+    total = cpi_w.sum()
+    if total > 0:
+        cpi_w /= total
+    food_total = food_w.sum()
+    if food_total > 0:
+        food_w /= food_total
+
+    _CPI_WEIGHTS = cpi_w
+    _FOOD_CPI_WEIGHTS = food_w
+    return cpi_w, food_w
 
 
 # ---------------------------------------------------------------------------
@@ -33,17 +83,84 @@ def compute_gdp_proxy(state: EconomicState, config: SimConfig) -> float:
 
 
 # ---------------------------------------------------------------------------
-# 2. Inflation proxy
+# 2. Consumer Price Index (CPI)
 # ---------------------------------------------------------------------------
 
 def compute_inflation_proxy(state: EconomicState, config: SimConfig) -> float:
-    """Mean(prices / base_prices) - 1.0 across all LGAs and commodities.
+    """Consumption-basket-weighted CPI across all LGAs.
 
-    A value of 0.0 means prices are at baseline; 0.5 means 50 % inflation.
+    Uses the 9-category consumption basket (food, energy, housing, healthcare,
+    clothing, transport, communication, education, security) to weight the
+    price-to-base-price ratio of each commodity.  This gives a realistic
+    consumer-facing inflation number rather than a naive mean across all 36
+    commodities (many of which — crude oil, cobalt, arms — consumers don't
+    buy directly).
+
+    Returns
+    -------
+    float
+        0.0 = prices at baseline, 0.10 = 10 % inflation, etc.
     """
-    # BASE_PRICES is shape (36,); broadcast across (774, 36)
-    ratios = state.prices / BASE_PRICES[np.newaxis, :]
-    return float(np.mean(ratios) - 1.0)
+    cpi_w, _ = _build_cpi_weights()  # (C,)
+
+    # Price-to-base ratio per LGA per commodity
+    ratios = state.prices / BASE_PRICES[np.newaxis, :]  # (N, C)
+
+    # Weighted CPI per LGA, then national average
+    lga_cpi = (ratios * cpi_w[np.newaxis, :]).sum(axis=1)  # (N,)
+    return float(np.mean(lga_cpi) - 1.0)
+
+
+def compute_food_cpi(state: EconomicState, config: SimConfig) -> float:
+    """Food-specific CPI — weighted by food consumption basket shares.
+
+    Food dominates spending for Nigeria's poorest quintiles (55 % of Q1
+    spending goes to food), making this the most politically sensitive
+    price indicator.  A food CPI above ~0.30 historically triggers unrest.
+
+    Returns
+    -------
+    float
+        0.0 = food prices at baseline, 0.30 = 30 % food inflation, etc.
+    """
+    _, food_w = _build_cpi_weights()  # (C,)
+
+    ratios = state.prices / BASE_PRICES[np.newaxis, :]  # (N, C)
+    lga_food_cpi = (ratios * food_w[np.newaxis, :]).sum(axis=1)  # (N,)
+    return float(np.mean(lga_food_cpi) - 1.0)
+
+
+def compute_cpi_by_quintile(state: EconomicState, config: SimConfig) -> dict:
+    """CPI broken down by income quintile.
+
+    Lower quintiles spend more on food (55 % for Q1 vs 12 % for Q5),
+    so inflation hits them harder.  Returns a dict mapping quintile
+    label → CPI float.
+    """
+    C = len(COMMODITIES)
+    categories = list(CONSUMPTION_BASKET_COMMODITY_MAP.keys())
+    quintile_labels = ["Q1", "Q2", "Q3", "Q4", "Q5"]
+    ratios = state.prices / BASE_PRICES[np.newaxis, :]  # (N, C)
+
+    result = {}
+    for q in range(5):
+        q_weights = np.zeros(C, dtype=np.float64)
+        for cat_idx, cat_name in enumerate(categories):
+            commodity_ids = CONSUMPTION_BASKET_COMMODITY_MAP[cat_name]
+            if not commodity_ids:
+                continue
+            cat_weight = CONSUMPTION_WEIGHTS_BY_QUINTILE[q, cat_idx]
+            per_commodity = cat_weight / len(commodity_ids)
+            for c_id in commodity_ids:
+                q_weights[c_id] += per_commodity
+        # Normalise
+        total = q_weights.sum()
+        if total > 0:
+            q_weights /= total
+        lga_cpi = (ratios * q_weights[np.newaxis, :]).sum(axis=1)
+        result[quintile_labels[q]] = float(np.mean(lga_cpi) - 1.0)
+
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -221,12 +338,14 @@ def compute_crisis_indicators(state: EconomicState, config: SimConfig) -> dict:
         food_crisis, forex_crisis, banking_crisis,
         unemployment_crisis, inflation_crisis, alsahid_crisis
     """
-    # Food crisis: any food commodity price > 3x base price in any LGA
-    food_crisis = False
-    for fid in _FOOD_COMMODITY_IDS:
-        if np.any(state.prices[:, fid] > 3.0 * BASE_PRICES[fid]):
-            food_crisis = True
-            break
+    # Food crisis: food CPI > 30% OR any food commodity > 3x base in any LGA
+    food_cpi = compute_food_cpi(state, config)
+    food_crisis = food_cpi > 0.30
+    if not food_crisis:
+        for fid in _FOOD_COMMODITY_IDS:
+            if np.any(state.prices[:, fid] > 3.0 * BASE_PRICES[fid]):
+                food_crisis = True
+                break
 
     # Forex crisis: parallel / official > 1.5
     forex_crisis = (

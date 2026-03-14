@@ -186,6 +186,35 @@ def compute_building_sell_orders(
     new_employees = labor_needed * cap_ratio[:, np.newaxis]
     state.building_employees[:] = new_employees
 
+    # --- Cost-push: compute unit labor cost per building ---
+    # Higher wages → higher marginal cost → upward pressure on sell prices.
+    # This closes the wage-price spiral loop: wage gains feed into production
+    # costs, which push prices up, which erode real wages, which trigger
+    # further wage demands.
+    #
+    # Unit labor cost = (labor_needed · wage_by_tier) / output_per_unit
+    # We compute the per-building ULC and store it as a cost-push signal
+    # that feeds into price adjustment (see clear_order_book).
+    if state.wages is not None:
+        lga_wages = state.wages[lga_ids]  # (B, 4) wages at each building's LGA
+        wage_cost_per_unit = (labor_needed * lga_wages).sum(axis=1)  # (B,)
+        # Base labor cost = labor_needed · base_wage (use mean wage as baseline)
+        base_wage = np.mean(state.wages)
+        base_cost_per_unit = labor_needed.sum(axis=1) * base_wage
+        # Cost ratio: how much above/below base labor costs
+        safe_base = np.maximum(base_cost_per_unit, 1.0)
+        cost_ratio = wage_cost_per_unit / safe_base  # (B,)
+        # Aggregate cost-push pressure per LGA per commodity
+        # = mean cost ratio of buildings producing that commodity in that LGA
+        cost_push = np.zeros((N, C), dtype=np.float64)
+        cost_count = np.zeros((N, C), dtype=np.float64)
+        np.add.at(cost_push, (lga_ids, out_commodities), cost_ratio * op_mask)
+        np.add.at(cost_count, (lga_ids, out_commodities), op_mask.astype(np.float64))
+        safe_count = np.maximum(cost_count, 1.0)
+        cost_push /= safe_count  # mean cost ratio per (LGA, commodity)
+        # Store on state for use in price clearing
+        state.platform_signals["cost_push"] = cost_push
+
     # --- Aggregate output to LGA sell orders ---
     out_commodities = BT_OUTPUT_COMMODITY[bt_ids]  # (B,)
     np.add.at(sell, (lga_ids, out_commodities), output)
@@ -315,6 +344,18 @@ def clear_order_book(
     )
 
     state.prices *= (1.0 + price_change_ratio)
+
+    # Cost-push inflation: wages above baseline push prices upward.
+    # The cost_push signal is mean(unit_labor_cost / base_unit_labor_cost)
+    # per (LGA, commodity).  Values > 1.0 mean wages are above baseline.
+    # We apply a gentle upward nudge: 1% of the excess per tick (~56%/month).
+    cost_push = state.platform_signals.get("cost_push")
+    if cost_push is not None and isinstance(cost_push, np.ndarray):
+        excess_cost = np.clip(cost_push - 1.0, 0.0, 0.5)  # cap at +50%
+        # Only apply where buildings actually produce (cost_push > 0)
+        has_buildings = cost_push > 0
+        cost_adj = np.where(has_buildings, 1.0 + 0.01 * excess_cost, 1.0)
+        state.prices *= cost_adj
 
     # Mean reversion toward base prices (5% per tick — stronger anchor)
     log_ratio = np.log(np.maximum(state.prices, 1.0) / BASE_PRICES[np.newaxis, :])

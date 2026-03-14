@@ -210,9 +210,15 @@ def save_state(state: EconomicState, path: str) -> None:
     arrays["__scalars__"] = np.array([json.dumps(scalars)], dtype=object)
 
     # Dict fields → JSON.
+    # Strip ephemeral ndarray values from platform_signals (e.g. cost_push)
+    # that are recomputed each tick and don't need persisting.
+    clean_signals = {
+        k: v for k, v in state.platform_signals.items()
+        if not isinstance(v, np.ndarray)
+    }
     dict_fields = {
         "import_fulfillment": state.import_fulfillment,
-        "platform_signals": state.platform_signals,
+        "platform_signals": clean_signals,
     }
     arrays["__dict_fields__"] = np.array([json.dumps(dict_fields)], dtype=object)
 
