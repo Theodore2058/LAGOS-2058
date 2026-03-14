@@ -239,6 +239,31 @@ def clear_order_book(
     )
     total_supply = np.maximum(total_supply, 0.0)
 
+    # --- Inter-LGA trade equalization ---
+    # Pool a fraction of supply nationally and redistribute to deficit LGAs.
+    # This represents Nigeria's internal trade network (roads, markets).
+    trade_fraction = 0.25  # 25% of supply enters national trade pool
+    trade_pool = total_supply * trade_fraction  # (N, C) contributed to pool
+    local_supply = total_supply - trade_pool     # (N, C) kept locally
+
+    # National pool per commodity
+    national_pool = trade_pool.sum(axis=0)  # (C,) total available for trade
+
+    # Distribute pool proportional to unmet demand after local clearing
+    local_matched = np.minimum(buy_orders, local_supply)
+    local_unmet = np.maximum(buy_orders - local_matched, 0.0)  # (N, C)
+    unmet_total = local_unmet.sum(axis=0)  # (C,)
+    safe_unmet = np.maximum(unmet_total, 1.0)
+
+    # Each LGA gets pool share proportional to its unmet demand
+    trade_received = local_unmet * (national_pool / safe_unmet)[np.newaxis, :]
+    # Can't receive more than what's in the pool
+    trade_received = np.minimum(trade_received, local_unmet)
+
+    # Reconstructed supply: local + trade received
+    total_supply = local_supply + trade_received
+    total_supply = np.maximum(total_supply, 0.0)
+
     # Iterative clearing
     remaining_demand = buy_orders.copy()
     remaining_supply = total_supply.copy()
@@ -253,8 +278,6 @@ def clear_order_book(
 
         if round_idx < n_rounds - 1:
             # Price adjustment between rounds
-            # Unfilled buy orders push prices up
-            # Unfilled sell orders push prices down
             safe_total = np.maximum(buy_orders + sell_orders, 1.0)
             imbalance = (remaining_demand - remaining_supply) / safe_total
 
@@ -321,10 +344,9 @@ def compute_background_supply(
     and other economic activity by the ~225M population. Buildings only model
     ~2K tracked enterprises; background supply fills the gap.
 
-    Uses a blend of production_capacity (LGA industrial structure) and
-    demand-weighted production (representing subsistence and informal economy).
-    This ensures food/clothing/housing have adequate supply even though
-    production_capacity under-represents them.
+    Scale: population-based (per-capita production), stable over time.
+    Distribution: blend of capacity structure + demand-weighted allocation.
+    Zero-capacity constraint: LGAs can't produce what they lack capacity for.
 
     Returns: (N, C) units produced per tick.
     """
@@ -333,53 +355,74 @@ def compute_background_supply(
 
     cap = state.production_capacity  # (N, C)
 
-    # Population-based scale
+    # --- Scale: population-based, calibrated to ~85% of demand ---
+    # Per-capita monthly production factor (units per person per month)
+    # Calibrated: 295M people × 1.2 / 56 ticks × modifiers ≈ 85% of demand
+    # Demand ≈ 5.8M units/tick, need ~5M supply/tick → ~280M/month
+    # 295M × 1.2 = 354M × modifiers(~0.76) = ~269M → 269M/56 = ~4.8M/tick
+    PER_CAPITA_PROD = 1.2
+
     if state.population is not None:
         pop = state.population  # (N,)
-        lga_cap_total = np.maximum(cap.sum(axis=1), 0.01)
-        pop_scale = pop / lga_cap_total
-        pop_scale = np.clip(pop_scale, 100.0, 50000.0)
-        capacity_output = cap * pop_scale[:, np.newaxis]
     else:
-        capacity_output = cap * 5000.0
+        pop = np.full(N, 300000.0, dtype=np.float64)  # fallback ~300K per LGA
 
-    # Demand-weighted output: distribute production proportional to previous
-    # tick's buy orders (or uniform if unavailable). This ensures high-demand
-    # commodities like food/clothing get adequate background supply.
+    # Total production budget per LGA per tick
+    lga_budget = pop * PER_CAPITA_PROD / config.MARKET_TICKS_PER_MONTH  # (N,)
+
+    # --- Distribution: blend capacity structure + demand weights ---
+    # Capacity share: production_capacity normalized per LGA
+    cap_total = np.maximum(cap.sum(axis=1, keepdims=True), 1e-10)
+    cap_share = cap / cap_total  # (N, C) — how LGA's economy is structured
+
+    # Demand share: from previous tick's buy orders
     if state.buy_orders is not None and state.buy_orders.sum() > 0:
-        # Per-LGA demand share by commodity
         lga_demand_total = np.maximum(state.buy_orders.sum(axis=1, keepdims=True), 1.0)
         demand_share = state.buy_orders / lga_demand_total  # (N, C)
     else:
         demand_share = np.ones((N, C), dtype=np.float64) / C
 
-    # Demand-weighted output: same total per LGA as capacity_output but
-    # distributed according to what consumers actually want.
-    # Constrained: only produce commodities where LGA has nonzero capacity
-    # (if capacity is zero, LGA lacks the economic base to produce it)
-    has_capacity = (cap > 0).astype(np.float64)  # (N, C) binary mask
-    constrained_demand_share = demand_share * has_capacity
-    # Renormalize per LGA (so total output stays the same)
-    row_sum = np.maximum(constrained_demand_share.sum(axis=1, keepdims=True), 1e-10)
-    constrained_demand_share /= row_sum
+    # Constrain demand path: LGAs can only produce where they have capacity.
+    # Exception: for widely-demanded consumer goods (food, clothing, housing),
+    # allow partial production even without local capacity — this represents
+    # implicit inter-LGA trade (coastal LGAs ship fish inland, etc.)
+    has_capacity = (cap > 0).astype(np.float64)
+    # Allow 30% production of demanded goods even without local capacity
+    # (representing trade flows from producing regions)
+    if state.buy_orders is not None:
+        global_demand = state.buy_orders.sum(axis=0)
+        demand_frac = global_demand / max(global_demand.sum(), 1.0)
+        # High-demand commodities get trade allowance proportional to demand share
+        trade_allowance = np.clip(demand_frac * 5.0, 0.0, 0.3)  # up to 30%
+        effective_capacity = np.maximum(has_capacity, trade_allowance[np.newaxis, :])
+    else:
+        effective_capacity = has_capacity
+    constrained_demand = demand_share * effective_capacity
+    row_sum = np.maximum(constrained_demand.sum(axis=1, keepdims=True), 1e-10)
+    constrained_demand /= row_sum
 
-    lga_total = capacity_output.sum(axis=1, keepdims=True)  # (N, 1)
-    demand_output = lga_total * constrained_demand_share  # (N, C)
+    # Suppress capacity path for zero-demand commodities
+    has_demand = np.ones(C, dtype=np.float64)
+    if state.buy_orders is not None:
+        global_demand = state.buy_orders.sum(axis=0)
+        has_demand = np.where(global_demand > 0, 1.0, 0.1)
+    cap_share_adj = cap_share * has_demand[np.newaxis, :]
+    adj_sum = np.maximum(cap_share_adj.sum(axis=1, keepdims=True), 1e-10)
+    cap_share_adj /= adj_sum
 
-    # Blend: 30% capacity-based (industrial structure) + 70% demand-based
-    # (subsistence/informal economy produces what people need)
-    bg_output = 0.30 * capacity_output + 0.70 * demand_output
+    # Blend: 30% capacity-based + 70% demand-weighted
+    commodity_share = 0.30 * cap_share_adj + 0.70 * constrained_demand
 
-    # Per-tick
-    bg_output /= config.MARKET_TICKS_PER_MONTH
+    bg_output = lga_budget[:, np.newaxis] * commodity_share  # (N, C)
 
-    # Employment modifier (gentle — informal economy resilient)
+    # --- Modifiers ---
+    # Employment (gentle — informal economy resilient)
     if state.labor_employed is not None and state.labor_pool is not None:
         safe_pool = np.maximum(state.labor_pool.sum(axis=1), 1.0)
         emp_rate = np.clip(state.labor_employed.sum(axis=1) / safe_pool, 0.2, 1.0)
         bg_output *= np.sqrt(emp_rate[:, np.newaxis])
 
-    # Infrastructure modifier (gentle — most background production is low-tech)
+    # Infrastructure (gentle — most background production is low-tech)
     if state.infra_power_reliability is not None:
         power = np.clip(state.infra_power_reliability, 0.5, 1.0)
         power_factor = 0.7 + 0.3 * power
