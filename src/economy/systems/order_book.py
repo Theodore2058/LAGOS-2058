@@ -35,6 +35,20 @@ from src.economy.data.buildings import (
 
 logger = logging.getLogger(__name__)
 
+# Cached importable commodity mask
+_IMPORTABLE_MASK: np.ndarray | None = None
+
+
+def _get_importable_mask() -> np.ndarray:
+    """Return (C,) bool mask: True for importable commodities."""
+    global _IMPORTABLE_MASK
+    if _IMPORTABLE_MASK is None:
+        from src.economy.data.commodities import COMMODITIES
+        _IMPORTABLE_MASK = np.array(
+            [c.is_importable for c in COMMODITIES], dtype=bool,
+        )
+    return _IMPORTABLE_MASK
+
 
 # ---------------------------------------------------------------------------
 # Sell orders from buildings
@@ -364,6 +378,26 @@ def clear_order_book(
     mean_reversion = -0.05 * log_ratio
     state.prices *= np.exp(mean_reversion)
     state.prices[:] = np.maximum(state.prices, BASE_PRICES[np.newaxis, :] * 0.10)
+
+    # Exchange rate pass-through for importable goods:
+    # When the naira depreciates (parallel rate rises above baseline 1500₦/$),
+    # imported goods have a higher naira cost floor.  This creates the
+    # imported-inflation channel that is critical in Nigeria's economy where
+    # ~30% of consumer goods are imported.
+    # Importable commodity mask (precomputed):
+    _IMPORTABLE = _get_importable_mask()
+    if _IMPORTABLE.any():
+        fx_ratio = state.parallel_exchange_rate / 1500.0  # baseline rate
+        if fx_ratio > 1.01:  # only apply when depreciating > 1%
+            # Import cost floor = base price * fx_ratio (partial pass-through: 60%)
+            fx_adj = 1.0 + 0.60 * (fx_ratio - 1.0)
+            import_floor = BASE_PRICES * fx_adj
+            # Only enforce floor for importable commodities
+            for c in range(config.N_COMMODITIES):
+                if _IMPORTABLE[c]:
+                    state.prices[:, c] = np.maximum(
+                        state.prices[:, c], import_floor[c] * 0.10,
+                    )
 
     # Update inventory: add building output, subtract consumption
     state.inventories += sell_orders
