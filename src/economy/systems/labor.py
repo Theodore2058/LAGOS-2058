@@ -53,6 +53,14 @@ def tick_labor(state: EconomicState, config: SimConfig) -> LaborMutations:
         config.BASE_WAGES[0], config.WAGE_ADJUSTMENT_SPEED,
     )
 
+    # 3b. Cost-of-living wage adjustment — closes the wage-price spiral.
+    # Workers demand higher nominal wages when consumer prices rise above
+    # baseline. This creates the feedback loop:
+    #   higher prices → wage demands → higher costs → higher prices
+    # The adjustment is partial (50% pass-through) and lagged (applied each
+    # production tick, not market tick), providing realistic inertia.
+    _cola_adjust_wages(wages_new, state, config)
+
     # Mean reversion toward base wages (2% per tick) — prevents unbounded
     # wage drift when demand/supply imbalances persist
     log_ratio = np.log(np.maximum(wages_new, 1.0) / config.BASE_WAGES[np.newaxis, :])
@@ -77,6 +85,53 @@ def tick_labor(state: EconomicState, config: SimConfig) -> LaborMutations:
         strikes_active=strikes_active,
         automation_changes=automation_new,
     )
+
+
+def _cola_adjust_wages(
+    wages: np.ndarray,  # (N, S) — MUTATED
+    state: EconomicState,
+    config: SimConfig,
+) -> None:
+    """
+    Cost-of-living adjustment (COLA): push wages up when consumer prices
+    exceed baseline.
+
+    Uses per-LGA food CPI (heaviest weight for unskilled workers who spend
+    55% on food) to compute a wage floor. Partial pass-through (50%) means
+    wages lag inflation — realistic for Nigerian labor markets where formal
+    bargaining is weak and contracts are infrequent.
+
+    Each production tick contributes 1/7 of the monthly adjustment.
+    """
+    if state.prices is None:
+        return
+
+    N = config.N_LGAS
+    S = config.N_SKILL_TIERS
+
+    # Compute per-LGA food price index (weighted by Q1 consumption basket)
+    food_ids =     [6,    7,    8,     13,   18,   21]
+    food_weights = np.array([0.30, 0.20, 0.25, 0.05, 0.15, 0.05])
+    base_food_prices = BASE_PRICES[food_ids]
+
+    food_ratios = state.prices[:, food_ids] / base_food_prices[np.newaxis, :]  # (N, 6)
+    food_cpi = (food_ratios * food_weights[np.newaxis, :]).sum(axis=1)  # (N,) weighted mean ratio
+
+    # Inflation above baseline (food_cpi > 1.0 means prices above base)
+    inflation = np.maximum(food_cpi - 1.0, 0.0)  # (N,) non-negative
+
+    # Pass-through rate by skill tier: unskilled workers have less bargaining
+    # power but are more exposed to food costs; skilled workers have more
+    # bargaining power but less cost exposure. Net effect roughly equal.
+    PASS_THROUGH = np.array([0.40, 0.50, 0.55, 0.30], dtype=np.float64)
+
+    # Per-tick adjustment = inflation * pass_through / production_ticks_per_month
+    # This spreads the monthly COLA evenly across production ticks
+    for s in range(S):
+        cola_adj = inflation * PASS_THROUGH[s] / config.PRODUCTION_TICKS_PER_MONTH
+        # Cap at 2% per tick to prevent runaway spiral
+        cola_adj = np.minimum(cola_adj, 0.02)
+        wages[:, s] *= (1.0 + cola_adj)
 
 
 def _compute_v3_employment(
