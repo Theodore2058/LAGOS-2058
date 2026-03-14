@@ -321,37 +321,59 @@ def compute_background_supply(
     and other economic activity by the ~225M population. Buildings only model
     ~2K tracked enterprises; background supply fills the gap.
 
-    Calibrated from production_capacity (LGA economic structure) scaled by
-    population and employment conditions.
+    Uses a blend of production_capacity (LGA industrial structure) and
+    demand-weighted production (representing subsistence and informal economy).
+    This ensures food/clothing/housing have adequate supply even though
+    production_capacity under-represents them.
 
     Returns: (N, C) units produced per tick.
     """
     N = config.N_LGAS
     C = config.N_COMMODITIES
 
-    # Base: production_capacity encodes per-LGA commodity mix
-    # Scale by population relative to capacity to match economy size
-    # production_capacity ~12K total, pop demand ~5.8M → need ~400x scale
-    # But we want ~80% fulfillment from background, buildings provide marginal
     cap = state.production_capacity  # (N, C)
 
-    # Population-based scale: each unit of capacity represents many workers
+    # Population-based scale
     if state.population is not None:
         pop = state.population  # (N,)
-        # Normalize: how many people per unit of capacity in each LGA
-        lga_cap_total = np.maximum(cap.sum(axis=1), 0.01)  # (N,)
-        pop_scale = pop / lga_cap_total  # people per capacity unit
-        # Clamp to prevent extreme outliers
+        lga_cap_total = np.maximum(cap.sum(axis=1), 0.01)
+        pop_scale = pop / lga_cap_total
         pop_scale = np.clip(pop_scale, 100.0, 50000.0)
-        bg_output = cap * pop_scale[:, np.newaxis]
+        capacity_output = cap * pop_scale[:, np.newaxis]
     else:
-        bg_output = cap * 5000.0  # fallback
+        capacity_output = cap * 5000.0
 
-    # Per-tick: divide by market ticks per month
+    # Demand-weighted output: distribute production proportional to previous
+    # tick's buy orders (or uniform if unavailable). This ensures high-demand
+    # commodities like food/clothing get adequate background supply.
+    if state.buy_orders is not None and state.buy_orders.sum() > 0:
+        # Per-LGA demand share by commodity
+        lga_demand_total = np.maximum(state.buy_orders.sum(axis=1, keepdims=True), 1.0)
+        demand_share = state.buy_orders / lga_demand_total  # (N, C)
+    else:
+        demand_share = np.ones((N, C), dtype=np.float64) / C
+
+    # Demand-weighted output: same total per LGA as capacity_output but
+    # distributed according to what consumers actually want.
+    # Constrained: only produce commodities where LGA has nonzero capacity
+    # (if capacity is zero, LGA lacks the economic base to produce it)
+    has_capacity = (cap > 0).astype(np.float64)  # (N, C) binary mask
+    constrained_demand_share = demand_share * has_capacity
+    # Renormalize per LGA (so total output stays the same)
+    row_sum = np.maximum(constrained_demand_share.sum(axis=1, keepdims=True), 1e-10)
+    constrained_demand_share /= row_sum
+
+    lga_total = capacity_output.sum(axis=1, keepdims=True)  # (N, 1)
+    demand_output = lga_total * constrained_demand_share  # (N, C)
+
+    # Blend: 30% capacity-based (industrial structure) + 70% demand-based
+    # (subsistence/informal economy produces what people need)
+    bg_output = 0.30 * capacity_output + 0.70 * demand_output
+
+    # Per-tick
     bg_output /= config.MARKET_TICKS_PER_MONTH
 
-    # Employment modifier: use sqrt for gentler impact — even with low formal
-    # employment, informal economy still produces significantly
+    # Employment modifier (gentle — informal economy resilient)
     if state.labor_employed is not None and state.labor_pool is not None:
         safe_pool = np.maximum(state.labor_pool.sum(axis=1), 1.0)
         emp_rate = np.clip(state.labor_employed.sum(axis=1) / safe_pool, 0.2, 1.0)
@@ -360,9 +382,7 @@ def compute_background_supply(
     # Infrastructure modifier (gentle — most background production is low-tech)
     if state.infra_power_reliability is not None:
         power = np.clip(state.infra_power_reliability, 0.5, 1.0)
-        # Only manufacturing/processing commodities affected by power
-        # Food, timber, livestock less affected
-        power_factor = 0.7 + 0.3 * power  # range 0.85-1.0
+        power_factor = 0.7 + 0.3 * power
         bg_output *= power_factor[:, np.newaxis]
 
     # Al-Shahid disruption
