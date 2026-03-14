@@ -50,6 +50,8 @@ def run_election(
     ideal_point_coeff_table: Optional[list[dict]] = None,
     verbose: bool = True,
     campaign_modifiers: Optional[CampaignModifiers] = None,
+    econ_state: Optional[object] = None,
+    econ_config: Optional[object] = None,
 ) -> dict:
     """
     Run a full election simulation.
@@ -113,6 +115,16 @@ def run_election(
 
     if verbose:
         logger.info("Loaded %d LGAs", len(df))
+
+    # ---- Step 1a: Economy bridge — update LGA data from live economy ----
+    if econ_state is not None and econ_config is not None:
+        from .economy_bridge import update_lga_data_from_economy
+        update_lga_data_from_economy(
+            df, econ_state, econ_config,
+            campaign_modifiers=campaign_modifiers,
+        )
+        if verbose:
+            logger.info("Economy bridge: LGA data updated from live economy state")
 
     # ---- Step 1b: Load district data (optional) ----
     project_root = Path(data_path).resolve().parent.parent

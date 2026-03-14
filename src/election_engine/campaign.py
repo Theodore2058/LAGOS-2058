@@ -384,6 +384,8 @@ def run_campaign(
     verbose: bool = True,
     enforce_pc: bool = True,
     initial_pc: dict[str, float] | None = None,
+    econ_state: object | None = None,
+    econ_config: object | None = None,
 ) -> list[dict]:
     """
     Run a multi-turn campaign simulation.
@@ -544,6 +546,8 @@ def run_campaign(
             campaign_modifiers=modifiers,
             seed=seed,
             verbose=verbose,
+            econ_state=econ_state,
+            econ_config=econ_config,
         )
         # Attach PC state and party references to result
         result["pc_state"] = dict(state.political_capital)
