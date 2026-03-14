@@ -53,7 +53,12 @@ def tick_government(state: EconomicState, config: SimConfig) -> None:
 
     # 3. Compute total tax revenue
     revenue = compute_tax_revenue(state, config)
-    logger.info("Monthly tax revenue: %.2f naira", revenue)
+
+    # 3b. Al-Shahid tax diversion reduces effective revenue
+    diversion = getattr(state, 'alsahid_tax_diversion', 0.0)
+    revenue = max(revenue - diversion, 0.0)
+
+    logger.info("Monthly tax revenue: %.2f naira (diversion: %.2f)", revenue, diversion)
 
     # 4. Allocate budget across ministries
     _allocate_budget(state, config, revenue)
@@ -431,12 +436,14 @@ def _decay_infrastructure(state: EconomicState, config: SimConfig) -> None:
 
     if state.infra_road_quality is not None:
         state.infra_road_quality *= (1.0 - monthly_decay)
-        np.clip(state.infra_road_quality, 0.0, 1.0, out=state.infra_road_quality)
+        # Floor at 0.15: even neglected roads don't vanish entirely
+        np.clip(state.infra_road_quality, 0.15, 1.0, out=state.infra_road_quality)
 
     if state.infra_power_reliability is not None:
         state.infra_power_reliability *= (1.0 - monthly_decay)
+        # Floor at 0.10: minimal grid coverage persists
         np.clip(
-            state.infra_power_reliability, 0.0, 1.0,
+            state.infra_power_reliability, 0.10, 1.0,
             out=state.infra_power_reliability,
         )
 

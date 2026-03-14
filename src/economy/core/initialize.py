@@ -426,6 +426,9 @@ def _init_alsahid(
     # Service provision: proportional to control
     state.alsahid_service_provision = state.alsahid_control * config.ALSAHID_SERVICE_QUALITY
 
+    # Trade surcharges: zero initially (computed by tick_alsahid)
+    state.alsahid_trade_surcharges = np.zeros(config.N_LGAS, dtype=np.float64)
+
 
 def _init_factory_ownership(
     state: EconomicState, config: SimConfig, lga_data: EconomyLGAData,

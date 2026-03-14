@@ -294,7 +294,7 @@ def clear_order_book(
             price_adj = np.clip(price_adj, -0.015, 0.015)
 
             state.prices *= (1.0 + price_adj)
-            state.prices[:] = np.maximum(state.prices, 0.01)
+            state.prices[:] = np.maximum(state.prices, BASE_PRICES[np.newaxis, :] * 0.10)
 
     # Final price adjustment based on unfilled orders
     unfilled_buy = remaining_demand
@@ -320,7 +320,7 @@ def clear_order_book(
     log_ratio = np.log(np.maximum(state.prices, 1.0) / BASE_PRICES[np.newaxis, :])
     mean_reversion = -0.05 * log_ratio
     state.prices *= np.exp(mean_reversion)
-    state.prices[:] = np.maximum(state.prices, 0.01)
+    state.prices[:] = np.maximum(state.prices, BASE_PRICES[np.newaxis, :] * 0.10)
 
     # Update inventory: add building output, subtract consumption
     state.inventories += sell_orders

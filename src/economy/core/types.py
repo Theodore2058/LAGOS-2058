@@ -504,6 +504,8 @@ class EconomicState:
     # --- Al-Shahid ---
     alsahid_control: Optional[np.ndarray] = None          # (774,) float64
     alsahid_service_provision: Optional[np.ndarray] = None  # (774,) float64
+    alsahid_trade_surcharges: Optional[np.ndarray] = None   # (774,) float64
+    alsahid_tax_diversion: float = 0.0                      # naira diverted/month
 
     # --- Enhancement ---
     enhancement_adoption: Optional[np.ndarray] = None  # (774,) float64

@@ -175,3 +175,5 @@ def apply_alsahid_mutations(
     """Write al-Shahid mutations back to the economic state."""
     state.alsahid_control[:] = mutations.control_new
     state.alsahid_service_provision[:] = mutations.service_provision_new
+    state.alsahid_trade_surcharges = mutations.trade_surcharges_new
+    state.alsahid_tax_diversion = mutations.tax_diversion_amount
