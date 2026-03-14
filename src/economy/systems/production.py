@@ -420,14 +420,30 @@ def tick_capacity_investment(state: EconomicState, config: SimConfig) -> None:
     else:
         utilization = np.full((N, C), 0.7)
 
-    # Credit multiplier: available credit in the zone boosts investment capacity
+    # Credit multiplier: bank conditions in the zone affect investment capacity.
+    # Two channels:
+    #   1. Confidence: low confidence → credit rationing → less investment
+    #   2. Interest rate: high rates → higher cost of capital → less investment
+    # Standard monetary policy transmission: rate hikes dampen investment.
     credit_mult = np.ones(N, dtype=np.float64)
     if state.bank_confidence is not None and state.admin_zone is not None:
         Z = config.N_ADMIN_ZONES
         zone_ids = state.admin_zone.astype(np.intp)
-        # Bank confidence (0.05-1.0) → credit multiplier (0.5-1.5)
+        # Confidence channel: (0.05-1.0) → (0.5-1.5)
         zone_confidence = np.clip(state.bank_confidence, 0.05, 1.0)
-        credit_mult = 0.5 + zone_confidence[zone_ids]
+        conf_mult = 0.5 + zone_confidence[zone_ids]
+        # Interest rate channel: base rate (8%) is neutral; higher rates suppress.
+        # At 25% (crisis ceiling), investment drops to ~60% of neutral.
+        # At 4% (floor), investment gets a ~15% boost.
+        if state.lending_rate is not None:
+            zone_rates = state.lending_rate[zone_ids]
+            rate_mult = np.clip(
+                1.0 - 2.0 * (zone_rates - config.BASE_INTEREST_RATE),
+                0.6, 1.15,
+            )
+        else:
+            rate_mult = np.ones(N, dtype=np.float64)
+        credit_mult = conf_mult * rate_mult
 
     # Investment signal: high prices AND high utilization → expand
     # Low prices OR low utilization → contract
