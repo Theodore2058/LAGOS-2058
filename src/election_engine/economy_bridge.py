@@ -195,7 +195,30 @@ def update_lga_data_from_economy(
                 lga_data["Gini Proxy"] = gini_proxy
 
     # ------------------------------------------------------------------
-    # 8. Salience shift injection (if campaign modifiers provided)
+    # 8. Informality rate per LGA
+    # ------------------------------------------------------------------
+    if econ_state.labor_informal is not None and econ_state.labor_employed is not None:
+        total_working = (
+            econ_state.labor_employed.sum(axis=1)
+            + econ_state.labor_informal.sum(axis=1)
+        )
+        safe_working = np.maximum(total_working, 1.0)
+        informality = econ_state.labor_informal.sum(axis=1) / safe_working * 100.0
+        lga_data["Informality Rate Pct"] = informality
+
+    # ------------------------------------------------------------------
+    # 9. Banking stress per LGA's zone
+    # ------------------------------------------------------------------
+    if econ_state.bank_confidence is not None and econ_state.admin_zone is not None:
+        zone_conf = econ_state.bank_confidence
+        # Map zone-level confidence to LGA level
+        lga_zone = econ_state.admin_zone.astype(np.intp)
+        lga_zone = np.clip(lga_zone, 0, len(zone_conf) - 1)
+        lga_bank_stress = (1.0 - zone_conf[lga_zone]) * 100.0
+        lga_data["Banking Stress Pct"] = lga_bank_stress
+
+    # ------------------------------------------------------------------
+    # 10. Salience shift injection (if campaign modifiers provided)
     # ------------------------------------------------------------------
     if campaign_modifiers is not None:
         _inject_economic_salience(econ_state, econ_config, campaign_modifiers)

@@ -894,6 +894,7 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Pct Livelihood Manufacturing": 1.5 / 100.0,
             "Pct Livelihood Informal": 1.0 / 100.0,
             "Unemployment Rate Pct": 0.8 / 100.0,
+            "Informality Rate Pct": 0.5 / 100.0,  # High informality → labor formalization demands
             "youth_unemployment_ratio": 0.4,      # Youth-specific job crisis
             "Chinese Economic Presence": 0.3 / 10.0,  # Chinese automation presence
             "Median Age Estimate": -0.015,         # Younger workforce → more automation anxiety
@@ -1036,8 +1037,10 @@ DEFAULT_SALIENCE_RULES: list[SalienceRule] = [
             "Poverty Rate Pct": 0.5 / 100.0,
             "GDP Per Capita Est": 0.3 / 10000.0,
             "CPI Pct": 1.0 / 100.0,               # Inflation makes tax policy salient
+            "Banking Stress Pct": 0.8 / 100.0,    # Credit crunch → fiscal policy debates
             "Urban Pct": 0.2 / 100.0,             # Urban areas more tax-aware
             "Pct Livelihood Informal": 0.3 / 100.0,  # Informal economy = tax evasion debates
+            "Informality Rate Pct": 0.3 / 100.0,  # High informality → narrow tax base debates
             "Extraction Intensity": 0.2 / 5.0,    # Extraction → "where do our taxes go?"
             "border_proximity": 0.15,              # Border areas: customs/tariff debates
         },
