@@ -381,6 +381,194 @@ def compute_crisis_indicators(state: EconomicState, config: SimConfig) -> dict:
 # 9. Price history series
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# 10. Banking sector health
+# ---------------------------------------------------------------------------
+
+def compute_banking_health(state: EconomicState, config: SimConfig) -> dict:
+    """Banking sector health indicators.
+
+    Returns
+    -------
+    dict with keys:
+        npl_ratio: non-performing loan ratio (bad_loans / total_loans)
+        loan_to_deposit: aggregate loan-to-deposit ratio
+        credit_to_gdp: total loans / GDP proxy (annualized)
+        mean_confidence: mean bank confidence across zones
+        mean_lending_rate: mean lending rate
+        reserve_adequacy: deposits * reserve_ratio / loans (>1 = adequate)
+    """
+    total_loans = float(np.sum(state.bank_loans))
+    total_bad = float(np.sum(state.bank_bad_loans))
+    total_deposits = float(np.sum(state.bank_deposits))
+
+    npl_ratio = total_bad / max(total_loans + total_bad, 1.0)
+    loan_to_deposit = total_loans / max(total_deposits, 1.0)
+
+    gdp = compute_gdp_proxy(state, config)
+    annualized_gdp = gdp * 12.0  # monthly → annual
+    credit_to_gdp = total_loans / max(annualized_gdp, 1.0)
+
+    reserve_adequacy = (
+        total_deposits * config.RESERVE_RATIO / max(total_loans, 1.0)
+    )
+
+    return {
+        "npl_ratio": npl_ratio,
+        "loan_to_deposit": loan_to_deposit,
+        "credit_to_gdp": credit_to_gdp,
+        "mean_confidence": float(np.mean(state.bank_confidence)),
+        "mean_lending_rate": float(np.mean(state.lending_rate)),
+        "reserve_adequacy": reserve_adequacy,
+    }
+
+
+# ---------------------------------------------------------------------------
+# 11. Poverty and welfare
+# ---------------------------------------------------------------------------
+
+def compute_poverty_metrics(state: EconomicState, config: SimConfig) -> dict:
+    """Poverty headcount and welfare distribution.
+
+    Uses standard-of-living score (1-10 scale) with poverty line at 3.0
+    (consistent with pop desperation spending threshold).
+
+    Returns
+    -------
+    dict with keys:
+        poverty_headcount: fraction of population below SoL 3.0
+        extreme_poverty: fraction below SoL 2.0
+        mean_sol: mean standard of living
+        median_sol: median standard of living
+        consumption_fulfillment: mean fraction of desired consumption met
+    """
+    result: dict = {}
+
+    if state.pop_standard_of_living is not None and state.pop_count is not None:
+        sol = state.pop_standard_of_living
+        pop = state.pop_count
+        total_pop = float(np.sum(pop))
+        safe_pop = max(total_pop, 1.0)
+
+        poor = float(np.sum(pop[sol < 3.0]))
+        extreme = float(np.sum(pop[sol < 2.0]))
+        result["poverty_headcount"] = poor / safe_pop
+        result["extreme_poverty"] = extreme / safe_pop
+        result["mean_sol"] = float(np.average(sol, weights=np.maximum(pop, 1.0)))
+        # Weighted median approximation: use sorted cumulative weights
+        order = np.argsort(sol)
+        cumw = np.cumsum(pop[order])
+        median_idx = np.searchsorted(cumw, total_pop / 2.0)
+        median_idx = min(median_idx, len(sol) - 1)
+        result["median_sol"] = float(sol[order[median_idx]])
+    else:
+        result["poverty_headcount"] = 0.0
+        result["extreme_poverty"] = 0.0
+        result["mean_sol"] = 5.0
+        result["median_sol"] = 5.0
+
+    if state.pop_consumption_fulfilled is not None:
+        result["consumption_fulfillment"] = float(
+            np.mean(state.pop_consumption_fulfilled)
+        )
+    else:
+        result["consumption_fulfillment"] = 1.0
+
+    return result
+
+
+# ---------------------------------------------------------------------------
+# 12. Infrastructure index
+# ---------------------------------------------------------------------------
+
+def compute_infrastructure_index(state: EconomicState, config: SimConfig) -> dict:
+    """Aggregate infrastructure quality indicators.
+
+    Returns
+    -------
+    dict with keys:
+        road_quality_mean, road_quality_min, road_quality_max,
+        power_reliability_mean, power_reliability_min, power_reliability_max,
+        telecom_quality_mean (if available),
+        composite_index (weighted average: 40% roads, 40% power, 20% telecom)
+    """
+    result: dict = {}
+
+    road_mean = 0.5
+    power_mean = 0.5
+    telecom_mean = 0.5
+
+    if state.infra_road_quality is not None:
+        rq = state.infra_road_quality
+        road_mean = float(np.mean(rq))
+        result["road_quality_mean"] = road_mean
+        result["road_quality_min"] = float(np.min(rq))
+        result["road_quality_max"] = float(np.max(rq))
+    else:
+        result["road_quality_mean"] = road_mean
+        result["road_quality_min"] = road_mean
+        result["road_quality_max"] = road_mean
+
+    if state.infra_power_reliability is not None:
+        pr = state.infra_power_reliability
+        power_mean = float(np.mean(pr))
+        result["power_reliability_mean"] = power_mean
+        result["power_reliability_min"] = float(np.min(pr))
+        result["power_reliability_max"] = float(np.max(pr))
+    else:
+        result["power_reliability_mean"] = power_mean
+        result["power_reliability_min"] = power_mean
+        result["power_reliability_max"] = power_mean
+
+    if state.infra_telecom_quality is not None:
+        tq = state.infra_telecom_quality
+        telecom_mean = float(np.mean(tq))
+        result["telecom_quality_mean"] = telecom_mean
+    else:
+        result["telecom_quality_mean"] = telecom_mean
+
+    # Composite: 40% roads + 40% power + 20% telecom
+    result["composite_index"] = 0.40 * road_mean + 0.40 * power_mean + 0.20 * telecom_mean
+
+    return result
+
+
+# ---------------------------------------------------------------------------
+# 13. Government fiscal health
+# ---------------------------------------------------------------------------
+
+def compute_fiscal_health(state: EconomicState, config: SimConfig) -> dict:
+    """Government fiscal indicators.
+
+    Returns
+    -------
+    dict with keys:
+        total_budget: total budget allocation
+        budget_execution_rate: fraction of budget actually released
+        corruption_leakage: naira lost to corruption
+        corruption_rate: fraction of budget leaked
+        alsahid_tax_diversion: naira diverted by insurgents
+    """
+    total_alloc = float(np.sum(state.budget_allocation)) if state.budget_allocation is not None else 0.0
+    total_released = float(np.sum(state.budget_released)) if state.budget_released is not None else 0.0
+
+    execution_rate = total_released / max(total_alloc, 1.0)
+    corruption = float(state.corruption_leakage) if hasattr(state, 'corruption_leakage') else 0.0
+    corruption_rate = corruption / max(total_alloc, 1.0)
+
+    return {
+        "total_budget": total_alloc,
+        "budget_execution_rate": min(execution_rate, 1.0),
+        "corruption_leakage": corruption,
+        "corruption_rate": corruption_rate,
+        "alsahid_tax_diversion": float(getattr(state, 'alsahid_tax_diversion', 0.0)),
+    }
+
+
+# ---------------------------------------------------------------------------
+# 14. Price history series
+# ---------------------------------------------------------------------------
+
 def compute_price_history_series(state: EconomicState, commodity_id: int) -> dict:
     """Mean price across LGAs for each of the 56 history slots (chronological).
 
