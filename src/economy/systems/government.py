@@ -447,17 +447,35 @@ def _update_corruption_leakage(
 # ---------------------------------------------------------------------------
 
 def _decay_infrastructure(state: EconomicState, config: SimConfig) -> None:
-    """Apply monthly infrastructure quality decay."""
+    """Apply monthly infrastructure quality decay.
+
+    Includes accelerated degradation in al-Shahid controlled areas:
+    insurgents sabotage power lines, destroy bridges, mine roads.
+    Historical precedent: Boko Haram's systematic destruction of
+    infrastructure in northeast Nigeria (2014-2025).
+    """
 
     monthly_decay = config.INFRASTRUCTURE_DECAY_RATE / 12.0
 
+    # Al-Shahid sabotage: extra decay proportional to control level.
+    # At full control (1.0): 5× normal decay for roads, 8× for power
+    # (power grids are easier to destroy than roads).
+    alsahid_road_mult = np.ones(config.N_LGAS, dtype=np.float64)
+    alsahid_power_mult = np.ones(config.N_LGAS, dtype=np.float64)
+    if state.alsahid_control is not None:
+        control = state.alsahid_control
+        alsahid_road_mult = 1.0 + control * 4.0   # 1× to 5×
+        alsahid_power_mult = 1.0 + control * 7.0  # 1× to 8×
+
     if state.infra_road_quality is not None:
-        state.infra_road_quality *= (1.0 - monthly_decay)
+        road_decay = monthly_decay * alsahid_road_mult
+        state.infra_road_quality *= (1.0 - road_decay)
         # Floor at 0.15: even neglected roads don't vanish entirely
         np.clip(state.infra_road_quality, 0.15, 1.0, out=state.infra_road_quality)
 
     if state.infra_power_reliability is not None:
-        state.infra_power_reliability *= (1.0 - monthly_decay)
+        power_decay = monthly_decay * alsahid_power_mult
+        state.infra_power_reliability *= (1.0 - power_decay)
         # Floor at 0.10: minimal grid coverage persists
         np.clip(
             state.infra_power_reliability, 0.10, 1.0,

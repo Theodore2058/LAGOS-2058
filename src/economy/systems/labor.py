@@ -157,7 +157,9 @@ def _compute_v3_employment(
         lga_ids = state.building_lga_ids.astype(np.intp)
         labor_needed = BT_LABOR_MATRIX[bt_ids]  # (B, 4)
         for s in range(min(S, labor_needed.shape[1])):
-            np.add.at(building_demand[:, s], lga_ids, labor_needed[:, s])
+            building_demand[:, s] = np.bincount(
+                lga_ids, weights=labor_needed[:, s], minlength=N,
+            )
 
     # --- Macro labor demand based on economic conditions ---
     # Target employment rate adjusts based on:
